@@ -47,7 +47,6 @@ interface FavoriteStatus {
 export default function DashboardPanel() {
   const { currentSite, currentSettings } = useSite();
   const [loading, setLoading] = useState(true);
-  const [refreshInterval, setRefreshInterval] = useState<number | null>(30);
   const [stats, setStats] = useState({ insideNow: 0, entriesToday: 0, exitsToday: 0, warnCount: 0, critCount: 0 });
   const [insideList, setInsideList] = useState<InsideLog[]>([]);
   const [contractors, setContractors] = useState<ContractorStat[]>([]);
@@ -188,11 +187,31 @@ export default function DashboardPanel() {
 
   useEffect(() => { fetchData(); }, [currentSite, currentSettings]);
 
+  // Realtime subscription for access_logs changes
   useEffect(() => {
-    if (!refreshInterval) return;
-    const interval = setInterval(fetchData, refreshInterval * 1000);
-    return () => clearInterval(interval);
-  }, [refreshInterval, currentSite, currentSettings]);
+    if (!currentSite) return;
+
+    const channel = supabase
+      .channel('dashboard-realtime')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'access_logs',
+          filter: `site_id=eq.${currentSite.id}`
+        },
+        () => {
+          // Refetch data when any change happens
+          fetchData();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [currentSite, currentSettings]);
 
   const formatTime = (isoString: string) => {
     return new Date(isoString).toLocaleTimeString('es-BO', { hour: '2-digit', minute: '2-digit' });
@@ -207,18 +226,9 @@ export default function DashboardPanel() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <h2 className="text-xl font-semibold text-white">Dashboard</h2>
-        <div className="flex items-center gap-3">
-          <Select value={refreshInterval?.toString() || 'off'} onValueChange={(v) => setRefreshInterval(v === 'off' ? null : parseInt(v))}>
-            <SelectTrigger className="w-32 bg-white/10 border-white/20 text-white/80"><SelectValue /></SelectTrigger>
-            <SelectContent className="bg-slate-800/95 backdrop-blur-xl border-white/10">
-              <SelectItem value="10" className="text-white/80 focus:bg-white/10">10 seg</SelectItem>
-              <SelectItem value="30" className="text-white/80 focus:bg-white/10">30 seg</SelectItem>
-              <SelectItem value="60" className="text-white/80 focus:bg-white/10">1 min</SelectItem>
-              <SelectItem value="120" className="text-white/80 focus:bg-white/10">2 min</SelectItem>
-              <SelectItem value="off" className="text-white/80 focus:bg-white/10">Off</SelectItem>
-            </SelectContent>
-          </Select>
-          <Button variant="outline" size="icon" onClick={fetchData} className="bg-white/10 border-white/20 text-white/80 hover:bg-white/20 hover:text-white"><RefreshCw className="w-4 h-4" /></Button>
+        <div className="flex items-center gap-2">
+          <span className="text-xs text-white/40">Actualización automática</span>
+          <div className="w-2 h-2 rounded-full bg-green-400 animate-pulse" />
         </div>
       </div>
 
