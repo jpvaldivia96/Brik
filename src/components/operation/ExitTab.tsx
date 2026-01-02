@@ -223,10 +223,10 @@ export default function ExitTab() {
   };
 
   return (
-    <div className="operation-panel space-y-6 pb-20">
+    <div className="space-y-6 pb-20">
       <div className="flex items-center gap-3 mb-4">
-        <LogOut className="w-6 h-6 text-primary" />
-        <h2 className="text-lg font-medium">Registrar Salida</h2>
+        <LogOut className="w-6 h-6 text-purple-400" />
+        <h2 className="text-lg font-medium text-white">Registrar Salida</h2>
       </div>
 
       {/* Search */}
@@ -237,13 +237,18 @@ export default function ExitTab() {
           onChange={(e) => setQuery(e.target.value)}
           onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
           containerClassName="flex-1"
+          className="bg-white/10 border-white/20 text-white placeholder:text-white/40"
         />
-        <Button onClick={handleSearch} disabled={searching} className="btn-touch px-4">
+        <Button
+          onClick={handleSearch}
+          disabled={searching}
+          className="px-6 bg-gradient-to-r from-purple-500 to-blue-500 hover:from-purple-600 hover:to-blue-600 text-white"
+        >
           {searching ? <Spinner size="sm" /> : 'Buscar'}
         </Button>
         <Button
           variant="outline"
-          className="btn-touch px-4 border-2 border-primary/20 text-primary hover:bg-primary/5"
+          className="px-4 bg-white/10 border-white/20 text-white/80 hover:bg-white/20 hover:text-white"
           onClick={() => setScanning(true)}
         >
           <Camera className="w-5 h-5" />
@@ -252,20 +257,28 @@ export default function ExitTab() {
 
       {/* Camera Modal/Sheet for Scanning */}
       {scanning && (
-        <div className="fixed inset-0 z-50 bg-background/80 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-card border border-border rounded-xl shadow-2xl max-w-sm w-full p-4 space-y-4">
-            <h3 className="text-lg font-medium text-center">Escanear Salida</h3>
+        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-gradient-to-br from-slate-900 via-purple-900/95 to-slate-900 border border-white/10 rounded-2xl shadow-2xl max-w-sm w-full p-6 space-y-4">
+            <h3 className="text-lg font-medium text-center text-white">Escanear Salida</h3>
 
             <div className="relative rounded-xl overflow-hidden bg-black aspect-[4/3]">
               <video ref={videoRef} autoPlay playsInline muted className="w-full h-full object-cover" />
-              <div className="absolute inset-0 border-4 border-primary/30 rounded-xl" />
+              <div className="absolute inset-0 border-4 border-purple-500/30 rounded-xl" />
             </div>
 
             <div className="grid grid-cols-2 gap-3">
-              <Button variant="outline" onClick={stopScanning}>
+              <Button
+                variant="outline"
+                onClick={stopScanning}
+                className="bg-white/10 border-white/20 text-white/80 hover:bg-white/20"
+              >
                 Cancelar
               </Button>
-              <Button onClick={handleScanCapture} disabled={processingScan}>
+              <Button
+                onClick={handleScanCapture}
+                disabled={processingScan}
+                className="bg-gradient-to-r from-purple-500 to-blue-500 hover:from-purple-600 hover:to-blue-600"
+              >
                 {processingScan ? <Spinner size="sm" /> : 'Escanear'}
               </Button>
             </div>
@@ -278,9 +291,13 @@ export default function ExitTab() {
       {/* Results */}
       {results.length > 1 && !selected && (
         <div className="space-y-2">
-          <p className="text-sm text-muted-foreground">Selecciona una persona:</p>
+          <p className="text-sm text-white/60">Selecciona una persona:</p>
           {results.map((p) => (
-            <button key={p.id} onClick={() => setSelected(p)} className="w-full text-left">
+            <button
+              key={p.id}
+              onClick={() => setSelected(p)}
+              className="w-full text-left transition-transform hover:scale-[1.02]"
+            >
               <PersonCard
                 name={p.full_name}
                 ci={p.ci}
@@ -309,7 +326,7 @@ export default function ExitTab() {
           <Button
             onClick={handleExit}
             disabled={submitting}
-            className="w-full btn-touch bg-primary hover:bg-primary/90"
+            className="w-full h-14 text-base font-medium bg-gradient-to-r from-purple-500 to-blue-500 hover:from-purple-600 hover:to-blue-600 text-white rounded-xl"
           >
             {submitting ? <Spinner size="sm" className="mr-2" /> : <LogOut className="w-5 h-5 mr-2" />}
             Registrar Salida

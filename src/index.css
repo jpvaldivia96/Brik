@@ -43,11 +43,11 @@
     --status-ok: 142 76% 36%;
     --status-ok-bg: 142 76% 95%;
     --status-ok-border: 142 76% 85%;
-    
+
     --status-warn: 38 92% 50%;
     --status-warn-bg: 38 92% 95%;
     --status-warn-border: 38 92% 80%;
-    
+
     --status-crit: 0 84% 60%;
     --status-crit-bg: 0 84% 95%;
     --status-crit-border: 0 84% 85%;
@@ -109,11 +109,11 @@
     --status-ok: 142 76% 46%;
     --status-ok-bg: 142 40% 15%;
     --status-ok-border: 142 50% 25%;
-    
+
     --status-warn: 38 92% 50%;
     --status-warn-bg: 38 40% 15%;
     --status-warn-border: 38 50% 25%;
-    
+
     --status-crit: 0 84% 60%;
     --status-crit-bg: 0 40% 15%;
     --status-crit-border: 0 50% 25%;
@@ -172,37 +172,42 @@
     @apply text-muted-foreground text-sm;
   }
 
-  /* Table styles - Clean and minimal */
+  /* Table styles - Dark theme */
   .table-cosmos {
-    @apply w-full text-sm;
+    @apply w-full text-sm text-white/80;
   }
 
   .table-cosmos th {
-    @apply text-left text-xs font-medium text-muted-foreground uppercase tracking-wider py-3 px-4 border-b;
+    @apply text-left text-xs font-medium text-white/50 uppercase tracking-wider py-3 px-4 border-b border-white/10;
   }
 
   .table-cosmos td {
-    @apply py-3 px-4 border-b border-border/50;
+    @apply py-3 px-4 border-b border-white/5;
   }
 
   .table-cosmos tbody tr:hover {
-    @apply bg-muted/30;
+    @apply bg-white/5;
   }
 
   /* Zebra striping (optional, very subtle) */
   .table-cosmos.zebra tbody tr:nth-child(even) {
-    @apply bg-muted/20;
+    @apply bg-white/5;
   }
 }
 
 @layer components {
-  /* Card variants */
+
+  /* Card variants - Glassmorphism style */
   .card-cosmos {
-    @apply bg-card rounded-xl border border-border shadow-sm;
+    @apply backdrop-blur-xl bg-white/5 rounded-2xl border border-white/10 shadow-xl;
   }
 
   .card-cosmos-header {
-    @apply px-6 py-4 border-b border-border;
+    @apply px-6 py-4 border-b border-white/10;
+  }
+
+  .card-cosmos-header h3 {
+    @apply text-white/90;
   }
 
   .card-cosmos-body {
@@ -215,32 +220,32 @@
   }
 
   .badge-ok {
-    @apply bg-[hsl(var(--status-ok-bg))] text-[hsl(var(--status-ok))] border-[hsl(var(--status-ok-border))];
+    @apply bg-emerald-500/20 text-emerald-400 border-emerald-500/30;
   }
 
   .badge-warn {
-    @apply bg-[hsl(var(--status-warn-bg))] text-[hsl(var(--status-warn))] border-[hsl(var(--status-warn-border))];
+    @apply bg-amber-500/20 text-amber-400 border-amber-500/30;
   }
 
   .badge-crit {
-    @apply bg-[hsl(var(--status-crit-bg))] text-[hsl(var(--status-crit))] border-[hsl(var(--status-crit-border))];
+    @apply bg-red-500/20 text-red-400 border-red-500/30;
   }
 
   .badge-neutral {
-    @apply bg-muted text-muted-foreground border-border;
+    @apply bg-white/10 text-white/60 border-white/20;
   }
 
-  /* KPI Card */
+  /* KPI Card - Glassmorphism */
   .kpi-card {
-    @apply bg-card rounded-xl border border-border p-5;
+    @apply backdrop-blur-xl bg-white/5 rounded-2xl border border-white/10 p-5 shadow-lg;
   }
 
   .kpi-value {
-    @apply text-3xl font-semibold tracking-tight;
+    @apply text-3xl font-semibold tracking-tight text-white;
   }
 
   .kpi-label {
-    @apply text-sm text-muted-foreground mt-1;
+    @apply text-sm text-white/60 mt-1;
   }
 
   /* Touch-friendly buttons for operation mode */
@@ -313,6 +318,7 @@
     opacity: 0;
     transform: translateY(4px);
   }
+
   to {
     opacity: 1;
     transform: translateY(0);
@@ -324,6 +330,7 @@
     opacity: 0;
     transform: translateY(10px);
   }
+
   to {
     opacity: 1;
     transform: translateY(0);

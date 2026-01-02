@@ -82,47 +82,38 @@ export default function MainLayout() {
   };
 
   return (
-    <div className="min-h-screen bg-background pb-24">
+    <div className="min-h-screen pb-24 relative">
+      {/* Gradient background */}
+      <div className="fixed inset-0 bg-gradient-to-br from-slate-900 via-purple-900/90 to-slate-900 -z-10" />
+
+      {/* Subtle pattern overlay */}
+      <div
+        className="fixed inset-0 opacity-10 -z-10"
+        style={{
+          backgroundImage: 'radial-gradient(circle at 20% 30%, rgba(139, 92, 246, 0.4) 0%, transparent 40%), radial-gradient(circle at 80% 70%, rgba(59, 130, 246, 0.3) 0%, transparent 40%)',
+        }}
+      />
+
       {/* Header */}
-      <header className="bg-card border-b border-border sticky top-0 z-40">
+      <header className="backdrop-blur-xl bg-white/5 border-b border-white/10 sticky top-0 z-40">
         <div className="max-w-2xl mx-auto px-4 h-24 flex items-center justify-between">
-          <div className="flex items-center gap-2">
+          <div className="flex items-center">
             {/* BRIK Brand - Home Button */}
             <Button variant="ghost" className="gap-2 px-0 hover:bg-transparent" onClick={goHome}>
-              <img src="/brik-logo.png" alt="BRIK" className="h-20 w-auto object-contain rounded-lg" />
+              <img src="/brik-logo-white.png" alt="BRIK" className="h-20 w-auto object-contain" />
             </Button>
-
-            <div className="h-6 w-px bg-border/50" />
-
-            {/* Site Selector */}
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="ghost" className="gap-2 px-2 text-muted-foreground hover:text-foreground">
-                  <span className="text-sm font-medium loading-none max-w-[150px] truncate">
-                    {currentSite?.name}
-                  </span>
-                  <ChevronDown className="w-4 h-4 ml-1 opacity-50" />
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="start" className="w-56">
-                <DropdownMenuItem onClick={handleChangeSite}>
-                  <Building2 className="w-4 h-4 mr-2" />
-                  Cambiar obra
-                </DropdownMenuItem>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem onClick={signOut} className="text-destructive">
-                  <LogOut className="w-4 h-4 mr-2" />
-                  Cerrar sesión
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
           </div>
 
-          <div className="flex items-center gap-2">
-            <h1 className="text-sm font-medium text-muted-foreground hidden sm:block">{getTitle()}</h1>
+          <div className="flex items-center gap-3">
+            <span className="text-sm font-medium text-white/60">{currentSite?.name}</span>
             {isSupervisor && (
-              <Button variant="ghost" size="icon" onClick={() => setAdminDrawerOpen(true)}>
-                <Settings className="w-5 h-5 text-muted-foreground" />
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => setAdminDrawerOpen(true)}
+                className="hover:bg-white/10"
+              >
+                <Settings className="w-5 h-5 text-white/70" />
               </Button>
             )}
           </div>
@@ -156,3 +147,4 @@ export default function MainLayout() {
     </div>
   );
 }
+

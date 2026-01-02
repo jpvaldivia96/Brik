@@ -206,19 +206,19 @@ export default function DashboardPanel() {
     <div className="space-y-6 animate-fade-in">
       {/* Header */}
       <div className="flex items-center justify-between">
-        <h2 className="text-xl font-semibold">Dashboard</h2>
+        <h2 className="text-xl font-semibold text-white">Dashboard</h2>
         <div className="flex items-center gap-3">
           <Select value={refreshInterval?.toString() || 'off'} onValueChange={(v) => setRefreshInterval(v === 'off' ? null : parseInt(v))}>
-            <SelectTrigger className="w-32"><SelectValue /></SelectTrigger>
-            <SelectContent>
-              <SelectItem value="10">10 seg</SelectItem>
-              <SelectItem value="30">30 seg</SelectItem>
-              <SelectItem value="60">1 min</SelectItem>
-              <SelectItem value="120">2 min</SelectItem>
-              <SelectItem value="off">Off</SelectItem>
+            <SelectTrigger className="w-32 bg-white/10 border-white/20 text-white/80"><SelectValue /></SelectTrigger>
+            <SelectContent className="bg-slate-800/95 backdrop-blur-xl border-white/10">
+              <SelectItem value="10" className="text-white/80 focus:bg-white/10">10 seg</SelectItem>
+              <SelectItem value="30" className="text-white/80 focus:bg-white/10">30 seg</SelectItem>
+              <SelectItem value="60" className="text-white/80 focus:bg-white/10">1 min</SelectItem>
+              <SelectItem value="120" className="text-white/80 focus:bg-white/10">2 min</SelectItem>
+              <SelectItem value="off" className="text-white/80 focus:bg-white/10">Off</SelectItem>
             </SelectContent>
           </Select>
-          <Button variant="outline" size="icon" onClick={fetchData}><RefreshCw className="w-4 h-4" /></Button>
+          <Button variant="outline" size="icon" onClick={fetchData} className="bg-white/10 border-white/20 text-white/80 hover:bg-white/20 hover:text-white"><RefreshCw className="w-4 h-4" /></Button>
         </div>
       </div>
 
