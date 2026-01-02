@@ -291,12 +291,12 @@ export default function NewWorkerTab() {
           </div>
         </div>
 
-        <div className="flex flex-col sm:flex-row gap-3">
+        <div className="grid grid-cols-1 gap-3 mt-6">
           <Button
             type="submit"
             disabled={submitting || (!!capturedImage && !faceDescriptor)}
             variant="outline"
-            className="flex-1 btn-touch"
+            className="w-full h-12"
           >
             {submitting ? <Spinner size="sm" className="mr-2" /> : <UserPlus className="w-5 h-5 mr-2" />}
             Solo Registrar
@@ -373,7 +373,7 @@ export default function NewWorkerTab() {
               }
             }}
             disabled={submitting || (!!capturedImage && !faceDescriptor) || !form.ci || !form.fullName}
-            className="flex-1 btn-touch bg-gradient-to-r from-emerald-500 to-green-500 hover:from-emerald-600 hover:to-green-600"
+            className="w-full h-12 bg-gradient-to-r from-emerald-500 to-green-500 hover:from-emerald-600 hover:to-green-600"
           >
             {submitting ? <Spinner size="sm" className="mr-2" /> : <LogIn className="w-5 h-5 mr-2" />}
             Registrar e Ingresar

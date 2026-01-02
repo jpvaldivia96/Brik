@@ -82,8 +82,8 @@ export default function NewVisitorTab() {
           </div>
         </div>
 
-        <div className="flex flex-col sm:flex-row gap-3">
-          <Button type="submit" disabled={submitting} variant="outline" className="flex-1 btn-touch">
+        <div className="grid grid-cols-1 gap-3 mt-6">
+          <Button type="submit" disabled={submitting} variant="outline" className="w-full h-12">
             {submitting ? <Spinner size="sm" className="mr-2" /> : <Users className="w-5 h-5 mr-2" />}
             Solo Registrar
           </Button>
@@ -146,7 +146,7 @@ export default function NewVisitorTab() {
               }
             }}
             disabled={submitting || !form.ci || !form.fullName}
-            className="flex-1 btn-touch bg-gradient-to-r from-emerald-500 to-green-500 hover:from-emerald-600 hover:to-green-600"
+            className="w-full h-12 bg-gradient-to-r from-emerald-500 to-green-500 hover:from-emerald-600 hover:to-green-600"
           >
             {submitting ? <Spinner size="sm" className="mr-2" /> : <LogIn className="w-5 h-5 mr-2" />}
             Registrar e Ingresar
