@@ -1,11 +1,12 @@
-import { useState } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useSite } from '@/contexts/SiteContext';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
-import { SearchInput } from '@/components/ui/search-input';
+import { Input } from '@/components/ui/input';
 import { AlertCosmos } from '@/components/ui/alert-cosmos';
 import { Spinner } from '@/components/ui/spinner';
 import { StatusBadge } from '@/components/ui/status-badge';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import {
     Dialog,
     DialogContent,
@@ -14,7 +15,7 @@ import {
     DialogFooter,
     DialogDescription
 } from '@/components/ui/dialog';
-import { Users, Trash2, Search, UserX } from 'lucide-react';
+import { Users, Trash2, Search, UserX, RefreshCw } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 
 interface PersonResult {
@@ -30,42 +31,118 @@ export default function PeopleTab() {
     const { currentSite } = useSite();
     const { toast } = useToast();
     const [query, setQuery] = useState('');
-    const [searching, setSearching] = useState(false);
-    const [results, setResults] = useState<PersonResult[]>([]);
+    const [loading, setLoading] = useState(true);
+    const [allPeople, setAllPeople] = useState<PersonResult[]>([]);
+    const [selectedContractor, setSelectedContractor] = useState<string>('all');
     const [selectedPerson, setSelectedPerson] = useState<PersonResult | null>(null);
 
     // Delete Dialog
     const [deleteOpen, setDeleteOpen] = useState(false);
     const [submitting, setSubmitting] = useState(false);
 
-    const handleSearch = async () => {
-        if (!query.trim() || !currentSite) return;
-        setSearching(true);
+    // Load all people on mount
+    const loadPeople = async () => {
+        if (!currentSite) return;
+        setLoading(true);
 
         try {
             const { data, error } = await supabase
                 .from('people')
-                .select('*')
+                .select('id, full_name, ci, type, contractor, created_at')
                 .eq('site_id', currentSite.id)
-                .or(`ci.eq.${query.trim()},full_name.ilike.%${query.trim()}%`)
-                .limit(20);
+                .order('contractor', { ascending: true, nullsFirst: false })
+                .order('full_name', { ascending: true });
 
             if (error) throw error;
-            setResults(data || []);
+            setAllPeople(data || []);
         } catch (err: any) {
             toast({ title: 'Error', description: err.message, variant: 'destructive' });
         } finally {
-            setSearching(false);
+            setLoading(false);
         }
     };
 
+    useEffect(() => {
+        loadPeople();
+    }, [currentSite]);
+
+    // Get unique contractors for filter
+    const contractors = useMemo(() => {
+        const set = new Set<string>();
+        allPeople.forEach(p => {
+            if (p.contractor) set.add(p.contractor);
+        });
+        return Array.from(set).sort();
+    }, [allPeople]);
+
+    // Filter results based on query and contractor - real-time filtering
+    const filteredPeople = useMemo(() => {
+        let filtered = allPeople;
+
+        // Filter by contractor
+        if (selectedContractor !== 'all') {
+            filtered = filtered.filter(p => p.contractor === selectedContractor);
+        }
+
+        // Filter by query (CI or name) - case insensitive
+        if (query.trim()) {
+            const q = query.trim().toLowerCase();
+            filtered = filtered.filter(p =>
+                p.ci.toLowerCase().includes(q) ||
+                p.full_name.toLowerCase().includes(q)
+            );
+        }
+
+        return filtered;
+    }, [allPeople, query, selectedContractor]);
+
     const handleDelete = async () => {
-        if (!selectedPerson) return;
+        if (!selectedPerson || !currentSite) return;
         setSubmitting(true);
 
         try {
-            // Delete person (cascade should handle related profiles/logs if configured, 
-            // but usually better to soft delete. For now hard delete as requested for testing cleanup)
+            // 1. Delete access logs for this person
+            const { error: logsError } = await supabase
+                .from('access_logs')
+                .delete()
+                .eq('site_id', currentSite.id)
+                .eq('person_id', selectedPerson.id);
+
+            if (logsError) {
+                console.error('Error deleting logs:', logsError);
+            }
+
+            // 2. Delete workers_profile if exists
+            const { error: workerError } = await supabase
+                .from('workers_profile')
+                .delete()
+                .eq('person_id', selectedPerson.id);
+
+            if (workerError) {
+                console.error('Error deleting worker profile:', workerError);
+            }
+
+            // 3. Delete visitors_profile if exists
+            const { error: visitorError } = await supabase
+                .from('visitors_profile')
+                .delete()
+                .eq('person_id', selectedPerson.id);
+
+            if (visitorError) {
+                console.error('Error deleting visitor profile:', visitorError);
+            }
+
+            // 4. Delete favorites if exists
+            const { error: favError } = await supabase
+                .from('favorites')
+                .delete()
+                .eq('person_id', selectedPerson.id);
+
+            if (favError) {
+                console.error('Error deleting favorites:', favError);
+            }
+
+            // 5. Finally delete the person (this includes face_descriptor)
             const { error } = await supabase
                 .from('people')
                 .delete()
@@ -73,11 +150,12 @@ export default function PeopleTab() {
 
             if (error) throw error;
 
-            toast({ title: 'Eliminado', description: `${selectedPerson.full_name} ha sido eliminado.` });
+            toast({ title: 'Eliminado', description: `${selectedPerson.full_name} y todos sus datos han sido eliminados.` });
             setDeleteOpen(false);
-            setResults(results.filter(p => p.id !== selectedPerson.id));
+            setAllPeople(prev => prev.filter(p => p.id !== selectedPerson.id));
+            setSelectedPerson(null);
         } catch (err: any) {
-            toast({ title: 'Error', description: 'No se pudo eliminar. Puede tener registros vinculados.', variant: 'destructive' });
+            toast({ title: 'Error', description: err.message, variant: 'destructive' });
         } finally {
             setSubmitting(false);
         }
@@ -85,115 +163,173 @@ export default function PeopleTab() {
 
     return (
         <div className="space-y-6">
-            <div className="flex items-center gap-3">
-                <Users className="w-6 h-6 text-primary" />
-                <h3 className="text-lg font-medium">Gestión de Personal</h3>
+            <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                    <Users className="w-6 h-6 text-purple-400" />
+                    <h3 className="text-lg font-medium text-white">Gestión de Personal</h3>
+                </div>
+                <Button
+                    variant="outline"
+                    size="icon"
+                    onClick={loadPeople}
+                    className="bg-white/10 border-white/20 text-white/80 hover:bg-white/20"
+                >
+                    <RefreshCw className="w-4 h-4" />
+                </Button>
             </div>
 
-            {/* Search */}
+            {/* Search & Filters */}
             <div className="card-cosmos p-4">
-                <div className="flex gap-3">
-                    <SearchInput
-                        placeholder="Buscar por CI o nombre..."
-                        value={query}
-                        onChange={(e) => setQuery(e.target.value)}
-                        onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
-                        containerClassName="flex-1"
-                    />
-                    <Button onClick={handleSearch} disabled={searching}>
-                        {searching ? <Spinner size="sm" /> : <Search className="w-4 h-4 mr-2" />}
-                        Buscar
-                    </Button>
+                <div className="flex flex-col sm:flex-row gap-3">
+                    <div className="flex-1 relative">
+                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-white/40" />
+                        <Input
+                            placeholder="Buscar por CI o nombre..."
+                            value={query}
+                            onChange={(e) => setQuery(e.target.value)}
+                            className="pl-10 bg-white/10 border-white/20 text-white placeholder:text-white/40"
+                        />
+                    </div>
+                    <Select value={selectedContractor} onValueChange={setSelectedContractor}>
+                        <SelectTrigger className="w-full sm:w-48 bg-white/10 border-white/20 text-white/80">
+                            <SelectValue placeholder="Contratista" />
+                        </SelectTrigger>
+                        <SelectContent className="bg-slate-800/95 backdrop-blur-xl border-white/10">
+                            <SelectItem value="all" className="text-white/80 focus:bg-white/10">Todos</SelectItem>
+                            {contractors.map(c => (
+                                <SelectItem key={c} value={c} className="text-white/80 focus:bg-white/10">{c}</SelectItem>
+                            ))}
+                        </SelectContent>
+                    </Select>
+                </div>
+                <div className="mt-3 text-sm text-white/50">
+                    {filteredPeople.length} de {allPeople.length} personas
                 </div>
             </div>
 
             {/* Results */}
-            {results.length > 0 ? (
+            {loading ? (
+                <div className="flex justify-center py-12"><Spinner size="lg" /></div>
+            ) : filteredPeople.length > 0 ? (
                 <div className="card-cosmos overflow-hidden">
-                    <table className="table-cosmos">
-                        <thead>
-                            <tr>
-                                <th>Nombre / CI</th>
-                                <th>Tipo</th>
-                                <th>Contratista</th>
-                                <th className="text-right">Acciones</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {results.map((p) => (
-                                <tr key={p.id}>
-                                    <td>
-                                        <div className="font-medium">{p.full_name}</div>
-                                        <div className="text-xs text-muted-foreground">{p.ci}</div>
-                                    </td>
-                                    <td>
-                                        <StatusBadge status={p.type === 'worker' ? 'ok' : 'warn'}>
-                                            {p.type === 'worker' ? 'TRABAJADOR' : 'VISITA'}
-                                        </StatusBadge>
-                                    </td>
-                                    <td>{p.contractor || '-'}</td>
-                                    <td className="text-right">
-                                        <Button
-                                            variant="ghost"
-                                            size="sm"
-                                            className="text-status-crit hover:bg-status-crit/10 hover:text-status-crit"
-                                            onClick={() => { setSelectedPerson(p); setDeleteOpen(true); }}
-                                        >
-                                            <Trash2 className="w-4 h-4" />
-                                        </Button>
-                                    </td>
+                    {/* Desktop Table */}
+                    <div className="hidden md:block overflow-x-auto">
+                        <table className="table-cosmos">
+                            <thead>
+                                <tr>
+                                    <th>Nombre / CI</th>
+                                    <th>Tipo</th>
+                                    <th>Contratista</th>
+                                    <th className="text-right">Acciones</th>
                                 </tr>
-                            ))}
-                        </tbody>
-                    </table>
+                            </thead>
+                            <tbody>
+                                {filteredPeople.map((p) => (
+                                    <tr key={p.id}>
+                                        <td>
+                                            <div className="font-medium text-white">{p.full_name}</div>
+                                            <div className="text-xs text-white/50">{p.ci}</div>
+                                        </td>
+                                        <td>
+                                            <StatusBadge status={p.type === 'worker' ? 'ok' : 'warn'}>
+                                                {p.type === 'worker' ? 'TRABAJADOR' : 'VISITA'}
+                                            </StatusBadge>
+                                        </td>
+                                        <td className="text-white/70">{p.contractor || '-'}</td>
+                                        <td className="text-right">
+                                            <Button
+                                                variant="ghost"
+                                                size="sm"
+                                                className="text-red-400 hover:bg-red-500/10 hover:text-red-300"
+                                                onClick={() => { setSelectedPerson(p); setDeleteOpen(true); }}
+                                            >
+                                                <Trash2 className="w-4 h-4" />
+                                            </Button>
+                                        </td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    </div>
+
+                    {/* Mobile Cards */}
+                    <div className="md:hidden p-4 space-y-3">
+                        {filteredPeople.map((p) => (
+                            <div key={p.id} className="bg-white/5 border border-white/10 rounded-xl p-4 flex justify-between items-start">
+                                <div>
+                                    <div className="font-medium text-white">{p.full_name}</div>
+                                    <div className="text-sm text-white/50">CI: {p.ci}</div>
+                                    <div className="text-sm text-white/50">{p.contractor || 'Sin contratista'}</div>
+                                    <div className="flex gap-2 mt-2">
+                                        <StatusBadge status={p.type === 'worker' ? 'ok' : 'warn'}>
+                                            {p.type === 'worker' ? 'Trabajador' : 'Visita'}
+                                        </StatusBadge>
+                                    </div>
+                                </div>
+                                <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    className="text-red-400 hover:bg-red-500/10"
+                                    onClick={() => { setSelectedPerson(p); setDeleteOpen(true); }}
+                                >
+                                    <Trash2 className="w-4 h-4" />
+                                </Button>
+                            </div>
+                        ))}
+                    </div>
                 </div>
             ) : (
-                query && !searching && (
-                    <div className="text-center text-muted-foreground py-8">
-                        No se encontraron personas
-                    </div>
-                )
+                <div className="text-center text-white/50 py-8">
+                    {query || selectedContractor !== 'all' ? 'No se encontraron personas con esos filtros' : 'No hay personal registrado'}
+                </div>
             )}
 
             {/* Delete Dialog */}
             <Dialog open={deleteOpen} onOpenChange={setDeleteOpen}>
-                <DialogContent>
+                <DialogContent className="bg-gradient-to-br from-slate-900 via-purple-900/95 to-slate-900 border-white/10">
                     <DialogHeader>
-                        <DialogTitle>Eliminar Persona</DialogTitle>
-                        <DialogDescription>
+                        <DialogTitle className="text-white">Eliminar Persona</DialogTitle>
+                        <DialogDescription className="text-white/60">
                             ¿Estás seguro de que deseas eliminar a este trabajador?
                         </DialogDescription>
                     </DialogHeader>
 
                     <div className="py-4">
-                        <div className="bg-destructive/10 border border-destructive/20 rounded-lg p-3 flex gap-3 items-start">
-                            <UserX className="w-5 h-5 text-destructive shrink-0 mt-0.5" />
+                        <div className="bg-red-500/10 border border-red-500/20 rounded-lg p-3 flex gap-3 items-start">
+                            <UserX className="w-5 h-5 text-red-400 shrink-0 mt-0.5" />
                             <div className="space-y-1">
-                                <p className="font-medium text-destructive">Acción Irreversible</p>
-                                <p className="text-sm text-destructive/80">
-                                    Se eliminarán todos sus datos, incluyendo biometría y perfiles.
-                                    (Si tiene historial de accesos, podría fallar si no se borran primero).
+                                <p className="font-medium text-red-400">Acción Irreversible</p>
+                                <p className="text-sm text-red-300/80">
+                                    Se eliminarán: registros de acceso, perfil, biometría y favoritos.
                                 </p>
                             </div>
                         </div>
 
                         {selectedPerson && (
-                            <div className="mt-4 p-4 bg-muted rounded-lg">
-                                <p className="font-medium">{selectedPerson.full_name}</p>
-                                <p className="text-sm text-muted-foreground">CI: {selectedPerson.ci}</p>
+                            <div className="mt-4 p-4 bg-white/5 border border-white/10 rounded-lg">
+                                <p className="font-medium text-white">{selectedPerson.full_name}</p>
+                                <p className="text-sm text-white/60">CI: {selectedPerson.ci}</p>
+                                <p className="text-sm text-white/60">Contratista: {selectedPerson.contractor || '-'}</p>
                             </div>
                         )}
                     </div>
 
                     <DialogFooter>
-                        <Button variant="outline" onClick={() => setDeleteOpen(false)}>Cancelar</Button>
+                        <Button
+                            variant="outline"
+                            onClick={() => setDeleteOpen(false)}
+                            className="bg-white/10 border-white/20 text-white/80 hover:bg-white/20"
+                        >
+                            Cancelar
+                        </Button>
                         <Button
                             variant="destructive"
                             onClick={handleDelete}
                             disabled={submitting}
+                            className="bg-red-500 hover:bg-red-600"
                         >
                             {submitting ? <Spinner size="sm" className="mr-2" /> : null}
-                            Eliminar Definitivamente
+                            Eliminar Todo
                         </Button>
                     </DialogFooter>
                 </DialogContent>
@@ -201,3 +337,4 @@ export default function PeopleTab() {
         </div>
     );
 }
+
