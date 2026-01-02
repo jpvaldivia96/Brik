@@ -227,7 +227,7 @@ export default function DashboardPanel() {
       <div className="flex items-center justify-between">
         <h2 className="text-xl font-semibold text-white">Dashboard</h2>
         <div className="flex items-center gap-2">
-          <span className="text-xs text-white/40">Actualización automática</span>
+          <span className="text-xs text-white/40">Live</span>
           <div className="w-2 h-2 rounded-full bg-green-400 animate-pulse" />
         </div>
       </div>
