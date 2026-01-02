@@ -78,19 +78,40 @@ export default function ReportsTab() {
   }, [people, filterType, selectedContractor]);
 
   const generateReportData = async () => {
-    if (!currentSite || !dateFrom || !dateTo) return null;
+    if (!currentSite || !dateFrom || !dateTo) {
+      console.log('Missing required data:', { currentSite: !!currentSite, dateFrom, dateTo });
+      return null;
+    }
 
     const startDate = new Date(dateFrom);
     startDate.setHours(0, 0, 0, 0);
     const endDate = new Date(dateTo);
     endDate.setHours(23, 59, 59, 999);
 
-    // Build query
+    console.log('Generating report with params:', {
+      siteId: currentSite.id,
+      siteName: currentSite.name,
+      dateFrom: startDate.toISOString(),
+      dateTo: endDate.toISOString(),
+      filterType,
+      selectedContractor,
+      selectedPersonId
+    });
+
+    // First, let's check if there are ANY logs for this site
+    const { data: allLogs, count } = await supabase
+      .from('access_logs')
+      .select('*', { count: 'exact' })
+      .eq('site_id', currentSite.id)
+      .limit(5);
+
+    console.log('Total logs for site (sample):', { count, sample: allLogs });
+
+    // Build main query
     let query = supabase
       .from('access_logs')
       .select('*')
       .eq('site_id', currentSite.id)
-      .is('voided_at', null)
       .gte('entry_at', startDate.toISOString())
       .lte('entry_at', endDate.toISOString());
 
@@ -109,16 +130,11 @@ export default function ReportsTab() {
 
     const { data: logs, error } = await query.order('entry_at', { ascending: true });
 
-    // Debug logging
-    console.log('Report Query:', {
-      siteId: currentSite.id,
-      dateFrom: startDate.toISOString(),
-      dateTo: endDate.toISOString(),
-      filterType,
-      selectedContractor,
-      selectedPersonId,
+    console.log('Report Query Result:', {
       logsCount: logs?.length || 0,
-      error
+      error,
+      firstLog: logs?.[0],
+      lastLog: logs?.[logs?.length - 1]
     });
 
     // Calculate stats
@@ -340,6 +356,7 @@ export default function ReportsTab() {
         </head>
         <body>
           <div class="header">
+            <img src="/brik-logo-white.png" alt="BRIK" style="height: 48px; margin-bottom: 16px;" />
             <h1>Reporte de Accesos</h1>
             <p class="subtitle">${data.site} • ${data.period.from} al ${data.period.to}</p>
             <div class="filter-badge">${data.filter}</div>
@@ -425,34 +442,63 @@ export default function ReportsTab() {
   };
 
   const shareWhatsApp = async () => {
-    // For WhatsApp, we'll generate the PDF and let user share it manually
-    // First generate a summary message
     setGenerating(true);
     try {
       const data = await generateReportData();
-      if (!data) return;
+      if (!data) {
+        toast({ title: 'Error', description: 'No se pudo generar el reporte', variant: 'destructive' });
+        return;
+      }
 
-      // Generate the PDF first
-      await generatePDF();
+      // Format hours by contractor
+      const contractorLines = Object.entries(data.byContractor)
+        .sort(([, a], [, b]) => (b as number) - (a as number))
+        .map(([contractor, count]) => `• ${contractor}: ${count} accesos`)
+        .join('\n');
 
-      // Create text summary for WhatsApp
-      const text = `📊 *Reporte BRIK - ${data.site}*
-📅 ${data.period.from} al ${data.period.to}
-🔍 ${data.filter}
+      // Format summary by day (last 5 days)
+      const dayLines = Object.entries(data.byDay)
+        .slice(-5)
+        .map(([day, stats]) => `• ${day}: ${stats.entries} entradas, ${stats.exits} salidas`)
+        .join('\n');
 
-📈 *Resumen:*
-• Entradas: ${data.totalEntries}
-• Salidas: ${data.totalExits}  
-• Horas: ${data.totalHours}h
+      // Create comprehensive text report
+      const text = `━━━━━━━━━━━━━━━━━━━━━
+📊 *REPORTE BRIK*
+━━━━━━━━━━━━━━━━━━━━━
 
-_Adjuntar PDF generado_`;
+🏗️ *Obra:* ${data.site}
+📅 *Período:* ${data.period.from} al ${data.period.to}
+🔎 *Filtro:* ${data.filter}
+
+━━━━━━━━━━━━━━━━━━━━━
+📈 *RESUMEN GENERAL*
+━━━━━━━━━━━━━━━━━━━━━
+✅ Total Entradas: *${data.totalEntries}*
+🚪 Total Salidas: *${data.totalExits}*
+⏱️ Horas Acumuladas: *${data.totalHours}h*
+🏢 Contratistas: *${Object.keys(data.byContractor).length}*
+
+${contractorLines ? `━━━━━━━━━━━━━━━━━━━━━
+👷 *POR CONTRATISTA*
+━━━━━━━━━━━━━━━━━━━━━
+${contractorLines}` : ''}
+
+${dayLines ? `━━━━━━━━━━━━━━━━━━━━━
+📆 *ÚLTIMAS FECHAS*
+━━━━━━━━━━━━━━━━━━━━━
+${dayLines}` : ''}
+
+━━━━━━━━━━━━━━━━━━━━━
+_Generado por BRIK Pro_
+_${new Date().toLocaleString('es-BO')}_`;
 
       const encoded = encodeURIComponent(text);
       window.open(`https://wa.me/?text=${encoded}`, '_blank');
 
       toast({
-        title: 'PDF generado + WhatsApp',
-        description: 'Guarda el PDF y adjúntalo en WhatsApp.'
+        title: 'Reporte listo para enviar',
+        description: 'Selecciona el contacto en WhatsApp.'
       });
     } catch (err: any) {
       toast({ title: 'Error', description: err.message, variant: 'destructive' });
