@@ -100,17 +100,18 @@ export default function PeopleTab() {
         if (!selectedPerson || !currentSite) return;
         setSubmitting(true);
 
+        console.log('Deleting person:', selectedPerson.id, selectedPerson.full_name);
+
         try {
             // 1. Delete access logs for this person
-            const { error: logsError } = await supabase
+            const { error: logsError, count: logsCount } = await supabase
                 .from('access_logs')
-                .delete()
+                .delete({ count: 'exact' })
                 .eq('site_id', currentSite.id)
                 .eq('person_id', selectedPerson.id);
 
-            if (logsError) {
-                console.error('Error deleting logs:', logsError);
-            }
+            console.log('Deleted access_logs:', { count: logsCount, error: logsError });
+            if (logsError) throw new Error(`Error borrando logs: ${logsError.message}`);
 
             // 2. Delete workers_profile if exists
             const { error: workerError } = await supabase
@@ -118,9 +119,8 @@ export default function PeopleTab() {
                 .delete()
                 .eq('person_id', selectedPerson.id);
 
-            if (workerError) {
-                console.error('Error deleting worker profile:', workerError);
-            }
+            console.log('Deleted workers_profile:', { error: workerError });
+            if (workerError) throw new Error(`Error borrando perfil trabajador: ${workerError.message}`);
 
             // 3. Delete visitors_profile if exists
             const { error: visitorError } = await supabase
@@ -128,9 +128,8 @@ export default function PeopleTab() {
                 .delete()
                 .eq('person_id', selectedPerson.id);
 
-            if (visitorError) {
-                console.error('Error deleting visitor profile:', visitorError);
-            }
+            console.log('Deleted visitors_profile:', { error: visitorError });
+            if (visitorError) throw new Error(`Error borrando perfil visita: ${visitorError.message}`);
 
             // 4. Delete favorites if exists
             const { error: favError } = await supabase
@@ -138,24 +137,29 @@ export default function PeopleTab() {
                 .delete()
                 .eq('person_id', selectedPerson.id);
 
-            if (favError) {
-                console.error('Error deleting favorites:', favError);
-            }
+            console.log('Deleted favorites:', { error: favError });
+            if (favError) throw new Error(`Error borrando favoritos: ${favError.message}`);
 
-            // 5. Finally delete the person (this includes face_descriptor)
-            const { error } = await supabase
+            // 5. Finally delete the person
+            const { error, count } = await supabase
                 .from('people')
-                .delete()
+                .delete({ count: 'exact' })
                 .eq('id', selectedPerson.id);
 
+            console.log('Deleted person:', { count, error });
             if (error) throw error;
+
+            if (count === 0) {
+                throw new Error('La persona no fue eliminada. Puede haber restricciones de permisos en la base de datos.');
+            }
 
             toast({ title: 'Eliminado', description: `${selectedPerson.full_name} y todos sus datos han sido eliminados.` });
             setDeleteOpen(false);
             setAllPeople(prev => prev.filter(p => p.id !== selectedPerson.id));
             setSelectedPerson(null);
         } catch (err: any) {
-            toast({ title: 'Error', description: err.message, variant: 'destructive' });
+            console.error('Delete error:', err);
+            toast({ title: 'Error al eliminar', description: err.message, variant: 'destructive' });
         } finally {
             setSubmitting(false);
         }
