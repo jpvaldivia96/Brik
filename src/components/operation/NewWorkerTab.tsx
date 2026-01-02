@@ -291,7 +291,7 @@ export default function NewWorkerTab() {
           </div>
         </div>
 
-        <div className="flex gap-3">
+        <div className="flex flex-col sm:flex-row gap-3">
           <Button
             type="submit"
             disabled={submitting || (!!capturedImage && !faceDescriptor)}
