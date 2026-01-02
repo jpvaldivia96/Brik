@@ -1,0 +1,357 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* BRIK - Design System "Shop App Style"
+   Limpio, moderno, violeta distintivo
+   Fondo blanco/gris claro, botones muy redondeados
+*/
+
+@layer base {
+  :root {
+    /* Background - Blanco puro */
+    --background: 0 0% 100%;
+    --foreground: 222 47% 11%;
+
+    /* Cards - Blanco con bordes sutiles */
+    --card: 0 0% 100%;
+    --card-foreground: 222 47% 11%;
+
+    /* Popover */
+    --popover: 0 0% 100%;
+    --popover-foreground: 222 47% 11%;
+
+    /* Primary - Violeta Shop App */
+    --primary: 249 82% 62%;
+    --primary-foreground: 0 0% 100%;
+
+    /* Secondary - Gris muy suave */
+    --secondary: 220 14% 96%;
+    --secondary-foreground: 222 47% 11%;
+
+    /* Muted - Para textos secundarios */
+    --muted: 220 14% 96%;
+    --muted-foreground: 220 9% 46%;
+
+    /* Accent - Violeta suave */
+    --accent: 249 82% 97%;
+    --accent-foreground: 249 82% 50%;
+
+    /* Status Colors - Discretos, estilo pill */
+    --status-ok: 142 76% 36%;
+    --status-ok-bg: 142 76% 95%;
+    --status-ok-border: 142 76% 85%;
+    
+    --status-warn: 38 92% 50%;
+    --status-warn-bg: 38 92% 95%;
+    --status-warn-border: 38 92% 80%;
+    
+    --status-crit: 0 84% 60%;
+    --status-crit-bg: 0 84% 95%;
+    --status-crit-border: 0 84% 85%;
+
+    /* Destructive */
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 0 0% 100%;
+
+    /* Border - Gris sutil */
+    --border: 220 13% 91%;
+    --input: 220 13% 91%;
+    --ring: 221 83% 53%;
+
+    /* Radius - Muy redondeados estilo Shop App */
+    --radius: 0.75rem;
+    --radius-lg: 1rem;
+    --radius-xl: 1.5rem;
+    --radius-full: 9999px;
+
+    /* Shadows - Muy suaves */
+    --shadow-sm: 0 1px 2px 0 hsl(0 0% 0% / 0.03);
+    --shadow: 0 1px 3px 0 hsl(0 0% 0% / 0.05), 0 1px 2px -1px hsl(0 0% 0% / 0.05);
+    --shadow-md: 0 4px 6px -1px hsl(0 0% 0% / 0.05), 0 2px 4px -2px hsl(0 0% 0% / 0.05);
+    --shadow-lg: 0 10px 15px -3px hsl(0 0% 0% / 0.05), 0 4px 6px -4px hsl(0 0% 0% / 0.05);
+
+    /* Sidebar */
+    --sidebar-background: 0 0% 100%;
+    --sidebar-foreground: 222 47% 11%;
+    --sidebar-primary: 221 83% 53%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 220 14% 96%;
+    --sidebar-accent-foreground: 222 47% 11%;
+    --sidebar-border: 220 13% 91%;
+    --sidebar-ring: 221 83% 53%;
+  }
+
+  .dark {
+    --background: 222 47% 8%;
+    --foreground: 210 40% 98%;
+
+    --card: 222 47% 11%;
+    --card-foreground: 210 40% 98%;
+
+    --popover: 222 47% 11%;
+    --popover-foreground: 210 40% 98%;
+
+    --primary: 221 83% 53%;
+    --primary-foreground: 0 0% 100%;
+
+    --secondary: 217 33% 17%;
+    --secondary-foreground: 210 40% 98%;
+
+    --muted: 217 33% 17%;
+    --muted-foreground: 215 20% 65%;
+
+    --accent: 217 33% 17%;
+    --accent-foreground: 210 40% 98%;
+
+    --status-ok: 142 76% 46%;
+    --status-ok-bg: 142 40% 15%;
+    --status-ok-border: 142 50% 25%;
+    
+    --status-warn: 38 92% 50%;
+    --status-warn-bg: 38 40% 15%;
+    --status-warn-border: 38 50% 25%;
+    
+    --status-crit: 0 84% 60%;
+    --status-crit-bg: 0 40% 15%;
+    --status-crit-border: 0 50% 25%;
+
+    --destructive: 0 62% 30%;
+    --destructive-foreground: 210 40% 98%;
+
+    --border: 217 33% 17%;
+    --input: 217 33% 17%;
+    --ring: 221 83% 53%;
+
+    --sidebar-background: 222 47% 8%;
+    --sidebar-foreground: 210 40% 98%;
+    --sidebar-primary: 221 83% 53%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 217 33% 17%;
+    --sidebar-accent-foreground: 210 40% 98%;
+    --sidebar-border: 217 33% 17%;
+    --sidebar-ring: 221 83% 53%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  html {
+    font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  }
+
+  body {
+    @apply bg-background text-foreground antialiased;
+    font-feature-settings: "cv02", "cv03", "cv04", "cv11";
+  }
+
+  /* Typography hierarchy - Cosmos style */
+  h1 {
+    @apply text-2xl font-semibold tracking-tight;
+  }
+
+  h2 {
+    @apply text-xl font-semibold tracking-tight;
+  }
+
+  h3 {
+    @apply text-lg font-medium;
+  }
+
+  h4 {
+    @apply text-base font-medium;
+  }
+
+  /* Subtle text */
+  .text-subtle {
+    @apply text-muted-foreground text-sm;
+  }
+
+  /* Table styles - Clean and minimal */
+  .table-cosmos {
+    @apply w-full text-sm;
+  }
+
+  .table-cosmos th {
+    @apply text-left text-xs font-medium text-muted-foreground uppercase tracking-wider py-3 px-4 border-b;
+  }
+
+  .table-cosmos td {
+    @apply py-3 px-4 border-b border-border/50;
+  }
+
+  .table-cosmos tbody tr:hover {
+    @apply bg-muted/30;
+  }
+
+  /* Zebra striping (optional, very subtle) */
+  .table-cosmos.zebra tbody tr:nth-child(even) {
+    @apply bg-muted/20;
+  }
+}
+
+@layer components {
+  /* Card variants */
+  .card-cosmos {
+    @apply bg-card rounded-xl border border-border shadow-sm;
+  }
+
+  .card-cosmos-header {
+    @apply px-6 py-4 border-b border-border;
+  }
+
+  .card-cosmos-body {
+    @apply px-6 py-5;
+  }
+
+  /* Status badges - Pill style with subtle colors */
+  .badge-status {
+    @apply inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium border;
+  }
+
+  .badge-ok {
+    @apply bg-[hsl(var(--status-ok-bg))] text-[hsl(var(--status-ok))] border-[hsl(var(--status-ok-border))];
+  }
+
+  .badge-warn {
+    @apply bg-[hsl(var(--status-warn-bg))] text-[hsl(var(--status-warn))] border-[hsl(var(--status-warn-border))];
+  }
+
+  .badge-crit {
+    @apply bg-[hsl(var(--status-crit-bg))] text-[hsl(var(--status-crit))] border-[hsl(var(--status-crit-border))];
+  }
+
+  .badge-neutral {
+    @apply bg-muted text-muted-foreground border-border;
+  }
+
+  /* KPI Card */
+  .kpi-card {
+    @apply bg-card rounded-xl border border-border p-5;
+  }
+
+  .kpi-value {
+    @apply text-3xl font-semibold tracking-tight;
+  }
+
+  .kpi-label {
+    @apply text-sm text-muted-foreground mt-1;
+  }
+
+  /* Touch-friendly buttons for operation mode */
+  .btn-touch {
+    @apply h-14 px-8 text-base font-medium rounded-xl transition-all duration-200;
+  }
+
+  .btn-touch:active {
+    @apply scale-[0.98];
+  }
+
+  /* Input cosmos style */
+  .input-cosmos {
+    @apply h-12 px-4 rounded-xl border border-border bg-background text-base;
+    @apply focus:ring-2 focus:ring-ring focus:ring-offset-2 focus:border-transparent;
+    @apply placeholder:text-muted-foreground/60;
+  }
+
+  /* Search input with icon */
+  .search-input-wrapper {
+    @apply relative;
+  }
+
+  .search-input-wrapper .search-icon {
+    @apply absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground;
+  }
+
+  .search-input-wrapper input {
+    @apply pl-12;
+  }
+
+  /* Operation panel */
+  .operation-panel {
+    @apply bg-card rounded-2xl border border-border p-6 shadow-sm;
+  }
+
+  /* Tab styles */
+  .tab-cosmos {
+    @apply px-6 py-3 text-sm font-medium rounded-xl transition-colors;
+    @apply data-[state=active]:bg-primary data-[state=active]:text-primary-foreground;
+    @apply data-[state=inactive]:text-muted-foreground data-[state=inactive]:hover:bg-muted;
+  }
+
+  /* Alert banner */
+  .alert-cosmos {
+    @apply p-4 rounded-xl border flex items-start gap-3;
+  }
+
+  .alert-cosmos.success {
+    @apply bg-[hsl(var(--status-ok-bg))] border-[hsl(var(--status-ok-border))] text-[hsl(var(--status-ok))];
+  }
+
+  .alert-cosmos.warning {
+    @apply bg-[hsl(var(--status-warn-bg))] border-[hsl(var(--status-warn-border))] text-[hsl(var(--status-warn))];
+  }
+
+  .alert-cosmos.error {
+    @apply bg-[hsl(var(--status-crit-bg))] border-[hsl(var(--status-crit-border))] text-[hsl(var(--status-crit))];
+  }
+
+  /* Spinner */
+  .spinner {
+    @apply animate-spin rounded-full border-2 border-current border-t-transparent;
+  }
+}
+
+/* Animations */
+@keyframes fade-in {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes slide-up {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-fade-in {
+  animation: fade-in 0.2s ease-out;
+}
+
+.animate-slide-up {
+  animation: slide-up 0.3s ease-out;
+}
+
+/* Scrollbar styling */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  @apply bg-transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  @apply bg-border rounded-full;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  @apply bg-muted-foreground/30;
+}
