@@ -107,7 +107,19 @@ export default function ReportsTab() {
       query = query.eq('person_id', selectedPersonId);
     }
 
-    const { data: logs } = await query.order('entry_at', { ascending: true });
+    const { data: logs, error } = await query.order('entry_at', { ascending: true });
+
+    // Debug logging
+    console.log('Report Query:', {
+      siteId: currentSite.id,
+      dateFrom: startDate.toISOString(),
+      dateTo: endDate.toISOString(),
+      filterType,
+      selectedContractor,
+      selectedPersonId,
+      logsCount: logs?.length || 0,
+      error
+    });
 
     // Calculate stats
     const totalEntries = (logs || []).length;
@@ -367,20 +379,23 @@ export default function ReportsTab() {
                 </tr>
               </thead>
               <tbody>
-                ${data.logs.map(log => {
-        const entry = new Date(log.entry_at);
-        const exit = log.exit_at ? new Date(log.exit_at) : null;
-        const hours = exit ? ((exit.getTime() - entry.getTime()) / (1000 * 60 * 60)).toFixed(1) : '-';
-        return '<tr>' +
-          '<td>' + entry.toLocaleDateString('es-BO') + '</td>' +
-          '<td>' + entry.toLocaleTimeString('es-BO', { hour: '2-digit', minute: '2-digit' }) + '</td>' +
-          '<td>' + (exit?.toLocaleTimeString('es-BO', { hour: '2-digit', minute: '2-digit' }) || '-') + '</td>' +
-          '<td>' + hours + '</td>' +
-          '<td><strong>' + log.name_snapshot + '</strong></td>' +
-          '<td>' + log.ci_snapshot + '</td>' +
-          '<td>' + (log.contractor_snapshot || '-') + '</td>' +
-          '</tr>';
-      }).join('')}
+                ${data.logs.length === 0 ?
+          '<tr><td colspan="7" style="text-align: center; padding: 40px; color: #9ca3af;">No hay registros en el período seleccionado</td></tr>' :
+          data.logs.map(log => {
+            const entry = new Date(log.entry_at);
+            const exit = log.exit_at ? new Date(log.exit_at) : null;
+            const hours = exit ? ((exit.getTime() - entry.getTime()) / (1000 * 60 * 60)).toFixed(1) : '-';
+            return '<tr>' +
+              '<td>' + entry.toLocaleDateString('es-BO') + '</td>' +
+              '<td>' + entry.toLocaleTimeString('es-BO', { hour: '2-digit', minute: '2-digit' }) + '</td>' +
+              '<td>' + (exit?.toLocaleTimeString('es-BO', { hour: '2-digit', minute: '2-digit' }) || '-') + '</td>' +
+              '<td>' + hours + '</td>' +
+              '<td><strong>' + (log.name_snapshot || '-') + '</strong></td>' +
+              '<td>' + (log.ci_snapshot || '-') + '</td>' +
+              '<td>' + (log.contractor_snapshot || '-') + '</td>' +
+              '</tr>';
+          }).join('')
+        }
               </tbody>
             </table>
 
