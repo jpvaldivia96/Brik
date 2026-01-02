@@ -31,7 +31,7 @@ export default function ReportsTab() {
   // Filter type
   const [filterType, setFilterType] = useState<FilterType>('all');
   const [selectedContractor, setSelectedContractor] = useState<string>('');
-  const [selectedPersonId, setSelectedPersonId] = useState<string>('');
+  const [selectedPersonId, setSelectedPersonId] = useState<string>('all');
 
   // Data
   const [people, setPeople] = useState<Person[]>([]);
@@ -103,7 +103,7 @@ export default function ReportsTab() {
       query = query.eq('type_snapshot', 'visitor');
     }
 
-    if (selectedPersonId) {
+    if (selectedPersonId && selectedPersonId !== 'all') {
       query = query.eq('person_id', selectedPersonId);
     }
 
@@ -145,7 +145,7 @@ export default function ReportsTab() {
     } else if (filterType === 'visitor') {
       filterDescription = 'Solo Visitas';
     }
-    if (selectedPersonId) {
+    if (selectedPersonId && selectedPersonId !== 'all') {
       const person = people.find(p => p.id === selectedPersonId);
       filterDescription = `Persona: ${person?.full_name || 'N/A'}`;
     }
@@ -212,75 +212,182 @@ export default function ReportsTab() {
       const data = await generateReportData();
       if (!data) return;
 
-      // Create a printable HTML
+      // Create a printable HTML with BRIK branding
       const html = `
         <!DOCTYPE html>
         <html>
         <head>
-          <title>Reporte ${data.site}</title>
+          <title>Reporte ${data.site} - BRIK</title>
           <style>
-            body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; margin: 40px; color: #1a1a2e; }
-            h1 { font-size: 24px; margin-bottom: 8px; }
-            h2 { font-size: 18px; margin-top: 32px; margin-bottom: 16px; color: #4a4a6a; }
-            .subtitle { color: #6b7280; margin-bottom: 8px; }
-            .filter { color: #7c3aed; font-weight: 500; margin-bottom: 24px; }
-            .stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-bottom: 32px; }
-            .stat { background: #f6f7fb; padding: 16px; border-radius: 12px; }
-            .stat-value { font-size: 28px; font-weight: 600; }
-            .stat-label { color: #6b7280; font-size: 14px; }
-            table { width: 100%; border-collapse: collapse; font-size: 12px; }
-            th, td { padding: 8px 12px; text-align: left; border-bottom: 1px solid #e5e7eb; }
-            th { background: #f6f7fb; font-weight: 500; }
-            .footer { margin-top: 48px; font-size: 12px; color: #6b7280; }
+            * { box-sizing: border-box; }
+            body { 
+              font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; 
+              margin: 0; 
+              padding: 0;
+              color: #1e1b4b; 
+              background: #fafafa;
+            }
+            .header {
+              background: linear-gradient(135deg, #7c3aed 0%, #3b82f6 100%);
+              color: white;
+              padding: 32px 40px;
+              margin-bottom: 32px;
+            }
+            .header h1 { 
+              font-size: 28px; 
+              margin: 0 0 8px 0; 
+              font-weight: 700;
+            }
+            .header .subtitle { 
+              opacity: 0.9; 
+              font-size: 14px;
+              margin: 0;
+            }
+            .header .filter-badge {
+              display: inline-block;
+              background: rgba(255,255,255,0.2);
+              padding: 6px 12px;
+              border-radius: 20px;
+              font-size: 13px;
+              margin-top: 12px;
+            }
+            .content { padding: 0 40px 40px; }
+            .stats { 
+              display: grid; 
+              grid-template-columns: repeat(4, 1fr); 
+              gap: 16px; 
+              margin-bottom: 32px; 
+            }
+            .stat { 
+              background: white; 
+              padding: 20px; 
+              border-radius: 16px; 
+              border: 1px solid #e5e7eb;
+              text-align: center;
+            }
+            .stat-value { 
+              font-size: 32px; 
+              font-weight: 700; 
+              color: #7c3aed;
+            }
+            .stat-label { 
+              color: #6b7280; 
+              font-size: 13px; 
+              margin-top: 4px;
+            }
+            h2 { 
+              font-size: 18px; 
+              margin: 32px 0 16px; 
+              color: #1e1b4b;
+              padding-bottom: 8px;
+              border-bottom: 2px solid #7c3aed;
+              display: inline-block;
+            }
+            table { 
+              width: 100%; 
+              border-collapse: collapse; 
+              font-size: 12px; 
+              background: white;
+              border-radius: 12px;
+              overflow: hidden;
+              box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+            }
+            th { 
+              background: #7c3aed; 
+              color: white; 
+              font-weight: 600;
+              padding: 12px;
+              text-align: left;
+            }
+            td { 
+              padding: 10px 12px; 
+              border-bottom: 1px solid #f3f4f6; 
+            }
+            tr:last-child td { border-bottom: none; }
+            tr:nth-child(even) { background: #fafafb; }
+            .footer { 
+              margin-top: 48px; 
+              padding-top: 24px;
+              border-top: 1px solid #e5e7eb;
+              display: flex;
+              justify-content: space-between;
+              font-size: 11px; 
+              color: #9ca3af;
+            }
+            .footer .brand {
+              color: #7c3aed;
+              font-weight: 600;
+            }
+            @media print {
+              body { background: white; }
+              .header { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+              .stat { border: 1px solid #e5e7eb; }
+              th { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+            }
           </style>
         </head>
         <body>
-          <h1>Reporte de Accesos - ${data.site}</h1>
-          <p class="subtitle">Período: ${data.period.from} al ${data.period.to}</p>
-          <p class="filter">Filtro: ${data.filter}</p>
-          
-          <div class="stats">
-            <div class="stat">
-              <div class="stat-value">${data.totalEntries}</div>
-              <div class="stat-label">Total Entradas</div>
-            </div>
-            <div class="stat">
-              <div class="stat-value">${data.totalExits}</div>
-              <div class="stat-label">Total Salidas</div>
-            </div>
-            <div class="stat">
-              <div class="stat-value">${data.totalHours}</div>
-              <div class="stat-label">Horas Totales</div>
-            </div>
-            <div class="stat">
-              <div class="stat-value">${Object.keys(data.byContractor).length}</div>
-              <div class="stat-label">Contratistas</div>
-            </div>
+          <div class="header">
+            <h1>📊 Reporte de Accesos</h1>
+            <p class="subtitle">${data.site} • ${data.period.from} al ${data.period.to}</p>
+            <div class="filter-badge">🔍 ${data.filter}</div>
           </div>
+          
+          <div class="content">
+            <div class="stats">
+              <div class="stat">
+                <div class="stat-value">${data.totalEntries}</div>
+                <div class="stat-label">Entradas</div>
+              </div>
+              <div class="stat">
+                <div class="stat-value">${data.totalExits}</div>
+                <div class="stat-label">Salidas</div>
+              </div>
+              <div class="stat">
+                <div class="stat-value">${data.totalHours}h</div>
+                <div class="stat-label">Horas Trabajadas</div>
+              </div>
+              <div class="stat">
+                <div class="stat-value">${Object.keys(data.byContractor).length}</div>
+                <div class="stat-label">Contratistas</div>
+              </div>
+            </div>
 
-          <h2>Detalle de Accesos</h2>
-          <table>
-            <thead><tr><th>Fecha</th><th>Entrada</th><th>Salida</th><th>Horas</th><th>Nombre</th><th>CI</th><th>Contratista</th></tr></thead>
-            <tbody>
-              ${data.logs.map(log => {
+            <h2>Detalle de Accesos</h2>
+            <table>
+              <thead>
+                <tr>
+                  <th>Fecha</th>
+                  <th>Entrada</th>
+                  <th>Salida</th>
+                  <th>Horas</th>
+                  <th>Nombre</th>
+                  <th>CI</th>
+                  <th>Contratista</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${data.logs.map(log => {
         const entry = new Date(log.entry_at);
         const exit = log.exit_at ? new Date(log.exit_at) : null;
-        const hours = exit ? ((exit.getTime() - entry.getTime()) / (1000 * 60 * 60)).toFixed(2) : '-';
-        return `<tr>
-                  <td>${entry.toLocaleDateString('es-BO')}</td>
-                  <td>${entry.toLocaleTimeString('es-BO')}</td>
-                  <td>${exit?.toLocaleTimeString('es-BO') || '-'}</td>
-                  <td>${hours}</td>
-                  <td>${log.name_snapshot}</td>
-                  <td>${log.ci_snapshot}</td>
-                  <td>${log.contractor_snapshot || '-'}</td>
-                </tr>`;
+        const hours = exit ? ((exit.getTime() - entry.getTime()) / (1000 * 60 * 60)).toFixed(1) : '-';
+        return '<tr>' +
+          '<td>' + entry.toLocaleDateString('es-BO') + '</td>' +
+          '<td>' + entry.toLocaleTimeString('es-BO', { hour: '2-digit', minute: '2-digit' }) + '</td>' +
+          '<td>' + (exit?.toLocaleTimeString('es-BO', { hour: '2-digit', minute: '2-digit' }) || '-') + '</td>' +
+          '<td>' + hours + '</td>' +
+          '<td><strong>' + log.name_snapshot + '</strong></td>' +
+          '<td>' + log.ci_snapshot + '</td>' +
+          '<td>' + (log.contractor_snapshot || '-') + '</td>' +
+          '</tr>';
       }).join('')}
-            </tbody>
-          </table>
+              </tbody>
+            </table>
 
-          <div class="footer">
-            Generado: ${new Date().toLocaleString('es-BO')} | BRIK Control de Accesos
+            <div class="footer">
+              <span>Generado: ${new Date().toLocaleString('es-BO')}</span>
+              <span class="brand">BRIK Pro • Control de Accesos</span>
+            </div>
           </div>
         </body>
         </html>
@@ -303,34 +410,35 @@ export default function ReportsTab() {
   };
 
   const shareWhatsApp = async () => {
+    // For WhatsApp, we'll generate the PDF and let user share it manually
+    // First generate a summary message
     setGenerating(true);
     try {
       const data = await generateReportData();
       if (!data) return;
 
-      // Create text summary
+      // Generate the PDF first
+      await generatePDF();
+
+      // Create text summary for WhatsApp
       const text = `📊 *Reporte BRIK - ${data.site}*
-📅 Período: ${data.period.from} al ${data.period.to}
-🔍 Filtro: ${data.filter}
+📅 ${data.period.from} al ${data.period.to}
+🔍 ${data.filter}
 
 📈 *Resumen:*
 • Entradas: ${data.totalEntries}
-• Salidas: ${data.totalExits}
-• Horas totales: ${data.totalHours}h
+• Salidas: ${data.totalExits}  
+• Horas: ${data.totalHours}h
 
-👷 *Por Contratista:*
-${Object.entries(data.byContractor)
-          .sort(([, a], [, b]) => (b as number) - (a as number))
-          .slice(0, 5)
-          .map(([c, n]) => `• ${c}: ${n}`)
-          .join('\n')}
-
-_Generado por BRIK Control de Accesos_`;
+_Adjuntar PDF generado_`;
 
       const encoded = encodeURIComponent(text);
       window.open(`https://wa.me/?text=${encoded}`, '_blank');
 
-      toast({ title: 'WhatsApp abierto', description: 'Selecciona el contacto para enviar el reporte.' });
+      toast({
+        title: 'PDF generado + WhatsApp',
+        description: 'Guarda el PDF y adjúntalo en WhatsApp.'
+      });
     } catch (err: any) {
       toast({ title: 'Error', description: err.message, variant: 'destructive' });
     } finally {
@@ -405,7 +513,7 @@ _Generado por BRIK Control de Accesos_`;
           </Button>
           <Button
             variant={filterType === 'worker' ? 'default' : 'outline'}
-            onClick={() => { setFilterType('worker'); setSelectedContractor(''); setSelectedPersonId(''); }}
+            onClick={() => { setFilterType('worker'); setSelectedContractor(''); setSelectedPersonId('all'); }}
             className={filterType === 'worker'
               ? 'bg-gradient-to-r from-purple-500 to-blue-500'
               : 'bg-white/10 border-white/20 text-white/80 hover:bg-white/20'}
@@ -415,7 +523,7 @@ _Generado por BRIK Control de Accesos_`;
           </Button>
           <Button
             variant={filterType === 'visitor' ? 'default' : 'outline'}
-            onClick={() => { setFilterType('visitor'); setSelectedContractor(''); setSelectedPersonId(''); }}
+            onClick={() => { setFilterType('visitor'); setSelectedContractor(''); setSelectedPersonId('all'); }}
             className={filterType === 'visitor'
               ? 'bg-gradient-to-r from-purple-500 to-blue-500'
               : 'bg-white/10 border-white/20 text-white/80 hover:bg-white/20'}
@@ -448,7 +556,7 @@ _Generado por BRIK Control de Accesos_`;
                 <SelectValue placeholder="Todos" />
               </SelectTrigger>
               <SelectContent className="bg-slate-800/95 backdrop-blur-xl border-white/10 max-h-60">
-                <SelectItem value="" className="text-white/80 focus:bg-white/10">Todos</SelectItem>
+                <SelectItem value="all" className="text-white/80 focus:bg-white/10">Todos</SelectItem>
                 {filteredPeople.map(p => (
                   <SelectItem key={p.id} value={p.id} className="text-white/80 focus:bg-white/10">
                     {p.full_name} ({p.ci})

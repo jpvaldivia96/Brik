@@ -30,12 +30,7 @@ export default function AdminDrawer({ open, onOpenChange, activePanel, onPanelCh
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent side="bottom" className="rounded-t-3xl pb-8">
         <SheetHeader className="pb-4">
-          <div className="flex items-center justify-between">
-            <SheetTitle className="text-lg font-semibold">Administración</SheetTitle>
-            <Button variant="ghost" size="icon" onClick={() => onOpenChange(false)} className="rounded-full">
-              <X className="w-5 h-5" />
-            </Button>
-          </div>
+          <SheetTitle className="text-lg font-semibold">Administración</SheetTitle>
         </SheetHeader>
 
         <div className="grid grid-cols-2 gap-3">
