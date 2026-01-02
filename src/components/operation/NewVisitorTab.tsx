@@ -6,7 +6,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { AlertCosmos } from '@/components/ui/alert-cosmos';
 import { Spinner } from '@/components/ui/spinner';
-import { Users } from 'lucide-react';
+import { Users, LogIn } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 
 export default function NewVisitorTab() {
@@ -82,10 +82,76 @@ export default function NewVisitorTab() {
           </div>
         </div>
 
-        <Button type="submit" disabled={submitting} className="w-full btn-touch">
-          {submitting ? <Spinner size="sm" className="mr-2" /> : <Users className="w-5 h-5 mr-2" />}
-          Crear Visitante
-        </Button>
+        <div className="flex gap-3">
+          <Button type="submit" disabled={submitting} variant="outline" className="flex-1 btn-touch">
+            {submitting ? <Spinner size="sm" className="mr-2" /> : <Users className="w-5 h-5 mr-2" />}
+            Solo Registrar
+          </Button>
+          <Button
+            type="button"
+            onClick={async (e) => {
+              e.preventDefault();
+              if (!currentSite || submitting) return;
+
+              setSubmitting(true);
+              setMessage(null);
+
+              try {
+                const { data: person, error: personError } = await supabase
+                  .from('people')
+                  .insert({
+                    site_id: currentSite.id,
+                    ci: form.ci.trim(),
+                    full_name: form.fullName.trim(),
+                    type: 'visitor',
+                    contractor: form.company.trim() || null,
+                  })
+                  .select()
+                  .single();
+
+                if (personError) throw personError;
+
+                const { error: profileError } = await supabase
+                  .from('visitors_profile')
+                  .insert({ person_id: person.id, company: form.company.trim() || null });
+
+                if (profileError) throw profileError;
+
+                // Create entry log immediately
+                const { error: logError } = await supabase
+                  .from('access_logs')
+                  .insert({
+                    site_id: currentSite.id,
+                    person_id: person.id,
+                    entry_at: new Date().toISOString(),
+                    ci_snapshot: form.ci.trim(),
+                    name_snapshot: form.fullName.trim(),
+                    type_snapshot: 'visitor',
+                    contractor_snapshot: form.company.trim() || null,
+                  });
+
+                if (logError) throw logError;
+
+                toast({ title: 'Visitante creado e ingresado', description: `${form.fullName} registrado y ya está dentro.` });
+                setForm({ ci: '', fullName: '', company: '' });
+                setMessage({ type: 'success', text: `${form.fullName} creado e ingresado exitosamente.` });
+              } catch (err: any) {
+                if (err.message?.includes('duplicate')) {
+                  setMessage({ type: 'error', text: 'Ya existe una persona con ese CI en esta obra.' });
+                } else {
+                  setMessage({ type: 'error', text: err.message });
+                }
+              } finally {
+                setSubmitting(false);
+              }
+            }}
+            disabled={submitting || !form.ci || !form.fullName}
+            className="flex-1 btn-touch bg-gradient-to-r from-emerald-500 to-green-500 hover:from-emerald-600 hover:to-green-600"
+          >
+            {submitting ? <Spinner size="sm" className="mr-2" /> : <LogIn className="w-5 h-5 mr-2" />}
+            Registrar e Ingresar
+          </Button>
+        </div>
       </form>
 
       {message && <AlertCosmos type={message.type} className="mt-4">{message.text}</AlertCosmos>}

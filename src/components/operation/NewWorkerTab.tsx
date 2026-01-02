@@ -6,7 +6,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { AlertCosmos } from '@/components/ui/alert-cosmos';
 import { Spinner } from '@/components/ui/spinner';
-import { UserPlus, Camera, RefreshCw } from 'lucide-react';
+import { UserPlus, Camera, RefreshCw, LogIn } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useFace } from '@/hooks/useFace';
 
@@ -291,10 +291,94 @@ export default function NewWorkerTab() {
           </div>
         </div>
 
-        <Button type="submit" disabled={submitting || (!!capturedImage && !faceDescriptor)} className="w-full btn-touch">
-          {submitting ? <Spinner size="sm" className="mr-2" /> : <UserPlus className="w-5 h-5 mr-2" />}
-          Crear Trabajador
-        </Button>
+        <div className="flex gap-3">
+          <Button
+            type="submit"
+            disabled={submitting || (!!capturedImage && !faceDescriptor)}
+            variant="outline"
+            className="flex-1 btn-touch"
+          >
+            {submitting ? <Spinner size="sm" className="mr-2" /> : <UserPlus className="w-5 h-5 mr-2" />}
+            Solo Registrar
+          </Button>
+          <Button
+            type="button"
+            onClick={async (e) => {
+              e.preventDefault();
+              if (!currentSite || submitting) return;
+
+              setSubmitting(true);
+              setMessage(null);
+
+              try {
+                // Create person
+                const { data: person, error: personError } = await supabase
+                  .from('people')
+                  .insert({
+                    site_id: currentSite.id,
+                    ci: form.ci.trim(),
+                    full_name: form.fullName.trim(),
+                    type: 'worker',
+                    contractor: form.contractor.trim() || null,
+                    face_descriptor: faceDescriptor ? JSON.stringify(Array.from(faceDescriptor)) : null,
+                    photo_url: null
+                  })
+                  .select()
+                  .single();
+
+                if (personError) throw personError;
+
+                // Create worker profile
+                const { error: profileError } = await supabase
+                  .from('workers_profile')
+                  .insert({
+                    person_id: person.id,
+                    insurance_number: form.insuranceNumber.trim() || null,
+                    insurance_expiry: form.insuranceExpiry || null,
+                    phone: form.phone.trim() || null,
+                    emergency_contact: form.emergencyContact.trim() || null,
+                    blood_type: form.bloodType.trim() || null,
+                  });
+
+                if (profileError) throw profileError;
+
+                // Create entry log immediately
+                const { error: logError } = await supabase
+                  .from('access_logs')
+                  .insert({
+                    site_id: currentSite.id,
+                    person_id: person.id,
+                    entry_at: new Date().toISOString(),
+                    ci_snapshot: form.ci.trim(),
+                    name_snapshot: form.fullName.trim(),
+                    type_snapshot: 'worker',
+                    contractor_snapshot: form.contractor.trim() || null,
+                  });
+
+                if (logError) throw logError;
+
+                toast({ title: 'Trabajador creado e ingresado', description: `${form.fullName} registrado y ya está dentro.` });
+                setForm({ ci: '', fullName: '', contractor: '', insuranceNumber: '', insuranceExpiry: '', phone: '', emergencyContact: '', bloodType: '' });
+                setCapturedImage(null);
+                setFaceDescriptor(null);
+                setMessage({ type: 'success', text: `${form.fullName} creado e ingresado exitosamente.` });
+              } catch (err: any) {
+                if (err.message?.includes('duplicate')) {
+                  setMessage({ type: 'error', text: 'Ya existe un trabajador con ese CI en esta obra.' });
+                } else {
+                  setMessage({ type: 'error', text: err.message });
+                }
+              } finally {
+                setSubmitting(false);
+              }
+            }}
+            disabled={submitting || (!!capturedImage && !faceDescriptor) || !form.ci || !form.fullName}
+            className="flex-1 btn-touch bg-gradient-to-r from-emerald-500 to-green-500 hover:from-emerald-600 hover:to-green-600"
+          >
+            {submitting ? <Spinner size="sm" className="mr-2" /> : <LogIn className="w-5 h-5 mr-2" />}
+            Registrar e Ingresar
+          </Button>
+        </div>
       </form>
 
       {message && <AlertCosmos type={message.type} className="mt-4">{message.text}</AlertCosmos>}

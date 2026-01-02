@@ -246,30 +246,36 @@ export default function EntryTab() {
         <h2 className="text-lg font-medium text-white">Registrar Entrada</h2>
       </div>
 
-      {/* Search */}
-      <div className="flex gap-3">
-        <SearchInput
-          placeholder="Buscar por CI o nombre..."
-          value={query}
-          onChange={(e) => setQuery(e.target.value)}
-          onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
-          containerClassName="flex-1"
-          className="bg-white/10 border-white/20 text-white placeholder:text-white/40"
-        />
-        <Button
-          onClick={handleSearch}
-          disabled={searching}
-          className="px-6 bg-gradient-to-r from-purple-500 to-blue-500 hover:from-purple-600 hover:to-blue-600 text-white"
-        >
-          {searching ? <Spinner size="sm" /> : 'Buscar'}
-        </Button>
-        <Button
-          variant="outline"
-          className="px-4 bg-white/10 border-white/20 text-white/80 hover:bg-white/20 hover:text-white"
-          onClick={() => setScanning(true)}
-        >
-          <Camera className="w-5 h-5" />
-        </Button>
+      {/* PRIMARY: Biometric Scan Button */}
+      <Button
+        onClick={() => setScanning(true)}
+        className="w-full h-20 text-lg font-medium bg-gradient-to-r from-purple-500 to-blue-500 hover:from-purple-600 hover:to-blue-600 text-white rounded-2xl mb-4 flex items-center justify-center gap-3"
+      >
+        <Camera className="w-8 h-8" />
+        <span>Escanear Rostro</span>
+      </Button>
+
+      {/* SECONDARY: Manual Search (Collapsible) */}
+      <div className="border border-white/10 rounded-xl p-4 bg-white/5">
+        <p className="text-xs text-white/40 mb-3 text-center">Búsqueda manual (si no hay biometría)</p>
+        <div className="flex gap-3">
+          <SearchInput
+            placeholder="Buscar por CI o nombre..."
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
+            containerClassName="flex-1"
+            className="bg-white/10 border-white/20 text-white placeholder:text-white/40"
+          />
+          <Button
+            onClick={handleSearch}
+            disabled={searching}
+            variant="outline"
+            className="px-6 bg-white/10 border-white/20 text-white/80 hover:bg-white/20"
+          >
+            {searching ? <Spinner size="sm" /> : 'Buscar'}
+          </Button>
+        </div>
       </div>
 
       {/* Camera Modal/Sheet for Scanning */}
