@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useSite } from '@/contexts/SiteContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
-import { Building2, LogOut, ChevronDown, Settings } from 'lucide-react';
+import { Building2, LogOut, ChevronDown, Briefcase } from 'lucide-react';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -113,7 +113,7 @@ export default function MainLayout() {
                 onClick={() => setAdminDrawerOpen(true)}
                 className="hover:bg-white/10"
               >
-                <Settings className="w-5 h-5 text-white/70" />
+                <Briefcase className="w-5 h-5 text-white/70" />
               </Button>
             )}
           </div>
