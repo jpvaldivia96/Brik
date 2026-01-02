@@ -328,9 +328,9 @@ export default function ReportsTab() {
         </head>
         <body>
           <div class="header">
-            <h1>📊 Reporte de Accesos</h1>
+            <h1>Reporte de Accesos</h1>
             <p class="subtitle">${data.site} • ${data.period.from} al ${data.period.to}</p>
-            <div class="filter-badge">🔍 ${data.filter}</div>
+            <div class="filter-badge">${data.filter}</div>
           </div>
           
           <div class="content">
