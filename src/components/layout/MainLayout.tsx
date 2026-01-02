@@ -96,11 +96,11 @@ export default function MainLayout() {
 
       {/* Header */}
       <header className="backdrop-blur-xl bg-white/5 border-b border-white/10 sticky top-0 z-40">
-        <div className="max-w-2xl mx-auto px-4 h-24 flex items-center justify-between">
+        <div className="max-w-2xl mx-auto px-4 h-40 flex items-center justify-between">
           <div className="flex items-center">
             {/* BRIK Brand - Home Button */}
             <Button variant="ghost" className="p-0 hover:bg-transparent" onClick={goHome}>
-              <img src="/brik-logo-white.png" alt="BRIK" className="h-16 w-auto object-contain" />
+              <img src="/brik-logo-white.png" alt="BRIK" className="h-32 w-auto object-contain" />
             </Button>
           </div>
 
