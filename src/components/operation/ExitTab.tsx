@@ -7,7 +7,7 @@ import { PersonCard } from '@/components/ui/person-card';
 import { AlertCosmos } from '@/components/ui/alert-cosmos';
 import { Spinner } from '@/components/ui/spinner';
 import type { PersonSearchResult } from '@/lib/types';
-import { LogOut, Camera } from 'lucide-react';
+import { LogOut, Camera, SwitchCamera } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useFace } from '@/hooks/useFace';
 
@@ -26,6 +26,7 @@ export default function ExitTab() {
   // Face Scan State
   const [scanning, setScanning] = useState(false);
   const [processingScan, setProcessingScan] = useState(false);
+  const [facingMode, setFacingMode] = useState<'user' | 'environment'>('environment');
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
@@ -53,9 +54,15 @@ export default function ExitTab() {
     return () => clearTimeout(timer);
   }, [query, currentSite]);
 
-  const startCamera = async () => {
+  const startCamera = async (facing: 'user' | 'environment' = facingMode) => {
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+      if (videoRef.current && videoRef.current.srcObject) {
+        const oldStream = videoRef.current.srcObject as MediaStream;
+        oldStream.getTracks().forEach(track => track.stop());
+      }
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: facing }
+      });
       if (videoRef.current) {
         videoRef.current.srcObject = stream;
       }
@@ -64,6 +71,12 @@ export default function ExitTab() {
       toast({ title: 'Error', variant: 'destructive', description: 'No se pudo acceder a la cámara' });
       setScanning(false);
     }
+  };
+
+  const flipCamera = () => {
+    const newMode = facingMode === 'user' ? 'environment' : 'user';
+    setFacingMode(newMode);
+    startCamera(newMode);
   };
 
   const stopCamera = () => {
@@ -326,13 +339,20 @@ export default function ExitTab() {
               <div className="absolute inset-0 border-4 border-purple-500/30 rounded-xl" />
             </div>
 
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-3 gap-3">
               <Button
                 variant="outline"
                 onClick={stopScanning}
                 className="bg-white/10 border-white/20 text-white/80 hover:bg-white/20"
               >
                 Cancelar
+              </Button>
+              <Button
+                variant="outline"
+                onClick={flipCamera}
+                className="bg-white/10 border-white/20 text-white/80 hover:bg-white/20"
+              >
+                <SwitchCamera className="w-5 h-5" />
               </Button>
               <Button
                 onClick={handleScanCapture}

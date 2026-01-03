@@ -7,7 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { AlertCosmos } from '@/components/ui/alert-cosmos';
 import { Spinner } from '@/components/ui/spinner';
-import { UserPlus, Camera, RefreshCw, LogIn } from 'lucide-react';
+import { UserPlus, Camera, RefreshCw, LogIn, SwitchCamera } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useFace } from '@/hooks/useFace';
 import { HCaptcha, HCaptchaRef } from '@/components/ui/hcaptcha';
@@ -28,11 +28,13 @@ export default function NewWorkerTab() {
 
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const [facingMode, setFacingMode] = useState<'user' | 'environment'>('environment');
 
   const [form, setForm] = useState({
     ci: '',
     fullName: '',
     contractor: '',
+    role: '',
     insuranceNumber: '',
     insuranceExpiry: '',
     phone: '',
@@ -97,9 +99,17 @@ export default function NewWorkerTab() {
     return () => stopCamera();
   }, [cameraActive, loadModels]);
 
-  const startCamera = async () => {
+  const startCamera = async (facing: 'user' | 'environment' = facingMode) => {
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+      // Stop existing stream first
+      if (videoRef.current && videoRef.current.srcObject) {
+        const oldStream = videoRef.current.srcObject as MediaStream;
+        oldStream.getTracks().forEach(track => track.stop());
+      }
+
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: facing }
+      });
       if (videoRef.current) {
         videoRef.current.srcObject = stream;
         setCameraActive(true);
@@ -109,6 +119,12 @@ export default function NewWorkerTab() {
       console.error(err);
       setMessage({ type: 'error', text: 'No se pudo acceder a la cámara. Verifique los permisos.' });
     }
+  };
+
+  const flipCamera = () => {
+    const newMode = facingMode === 'user' ? 'environment' : 'user';
+    setFacingMode(newMode);
+    startCamera(newMode);
   };
 
   const stopCamera = () => {
@@ -229,6 +245,7 @@ export default function NewWorkerTab() {
         .from('workers_profile')
         .insert({
           person_id: person.id,
+          role: form.role.trim() || null,
           insurance_number: form.insuranceNumber.trim() || null,
           insurance_expiry: form.insuranceExpiry || null,
           phone: form.phone.trim() || null,
@@ -260,7 +277,7 @@ export default function NewWorkerTab() {
         setMessage({ type: 'success', text: `Trabajador ${form.fullName} creado exitosamente.` });
       }
 
-      setForm({ ci: '', fullName: '', contractor: '', insuranceNumber: '', insuranceExpiry: '', phone: '', emergencyContact: '', bloodType: '' });
+      setForm({ ci: '', fullName: '', contractor: '', role: '', insuranceNumber: '', insuranceExpiry: '', phone: '', emergencyContact: '', bloodType: '' });
       setCapturedImage(null);
       setFaceDescriptor(null);
     } catch (err: any) {
@@ -340,9 +357,12 @@ export default function NewWorkerTab() {
               <div className="absolute inset-0 border-4 border-primary/30 rounded-xl" />
             </div>
 
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-3 gap-3">
               <Button variant="outline" onClick={() => setCameraActive(false)}>
                 Cancelar
+              </Button>
+              <Button variant="outline" onClick={flipCamera}>
+                <SwitchCamera className="w-5 h-5" />
               </Button>
               <Button onClick={capturePhoto}>
                 Capturar
@@ -367,6 +387,15 @@ export default function NewWorkerTab() {
           <div className="space-y-2">
             <Label htmlFor="contractor">Contratista</Label>
             <Input id="contractor" value={form.contractor} onChange={(e) => setForm({ ...form, contractor: e.target.value })} />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="role">Cargo / Rol</Label>
+            <Input
+              id="role"
+              value={form.role}
+              onChange={(e) => setForm({ ...form, role: e.target.value })}
+              placeholder="Ej: Electricista, Gerente, Albañil"
+            />
           </div>
           <div className="space-y-2">
             <Label htmlFor="phone">Teléfono</Label>

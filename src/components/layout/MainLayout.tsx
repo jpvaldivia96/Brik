@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useSite } from '@/contexts/SiteContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
@@ -21,8 +21,27 @@ import ReportsTab from '@/components/supervisor/ReportsTab';
 import ImportTab from '@/components/supervisor/ImportTab';
 import PeopleTab from '@/components/supervisor/PeopleTab';
 
+// Live Date/Time Display Component
+function DateTimeDisplay() {
+  const [now, setNow] = useState(new Date());
+
+  useEffect(() => {
+    const timer = setInterval(() => setNow(new Date()), 60000); // Update every minute
+    return () => clearInterval(timer);
+  }, []);
+
+  const formatDate = () => now.toLocaleDateString('es-BO', { weekday: 'short', day: 'numeric', month: 'short' });
+  const formatTime = () => now.toLocaleTimeString('es-BO', { hour: '2-digit', minute: '2-digit' });
+
+  return (
+    <span className="text-xs text-white/50 mt-0.5">
+      {formatDate()} · {formatTime()}
+    </span>
+  );
+}
+
 export default function MainLayout() {
-  const { currentSite, selectSite, isSupervisor } = useSite();
+  const { currentSite, sites, selectSite, isSupervisor } = useSite();
   const { signOut } = useAuth();
   const [activeAction, setActiveAction] = useState('');
   const [activeAdminPanel, setActiveAdminPanel] = useState('dashboard');
@@ -105,15 +124,45 @@ export default function MainLayout() {
           </div>
 
           <div className="flex items-center gap-3">
-            <span className="text-sm font-medium text-white/60">{currentSite?.name}</span>
+            {/* Site Dropdown + Date/Time */}
+            <div className="flex flex-col items-end">
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <button className="flex items-center gap-2 text-sm font-medium text-white/80 hover:text-white transition-colors cursor-pointer">
+                    {currentSite?.name}
+                    <ChevronDown className="w-4 h-4" />
+                  </button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="bg-slate-900/95 border-white/20">
+                  {sites.map(site => (
+                    <DropdownMenuItem
+                      key={site.id}
+                      onClick={() => selectSite(site.id)}
+                      className={`cursor-pointer ${currentSite?.id === site.id ? 'bg-purple-500/20' : ''}`}
+                    >
+                      <Building2 className="w-4 h-4 mr-2" />
+                      {site.name}
+                    </DropdownMenuItem>
+                  ))}
+                  {sites.length > 0 && <DropdownMenuSeparator />}
+                  <DropdownMenuItem onClick={() => { localStorage.removeItem('brik_current_site'); selectSite(''); window.location.reload(); }} className="cursor-pointer">
+                    + Crear nueva obra
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+              {/* Date/Time */}
+              <DateTimeDisplay />
+            </div>
+
+            {/* Admin Button with hover effect */}
             {isSupervisor && (
               <Button
                 variant="ghost"
                 size="icon"
                 onClick={() => setAdminDrawerOpen(true)}
-                className="hover:bg-white/10"
+                className="w-10 h-10 rounded-xl transition-all duration-300 hover:bg-gradient-to-r hover:from-purple-500/30 hover:to-blue-500/30 hover:scale-105"
               >
-                <Briefcase className="w-5 h-5 text-white/70" />
+                <Briefcase className="w-6 h-6 text-white/80" />
               </Button>
             )}
           </div>
