@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect } from 'react';
 import { useSite } from '@/contexts/SiteContext';
+import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -9,14 +10,17 @@ import { Spinner } from '@/components/ui/spinner';
 import { UserPlus, Camera, RefreshCw, LogIn } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useFace } from '@/hooks/useFace';
+import { HCaptcha, HCaptchaRef } from '@/components/ui/hcaptcha';
+import { useRateLimit } from '@/hooks/useRateLimit';
 
 export default function NewWorkerTab() {
   const { currentSite } = useSite();
+  const { user } = useAuth();
   const { toast } = useToast();
   const { getDescriptor, loadModels, modelLoaded } = useFace();
 
   const [submitting, setSubmitting] = useState(false);
-  const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+  const [message, setMessage] = useState<{ type: 'success' | 'error' | 'warning'; text: string } | null>(null);
   const [cameraActive, setCameraActive] = useState(false);
   const [capturedImage, setCapturedImage] = useState<string | null>(null);
   const [faceDescriptor, setFaceDescriptor] = useState<Float32Array | null>(null);
@@ -35,6 +39,16 @@ export default function NewWorkerTab() {
     emergencyContact: '',
     bloodType: '',
   });
+
+  const captchaRef = useRef<HCaptchaRef>(null);
+  const { checkRateLimit, isLimited, retryAfter } = useRateLimit();
+
+  const formatRetryTime = (seconds: number) => {
+    if (seconds >= 60) {
+      return `${Math.ceil(seconds / 60)} minuto(s)`;
+    }
+    return `${seconds} segundos`;
+  };
 
   useEffect(() => {
     if (cameraActive) {
@@ -116,14 +130,39 @@ export default function NewWorkerTab() {
     startCamera();
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent, createEntry = false) => {
     e.preventDefault();
-    if (!currentSite) return;
+    if (!currentSite || !user) return;
 
     setSubmitting(true);
     setMessage(null);
 
     try {
+      // Get hCaptcha token (invisible)
+      const captchaToken = await captchaRef.current?.execute();
+
+      // Check rate limit
+      const rateLimitResult = await checkRateLimit(
+        'register_person',
+        user.id,
+        currentSite.id,
+        captchaToken || undefined
+      );
+
+      if (!rateLimitResult.allowed) {
+        if (rateLimitResult.requiresCaptcha) {
+          setMessage({ type: 'error', text: 'Verificación de seguridad fallida. Por favor intenta de nuevo.' });
+        } else {
+          const minutes = Math.ceil((rateLimitResult.retryAfter || 3600) / 60);
+          setMessage({
+            type: 'warning',
+            text: `Has excedido el límite de registros (20 por hora). Por favor espera ${minutes} minuto(s).`
+          });
+        }
+        captchaRef.current?.reset();
+        setSubmitting(false);
+        return;
+      }
       // Create person
       const { data: person, error: personError } = await supabase
         .from('people')
@@ -159,11 +198,31 @@ export default function NewWorkerTab() {
 
       if (profileError) throw profileError;
 
-      toast({ title: 'Trabajador creado', description: `${form.fullName} registrado con biometría.` });
+      // If createEntry, also create access log
+      if (createEntry) {
+        const { error: logError } = await supabase
+          .from('access_logs')
+          .insert({
+            site_id: currentSite.id,
+            person_id: person.id,
+            entry_at: new Date().toISOString(),
+            ci_snapshot: form.ci.trim(),
+            name_snapshot: form.fullName.trim(),
+            type_snapshot: 'worker',
+            contractor_snapshot: form.contractor.trim() || null,
+          });
+
+        if (logError) throw logError;
+        toast({ title: 'Trabajador creado e ingresado', description: `${form.fullName} registrado y ya está dentro.` });
+        setMessage({ type: 'success', text: `${form.fullName} creado e ingresado exitosamente.` });
+      } else {
+        toast({ title: 'Trabajador creado', description: `${form.fullName} registrado con biometría.` });
+        setMessage({ type: 'success', text: `Trabajador ${form.fullName} creado exitosamente.` });
+      }
+
       setForm({ ci: '', fullName: '', contractor: '', insuranceNumber: '', insuranceExpiry: '', phone: '', emergencyContact: '', bloodType: '' });
       setCapturedImage(null);
       setFaceDescriptor(null);
-      setMessage({ type: 'success', text: `Trabajador ${form.fullName} creado exitosamente.` });
     } catch (err: any) {
       if (err.message?.includes('duplicate')) {
         setMessage({ type: 'error', text: 'Ya existe un trabajador con ese CI en esta obra.' });
@@ -171,6 +230,7 @@ export default function NewWorkerTab() {
         setMessage({ type: 'error', text: err.message });
       }
     } finally {
+      captchaRef.current?.reset();
       setSubmitting(false);
     }
   };
@@ -294,7 +354,7 @@ export default function NewWorkerTab() {
         <div className="grid grid-cols-1 gap-3 mt-6">
           <Button
             type="submit"
-            disabled={submitting || (!!capturedImage && !faceDescriptor)}
+            disabled={submitting || isLimited || (!!capturedImage && !faceDescriptor)}
             variant="outline"
             className="w-full h-12"
           >
@@ -303,82 +363,17 @@ export default function NewWorkerTab() {
           </Button>
           <Button
             type="button"
-            onClick={async (e) => {
-              e.preventDefault();
-              if (!currentSite || submitting) return;
-
-              setSubmitting(true);
-              setMessage(null);
-
-              try {
-                // Create person
-                const { data: person, error: personError } = await supabase
-                  .from('people')
-                  .insert({
-                    site_id: currentSite.id,
-                    ci: form.ci.trim(),
-                    full_name: form.fullName.trim(),
-                    type: 'worker',
-                    contractor: form.contractor.trim() || null,
-                    face_descriptor: faceDescriptor ? JSON.stringify(Array.from(faceDescriptor)) : null,
-                    photo_url: null
-                  })
-                  .select()
-                  .single();
-
-                if (personError) throw personError;
-
-                // Create worker profile
-                const { error: profileError } = await supabase
-                  .from('workers_profile')
-                  .insert({
-                    person_id: person.id,
-                    insurance_number: form.insuranceNumber.trim() || null,
-                    insurance_expiry: form.insuranceExpiry || null,
-                    phone: form.phone.trim() || null,
-                    emergency_contact: form.emergencyContact.trim() || null,
-                    blood_type: form.bloodType.trim() || null,
-                  });
-
-                if (profileError) throw profileError;
-
-                // Create entry log immediately
-                const { error: logError } = await supabase
-                  .from('access_logs')
-                  .insert({
-                    site_id: currentSite.id,
-                    person_id: person.id,
-                    entry_at: new Date().toISOString(),
-                    ci_snapshot: form.ci.trim(),
-                    name_snapshot: form.fullName.trim(),
-                    type_snapshot: 'worker',
-                    contractor_snapshot: form.contractor.trim() || null,
-                  });
-
-                if (logError) throw logError;
-
-                toast({ title: 'Trabajador creado e ingresado', description: `${form.fullName} registrado y ya está dentro.` });
-                setForm({ ci: '', fullName: '', contractor: '', insuranceNumber: '', insuranceExpiry: '', phone: '', emergencyContact: '', bloodType: '' });
-                setCapturedImage(null);
-                setFaceDescriptor(null);
-                setMessage({ type: 'success', text: `${form.fullName} creado e ingresado exitosamente.` });
-              } catch (err: any) {
-                if (err.message?.includes('duplicate')) {
-                  setMessage({ type: 'error', text: 'Ya existe un trabajador con ese CI en esta obra.' });
-                } else {
-                  setMessage({ type: 'error', text: err.message });
-                }
-              } finally {
-                setSubmitting(false);
-              }
-            }}
-            disabled={submitting || (!!capturedImage && !faceDescriptor) || !form.ci || !form.fullName}
+            onClick={(e) => handleSubmit(e, true)}
+            disabled={submitting || isLimited || (!!capturedImage && !faceDescriptor) || !form.ci || !form.fullName}
             className="w-full h-12 bg-gradient-to-r from-emerald-500 to-green-500 hover:from-emerald-600 hover:to-green-600"
           >
             {submitting ? <Spinner size="sm" className="mr-2" /> : <LogIn className="w-5 h-5 mr-2" />}
             Registrar e Ingresar
           </Button>
         </div>
+
+        {/* Invisible hCaptcha */}
+        <HCaptcha ref={captchaRef} />
       </form>
 
       {message && <AlertCosmos type={message.type} className="mt-4">{message.text}</AlertCosmos>}

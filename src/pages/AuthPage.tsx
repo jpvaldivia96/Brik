@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { Navigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
@@ -6,7 +6,8 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Spinner } from '@/components/ui/spinner';
 import { AlertCosmos } from '@/components/ui/alert-cosmos';
-import { Building2 } from 'lucide-react';
+import { HCaptcha, HCaptchaRef } from '@/components/ui/hcaptcha';
+import { useRateLimit } from '@/hooks/useRateLimit';
 
 export default function AuthPage() {
   const { user, loading, signIn, signUp } = useAuth();
@@ -16,6 +17,9 @@ export default function AuthPage() {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
+
+  const captchaRef = useRef<HCaptchaRef>(null);
+  const { checkRateLimit, isLimited, retryAfter } = useRateLimit();
 
   if (loading) {
     return (
@@ -29,6 +33,13 @@ export default function AuthPage() {
     return <Navigate to="/" replace />;
   }
 
+  const formatRetryTime = (seconds: number) => {
+    if (seconds >= 60) {
+      return `${Math.ceil(seconds / 60)} minuto(s)`;
+    }
+    return `${seconds} segundos`;
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
@@ -36,6 +47,24 @@ export default function AuthPage() {
     setSubmitting(true);
 
     try {
+      // Get hCaptcha token (invisible - only triggers if suspicious)
+      const captchaToken = await captchaRef.current?.execute();
+
+      // Check rate limit
+      const rateLimitResult = await checkRateLimit('login', email, undefined, captchaToken || undefined);
+
+      if (!rateLimitResult.allowed) {
+        if (rateLimitResult.requiresCaptcha) {
+          setError('Verificación de seguridad fallida. Por favor intenta de nuevo.');
+        } else {
+          const minutes = Math.ceil((rateLimitResult.retryAfter || 60) / 60);
+          setError(`Has excedido el límite de intentos. Por favor espera ${minutes} minuto(s).`);
+        }
+        captchaRef.current?.reset();
+        setSubmitting(false);
+        return;
+      }
+
       if (isLogin) {
         const { error } = await signIn(email, password);
         if (error) throw error;
@@ -48,6 +77,7 @@ export default function AuthPage() {
     } catch (err: any) {
       setError(err.message || 'Error de autenticación');
     } finally {
+      captchaRef.current?.reset();
       setSubmitting(false);
     }
   };
@@ -91,6 +121,11 @@ export default function AuthPage() {
             {success && (
               <AlertCosmos type="success">{success}</AlertCosmos>
             )}
+            {isLimited && retryAfter && (
+              <AlertCosmos type="warning">
+                Límite de intentos excedido. Podrás intentar de nuevo en {formatRetryTime(retryAfter)}.
+              </AlertCosmos>
+            )}
 
             <div className="space-y-2">
               <Label htmlFor="email" className="text-white/80 text-sm font-medium">Correo electrónico</Label>
@@ -101,6 +136,7 @@ export default function AuthPage() {
                 onChange={(e) => setEmail(e.target.value)}
                 placeholder="tu@email.com"
                 required
+                disabled={isLimited}
                 className="h-12 rounded-xl bg-white/10 border-white/20 text-white placeholder:text-white/40 focus:bg-white/15 focus:border-purple-400 transition-all duration-200"
               />
             </div>
@@ -115,6 +151,7 @@ export default function AuthPage() {
                 placeholder="••••••••"
                 required
                 minLength={6}
+                disabled={isLimited}
                 className="h-12 rounded-xl bg-white/10 border-white/20 text-white placeholder:text-white/40 focus:bg-white/15 focus:border-purple-400 transition-all duration-200"
               />
             </div>
@@ -122,13 +159,16 @@ export default function AuthPage() {
             <Button
               type="submit"
               className="w-full h-12 text-base rounded-full font-semibold bg-gradient-to-r from-purple-500 to-blue-500 hover:from-purple-600 hover:to-blue-600 text-white shadow-lg hover:shadow-purple-500/25 transition-all duration-300 hover:scale-[1.02] active:scale-[0.98]"
-              disabled={submitting}
+              disabled={submitting || isLimited}
             >
               {submitting ? (
                 <Spinner size="sm" className="mr-2" />
               ) : null}
               {isLogin ? 'Iniciar sesión' : 'Crear cuenta'}
             </Button>
+
+            {/* Invisible hCaptcha */}
+            <HCaptcha ref={captchaRef} />
           </form>
 
           {/* Toggle */}
@@ -141,6 +181,7 @@ export default function AuthPage() {
                 setSuccess(null);
               }}
               className="text-sm text-white/60 hover:text-white transition-colors duration-200"
+              disabled={isLimited}
             >
               {isLogin ? '¿No tienes cuenta? Regístrate' : '¿Ya tienes cuenta? Inicia sesión'}
             </button>
