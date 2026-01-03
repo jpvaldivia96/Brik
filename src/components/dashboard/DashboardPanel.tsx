@@ -19,6 +19,9 @@ interface InsideLog {
   ci: string;
   photo_url: string | null;
   role: string | null;
+  // Compliance fields
+  insurance_expiry: string | null;
+  induction_date: string | null;
 }
 
 interface ContractorStat {
@@ -35,10 +38,12 @@ export default function DashboardPanel() {
 
   // Filter states
   const [searchQuery, setSearchQuery] = useState('');
-  const [dateFilter, setDateFilter] = useState<'today' | 'week' | 'all'>('today');
+  const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
   const [activeFilters, setActiveFilters] = useState<Set<string>>(new Set());
   const [activeTab, setActiveTab] = useState<'people' | 'companies'>('people');
   const [statusFilter, setStatusFilter] = useState<'all' | 'crit' | 'warn' | 'ok'>('all');
+  const [sortBy, setSortBy] = useState<'name' | 'status' | 'entry'>('entry');
+  const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc');
 
   // Stats
   const stats = useMemo(() => {
@@ -54,19 +59,42 @@ export default function DashboardPanel() {
 
     const warnH = Number(currentSettings?.warn_hours) || 10;
     const critH = Number(currentSettings?.crit_hours) || 12;
+    const today = new Date().toISOString().split('T')[0];
+    const isViewingToday = selectedDate === today;
 
-    // Get open logs with workers_profile for role
-    const { data: openLogs } = await supabase
-      .from('access_logs')
-      .select('*, people(full_name, ci, photo_url)')
-      .eq('site_id', currentSite.id)
-      .is('exit_at', null)
-      .is('voided_at', null);
+    let logs: any[] = [];
+
+    if (isViewingToday) {
+      // Show currently open (inside) logs for today
+      const { data: openLogs } = await supabase
+        .from('access_logs')
+        .select('*, people(full_name, ci, photo_url, insurance_expiry, induction_date)')
+        .eq('site_id', currentSite.id)
+        .is('exit_at', null)
+        .is('voided_at', null);
+      logs = openLogs || [];
+    } else {
+      // Show historical logs for selected date (all entries that day)
+      const startOfDay = `${selectedDate}T00:00:00`;
+      const endOfDay = `${selectedDate}T23:59:59`;
+      const { data: historicalLogs } = await supabase
+        .from('access_logs')
+        .select('*, people(full_name, ci, photo_url, insurance_expiry, induction_date)')
+        .eq('site_id', currentSite.id)
+        .is('voided_at', null)
+        .gte('entry_at', startOfDay)
+        .lte('entry_at', endOfDay);
+      logs = historicalLogs || [];
+    }
 
     const now = Date.now();
-    const inside: InsideLog[] = (openLogs || []).map(log => {
-      const hours = (now - new Date(log.entry_at).getTime()) / 3600000;
-      const status: 'ok' | 'warn' | 'crit' = hours >= critH ? 'crit' : hours >= warnH ? 'warn' : 'ok';
+    const inside: InsideLog[] = logs.map(log => {
+      const entryTime = new Date(log.entry_at).getTime();
+      const exitTime = log.exit_at ? new Date(log.exit_at).getTime() : now;
+      const hours = (exitTime - entryTime) / 3600000;
+      const status: 'ok' | 'warn' | 'crit' = isViewingToday
+        ? (hours >= critH ? 'crit' : hours >= warnH ? 'warn' : 'ok')
+        : 'ok'; // Historical logs always show as 'ok'
       return {
         id: log.id,
         name_snapshot: log.name_snapshot,
@@ -78,7 +106,9 @@ export default function DashboardPanel() {
         full_name: log.name_snapshot || log.people?.full_name || 'Sin nombre',
         ci: log.ci_snapshot || log.people?.ci || '',
         photo_url: log.people?.photo_url || null,
-        role: null // Will be populated once workers_profile.role column is added
+        role: null, // Will be populated once workers_profile.role column is added
+        insurance_expiry: log.people?.insurance_expiry || null,
+        induction_date: log.people?.induction_date || null
       };
     }).sort((a, b) => b.hours - a.hours);
 
@@ -92,14 +122,14 @@ export default function DashboardPanel() {
     });
 
     // Today's entries per contractor
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
+    const todayStart = new Date();
+    todayStart.setHours(0, 0, 0, 0);
     const { data: todayLogs } = await supabase
       .from('access_logs')
       .select('contractor_snapshot')
       .eq('site_id', currentSite.id)
       .is('voided_at', null)
-      .gte('entry_at', today.toISOString());
+      .gte('entry_at', todayStart.toISOString());
 
     (todayLogs || []).forEach(log => {
       const c = log.contractor_snapshot || 'Sin contratista';
@@ -119,7 +149,7 @@ export default function DashboardPanel() {
 
   useEffect(() => {
     fetchData();
-  }, [currentSite, currentSettings]);
+  }, [currentSite, currentSettings, selectedDate]);
 
   // Realtime subscription
   useEffect(() => {
@@ -163,8 +193,22 @@ export default function DashboardPanel() {
       result = result.filter(l => l.status === statusFilter);
     }
 
+    // Apply sorting
+    result = [...result].sort((a, b) => {
+      let cmp = 0;
+      if (sortBy === 'name') {
+        cmp = a.full_name.localeCompare(b.full_name);
+      } else if (sortBy === 'status') {
+        const order = { crit: 0, warn: 1, ok: 2 };
+        cmp = order[a.status] - order[b.status];
+      } else { // entry
+        cmp = new Date(b.entry_at).getTime() - new Date(a.entry_at).getTime();
+      }
+      return sortDir === 'asc' ? cmp : -cmp;
+    });
+
     return result;
-  }, [insideList, searchQuery, statusFilter]);
+  }, [insideList, searchQuery, statusFilter, sortBy, sortDir]);
 
   const toggleFilter = (label: string) => {
     setActiveFilters(prev => {
@@ -285,20 +329,35 @@ export default function DashboardPanel() {
               <AttendanceFilters
                 searchQuery={searchQuery}
                 onSearchChange={setSearchQuery}
-                dateFilter={dateFilter}
-                onDateFilterChange={setDateFilter}
+                selectedDate={selectedDate}
+                onDateChange={setSelectedDate}
                 filters={filterBadges}
                 onFilterClick={toggleFilter}
               />
 
               {activeTab === 'people' ? (
                 <>
-                  {/* Desktop Table Header */}
+                  {/* Desktop Table Header - Sortable */}
                   <div className="hidden md:grid grid-cols-[auto_1fr_120px_100px] gap-4 items-center px-4 py-2 text-xs text-white/60 uppercase tracking-wider border-b border-border">
                     <div className="w-10"></div>
-                    <div>Nombre</div>
-                    <div>Estado</div>
-                    <div>Entrada</div>
+                    <button
+                      onClick={() => { setSortBy('name'); setSortDir(sortBy === 'name' && sortDir === 'asc' ? 'desc' : 'asc'); }}
+                      className={cn("flex items-center gap-1 hover:text-white transition-colors text-left", sortBy === 'name' && "text-white")}
+                    >
+                      Nombre {sortBy === 'name' && (sortDir === 'asc' ? '▲' : '▼')}
+                    </button>
+                    <button
+                      onClick={() => { setSortBy('status'); setSortDir(sortBy === 'status' && sortDir === 'asc' ? 'desc' : 'asc'); }}
+                      className={cn("flex items-center gap-1 hover:text-white transition-colors text-left", sortBy === 'status' && "text-white")}
+                    >
+                      Estado {sortBy === 'status' && (sortDir === 'asc' ? '▲' : '▼')}
+                    </button>
+                    <button
+                      onClick={() => { setSortBy('entry'); setSortDir(sortBy === 'entry' && sortDir === 'asc' ? 'desc' : 'asc'); }}
+                      className={cn("flex items-center gap-1 hover:text-white transition-colors text-left", sortBy === 'entry' && "text-white")}
+                    >
+                      Entrada {sortBy === 'entry' && (sortDir === 'asc' ? '▲' : '▼')}
+                    </button>
                   </div>
 
                   {/* Desktop Rows */}
@@ -313,6 +372,8 @@ export default function DashboardPanel() {
                         checkedIn={formatTime(log.entry_at)}
                         hours={log.hours}
                         photoUrl={log.photo_url}
+                        insuranceExpiry={log.insurance_expiry}
+                        inductionDate={log.induction_date}
                       />
                     ))}
                     {filteredList.length === 0 && (
@@ -334,6 +395,8 @@ export default function DashboardPanel() {
                         checkedIn={formatTime(log.entry_at)}
                         hours={log.hours}
                         photoUrl={log.photo_url}
+                        insuranceExpiry={log.insurance_expiry}
+                        inductionDate={log.induction_date}
                       />
                     ))}
                     {filteredList.length === 0 && (

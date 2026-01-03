@@ -1,4 +1,4 @@
-import { Search, Calendar, Users, AlertTriangle, Clock } from 'lucide-react';
+import { Search, Calendar, Users, AlertTriangle, Clock, X } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { cn } from '@/lib/utils';
 
@@ -13,8 +13,8 @@ interface FilterBadge {
 interface AttendanceFiltersProps {
     searchQuery: string;
     onSearchChange: (value: string) => void;
-    dateFilter: 'today' | 'week' | 'all';
-    onDateFilterChange: (value: 'today' | 'week' | 'all') => void;
+    selectedDate: string; // ISO date string YYYY-MM-DD
+    onDateChange: (date: string) => void;
     filters: FilterBadge[];
     onFilterClick: (label: string) => void;
 }
@@ -22,11 +22,19 @@ interface AttendanceFiltersProps {
 export function AttendanceFilters({
     searchQuery,
     onSearchChange,
-    dateFilter,
-    onDateFilterChange,
+    selectedDate,
+    onDateChange,
     filters,
     onFilterClick,
 }: AttendanceFiltersProps) {
+    const today = new Date().toISOString().split('T')[0];
+    const isToday = selectedDate === today;
+
+    const formatDisplayDate = (dateStr: string) => {
+        const date = new Date(dateStr + 'T12:00:00');
+        return date.toLocaleDateString('es-BO', { weekday: 'short', day: 'numeric', month: 'short' });
+    };
+
     return (
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between mb-4">
             {/* Search and Date */}
@@ -42,17 +50,23 @@ export function AttendanceFilters({
                     />
                 </div>
 
-                <div className="relative">
-                    <select
-                        value={dateFilter}
-                        onChange={(e) => onDateFilterChange(e.target.value as 'today' | 'week' | 'all')}
-                        className="h-9 px-3 pr-8 rounded-lg bg-card/50 border border-border text-sm text-foreground appearance-none cursor-pointer focus:outline-none focus:ring-2 focus:ring-primary/50"
-                    >
-                        <option value="today">Hoy</option>
-                        <option value="week">Esta semana</option>
-                        <option value="all">Todo</option>
-                    </select>
-                    <Calendar className="absolute right-2 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
+                {/* Date Picker */}
+                <div className="relative flex items-center">
+                    <input
+                        type="date"
+                        value={selectedDate}
+                        max={today}
+                        onChange={(e) => onDateChange(e.target.value)}
+                        className="h-9 px-3 rounded-lg bg-card/50 border border-border text-sm text-foreground cursor-pointer focus:outline-none focus:ring-2 focus:ring-primary/50"
+                    />
+                    {!isToday && (
+                        <button
+                            onClick={() => onDateChange(today)}
+                            className="ml-2 px-2 py-1 text-xs bg-primary/20 text-primary rounded-lg hover:bg-primary/30 transition-colors"
+                        >
+                            Hoy
+                        </button>
+                    )}
                 </div>
             </div>
 

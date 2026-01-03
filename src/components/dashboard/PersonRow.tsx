@@ -1,4 +1,5 @@
 import { cn } from '@/lib/utils';
+import { Shield, GraduationCap, Check, X } from 'lucide-react';
 
 interface PersonRowProps {
     name: string;
@@ -8,7 +9,42 @@ interface PersonRowProps {
     checkedIn: string;
     hours?: number;
     photoUrl?: string | null;
+    insuranceExpiry?: string | null;
+    inductionDate?: string | null;
     className?: string;
+}
+
+// Compliance status check
+function isComplianceValid(date: string | null | undefined): boolean {
+    if (!date) return false;
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const expiry = new Date(date);
+    return expiry >= today;
+}
+
+function ComplianceIcons({ insuranceExpiry, inductionDate }: { insuranceExpiry?: string | null; inductionDate?: string | null }) {
+    const insuranceOk = isComplianceValid(insuranceExpiry);
+    const inductionOk = !!inductionDate; // Just needs to exist
+
+    return (
+        <div className="flex items-center gap-1">
+            <div className={cn(
+                "flex items-center gap-0.5 text-[10px]",
+                insuranceOk ? "text-emerald-400" : "text-red-400"
+            )}>
+                <Shield className="w-3 h-3" />
+                {insuranceOk ? <Check className="w-2.5 h-2.5" /> : <X className="w-2.5 h-2.5" />}
+            </div>
+            <div className={cn(
+                "flex items-center gap-0.5 text-[10px]",
+                inductionOk ? "text-emerald-400" : "text-red-400"
+            )}>
+                <GraduationCap className="w-3 h-3" />
+                {inductionOk ? <Check className="w-2.5 h-2.5" /> : <X className="w-2.5 h-2.5" />}
+            </div>
+        </div>
+    );
 }
 
 function getInitials(name: string): string {
@@ -85,7 +121,7 @@ function Avatar({
     );
 }
 
-export function PersonRow({ name, role, contractor, status, checkedIn, hours, photoUrl, className }: PersonRowProps) {
+export function PersonRow({ name, role, contractor, status, checkedIn, hours, photoUrl, insuranceExpiry, inductionDate, className }: PersonRowProps) {
     const statusConfig = getStatusConfig(status);
 
     return (
@@ -105,6 +141,9 @@ export function PersonRow({ name, role, contractor, status, checkedIn, hours, ph
                     {contractor || (!role && 'Sin contratista')}
                 </div>
             </div>
+
+            {/* Compliance Icons */}
+            <ComplianceIcons insuranceExpiry={insuranceExpiry} inductionDate={inductionDate} />
 
             {/* Status badge */}
             <div className={cn(
@@ -126,7 +165,7 @@ export function PersonRow({ name, role, contractor, status, checkedIn, hours, ph
 }
 
 // Mobile card variant
-export function PersonCard({ name, role, contractor, status, checkedIn, hours, photoUrl, className }: PersonRowProps) {
+export function PersonCard({ name, role, contractor, status, checkedIn, hours, photoUrl, insuranceExpiry, inductionDate, className }: PersonRowProps) {
     const statusConfig = getStatusConfig(status);
 
     return (
@@ -153,11 +192,14 @@ export function PersonCard({ name, role, contractor, status, checkedIn, hours, p
                     {role && contractor && <span className="mx-1">·</span>}
                     {contractor || (!role && 'Sin contratista')}
                 </div>
-                <div className="text-xs text-muted-foreground mt-1">
-                    {checkedIn}
-                    {hours !== undefined && hours > 0 && (
-                        <span className="ml-1">• {hours.toFixed(1)}h</span>
-                    )}
+                <div className="flex items-center justify-between mt-1">
+                    <div className="text-xs text-muted-foreground">
+                        {checkedIn}
+                        {hours !== undefined && hours > 0 && (
+                            <span className="ml-1">• {hours.toFixed(1)}h</span>
+                        )}
+                    </div>
+                    <ComplianceIcons insuranceExpiry={insuranceExpiry} inductionDate={inductionDate} />
                 </div>
             </div>
         </div>
