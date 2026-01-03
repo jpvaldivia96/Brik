@@ -133,19 +133,22 @@ export default function MainLayout() {
                     <ChevronDown className="w-4 h-4" />
                   </button>
                 </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="bg-slate-900/95 border-white/20">
+                <DropdownMenuContent align="end" className="bg-slate-900 border-white/20 min-w-[180px]">
                   {sites.map(site => (
                     <DropdownMenuItem
                       key={site.id}
                       onClick={() => selectSite(site.id)}
-                      className={`cursor-pointer ${currentSite?.id === site.id ? 'bg-purple-500/20' : ''}`}
+                      className={`cursor-pointer text-white hover:bg-purple-500/30 focus:bg-purple-500/30 ${currentSite?.id === site.id ? 'bg-purple-500/20' : ''}`}
                     >
                       <Building2 className="w-4 h-4 mr-2" />
                       {site.name}
                     </DropdownMenuItem>
                   ))}
-                  {sites.length > 0 && <DropdownMenuSeparator />}
-                  <DropdownMenuItem onClick={() => { localStorage.removeItem('brik_current_site'); selectSite(''); window.location.reload(); }} className="cursor-pointer">
+                  {sites.length > 0 && <DropdownMenuSeparator className="bg-white/20" />}
+                  <DropdownMenuItem
+                    onClick={() => { localStorage.removeItem('brik_current_site'); selectSite(''); window.location.reload(); }}
+                    className="cursor-pointer text-white/70 hover:text-white hover:bg-purple-500/30 focus:bg-purple-500/30"
+                  >
                     + Crear nueva obra
                   </DropdownMenuItem>
                 </DropdownMenuContent>
@@ -154,15 +157,15 @@ export default function MainLayout() {
               <DateTimeDisplay />
             </div>
 
-            {/* Admin Button with hover effect */}
+            {/* Admin Button with hover effect - 2x bigger */}
             {isSupervisor && (
               <Button
                 variant="ghost"
                 size="icon"
                 onClick={() => setAdminDrawerOpen(true)}
-                className="w-10 h-10 rounded-xl transition-all duration-300 hover:bg-gradient-to-r hover:from-purple-500/30 hover:to-blue-500/30 hover:scale-105"
+                className="w-14 h-14 rounded-xl transition-all duration-300 hover:bg-gradient-to-r hover:from-purple-500/30 hover:to-blue-500/30 hover:scale-105"
               >
-                <Briefcase className="w-6 h-6 text-white/80" />
+                <Briefcase className="w-10 h-10 text-white/80" />
               </Button>
             )}
           </div>

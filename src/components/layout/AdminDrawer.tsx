@@ -42,10 +42,10 @@ export default function AdminDrawer({ open, onOpenChange, activePanel, onPanelCh
                 key={option.id}
                 onClick={() => handleSelect(option.id)}
                 className={cn(
-                  "flex items-start gap-3 p-4 rounded-2xl border transition-all text-left",
+                  "flex items-start gap-3 p-4 rounded-2xl border transition-all duration-200 text-left",
                   isActive
-                    ? "bg-primary/10 border-primary text-primary"
-                    : "bg-card border-border hover:border-primary/50"
+                    ? "bg-primary/10 border-primary text-primary scale-[1.02] shadow-lg shadow-primary/20"
+                    : "bg-card border-border hover:border-primary/50 hover:scale-[1.02] hover:shadow-lg hover:shadow-primary/10 active:scale-95"
                 )}
               >
                 <div className={cn(
