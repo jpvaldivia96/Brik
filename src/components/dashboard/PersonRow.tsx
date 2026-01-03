@@ -2,6 +2,7 @@ import { cn } from '@/lib/utils';
 
 interface PersonRowProps {
     name: string;
+    role?: string | null;
     contractor: string | null;
     status: 'on-site' | 'off-site' | 'at-risk' | 'warn' | 'crit';
     checkedIn: string;
@@ -84,7 +85,7 @@ function Avatar({
     );
 }
 
-export function PersonRow({ name, contractor, status, checkedIn, hours, photoUrl, className }: PersonRowProps) {
+export function PersonRow({ name, role, contractor, status, checkedIn, hours, photoUrl, className }: PersonRowProps) {
     const statusConfig = getStatusConfig(status);
 
     return (
@@ -95,11 +96,13 @@ export function PersonRow({ name, contractor, status, checkedIn, hours, photoUrl
             {/* Avatar */}
             <Avatar name={name} photoUrl={photoUrl} status={status} size="md" />
 
-            {/* Name and contractor */}
+            {/* Name, role and contractor */}
             <div className="flex-1 min-w-0">
                 <div className="font-medium text-foreground truncate">{name}</div>
-                <div className="text-sm text-muted-foreground truncate">
-                    {contractor || 'Sin contratista'}
+                <div className="text-xs text-muted-foreground truncate">
+                    {role && <span className="text-primary/80">{role}</span>}
+                    {role && contractor && <span className="mx-1">·</span>}
+                    {contractor || (!role && 'Sin contratista')}
                 </div>
             </div>
 
@@ -123,7 +126,7 @@ export function PersonRow({ name, contractor, status, checkedIn, hours, photoUrl
 }
 
 // Mobile card variant
-export function PersonCard({ name, contractor, status, checkedIn, hours, photoUrl, className }: PersonRowProps) {
+export function PersonCard({ name, role, contractor, status, checkedIn, hours, photoUrl, className }: PersonRowProps) {
     const statusConfig = getStatusConfig(status);
 
     return (
@@ -145,8 +148,10 @@ export function PersonCard({ name, contractor, status, checkedIn, hours, photoUr
                         {statusConfig.label}
                     </div>
                 </div>
-                <div className="text-sm text-muted-foreground truncate mt-0.5">
-                    {contractor || 'Sin contratista'}
+                <div className="text-xs text-muted-foreground truncate mt-0.5">
+                    {role && <span className="text-primary/80">{role}</span>}
+                    {role && contractor && <span className="mx-1">·</span>}
+                    {contractor || (!role && 'Sin contratista')}
                 </div>
                 <div className="text-xs text-muted-foreground mt-1">
                     {checkedIn}

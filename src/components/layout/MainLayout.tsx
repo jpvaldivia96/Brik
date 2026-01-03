@@ -123,7 +123,7 @@ export default function MainLayout() {
             </Button>
           </div>
 
-          <div className="flex items-center gap-3">
+          <div className="flex items-start gap-3">
             {/* Site Dropdown + Date/Time */}
             <div className="flex flex-col items-end">
               <DropdownMenu>
@@ -133,12 +133,12 @@ export default function MainLayout() {
                     <ChevronDown className="w-4 h-4" />
                   </button>
                 </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="bg-slate-900 border-white/20 min-w-[180px]">
+                <DropdownMenuContent align="end" className="bg-slate-800 border-white/20 min-w-[180px]">
                   {sites.map(site => (
                     <DropdownMenuItem
                       key={site.id}
                       onClick={() => selectSite(site.id)}
-                      className={`cursor-pointer text-white hover:bg-purple-500/30 focus:bg-purple-500/30 ${currentSite?.id === site.id ? 'bg-purple-500/20' : ''}`}
+                      className={`cursor-pointer text-white hover:!bg-white/20 focus:!bg-white/20 ${currentSite?.id === site.id ? 'bg-white/10' : ''}`}
                     >
                       <Building2 className="w-4 h-4 mr-2" />
                       {site.name}
@@ -147,7 +147,7 @@ export default function MainLayout() {
                   {sites.length > 0 && <DropdownMenuSeparator className="bg-white/20" />}
                   <DropdownMenuItem
                     onClick={() => { localStorage.removeItem('brik_current_site'); selectSite(''); window.location.reload(); }}
-                    className="cursor-pointer text-white/70 hover:text-white hover:bg-purple-500/30 focus:bg-purple-500/30"
+                    className="cursor-pointer text-white/70 hover:text-white hover:!bg-white/20 focus:!bg-white/20"
                   >
                     + Crear nueva obra
                   </DropdownMenuItem>
@@ -157,15 +157,15 @@ export default function MainLayout() {
               <DateTimeDisplay />
             </div>
 
-            {/* Admin Button with hover effect - 2x bigger */}
+            {/* Admin Button - aligned with site name */}
             {isSupervisor && (
               <Button
                 variant="ghost"
                 size="icon"
                 onClick={() => setAdminDrawerOpen(true)}
-                className="w-14 h-14 rounded-xl transition-all duration-300 hover:bg-gradient-to-r hover:from-purple-500/30 hover:to-blue-500/30 hover:scale-105"
+                className="w-10 h-10 rounded-xl transition-all duration-300 hover:bg-white/10 hover:scale-105 -mt-1"
               >
-                <Briefcase className="w-10 h-10 text-white/80" />
+                <Briefcase className="w-7 h-7 text-white/80" />
               </Button>
             )}
           </div>

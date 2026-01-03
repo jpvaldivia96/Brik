@@ -15,10 +15,10 @@ interface InsideLog {
   entry_at: string;
   hours: number;
   status: 'ok' | 'warn' | 'crit';
-  people?: { full_name: string; ci: string; photo_url: string | null } | null;
   full_name: string;
   ci: string;
   photo_url: string | null;
+  role: string | null;
 }
 
 interface ContractorStat {
@@ -38,6 +38,7 @@ export default function DashboardPanel() {
   const [dateFilter, setDateFilter] = useState<'today' | 'week' | 'all'>('today');
   const [activeFilters, setActiveFilters] = useState<Set<string>>(new Set());
   const [activeTab, setActiveTab] = useState<'people' | 'companies'>('people');
+  const [statusFilter, setStatusFilter] = useState<'all' | 'crit' | 'warn' | 'ok'>('all');
 
   // Stats
   const stats = useMemo(() => {
@@ -54,7 +55,7 @@ export default function DashboardPanel() {
     const warnH = Number(currentSettings?.warn_hours) || 10;
     const critH = Number(currentSettings?.crit_hours) || 12;
 
-    // Get open logs
+    // Get open logs with workers_profile for role
     const { data: openLogs } = await supabase
       .from('access_logs')
       .select('*, people(full_name, ci, photo_url)')
@@ -65,15 +66,20 @@ export default function DashboardPanel() {
     const now = Date.now();
     const inside: InsideLog[] = (openLogs || []).map(log => {
       const hours = (now - new Date(log.entry_at).getTime()) / 3600000;
-      const status = hours >= critH ? 'crit' : hours >= warnH ? 'warn' : 'ok';
+      const status: 'ok' | 'warn' | 'crit' = hours >= critH ? 'crit' : hours >= warnH ? 'warn' : 'ok';
       return {
-        ...log,
+        id: log.id,
+        name_snapshot: log.name_snapshot,
+        ci_snapshot: log.ci_snapshot,
+        contractor_snapshot: log.contractor_snapshot,
+        entry_at: log.entry_at,
         hours,
         status,
         full_name: log.name_snapshot || log.people?.full_name || 'Sin nombre',
         ci: log.ci_snapshot || log.people?.ci || '',
-        photo_url: log.people?.photo_url || null
-      } as InsideLog;
+        photo_url: log.people?.photo_url || null,
+        role: null // Will be populated once workers_profile.role column is added
+      };
     }).sort((a, b) => b.hours - a.hours);
 
     // Contractor stats
@@ -152,19 +158,13 @@ export default function DashboardPanel() {
       );
     }
 
-    // Status filters
-    if (activeFilters.has('At-risk')) {
-      result = result.filter(l => l.status === 'warn');
-    }
-    if (activeFilters.has('Alert')) {
-      result = result.filter(l => l.status === 'crit');
-    }
-    if (activeFilters.has('On site') && !activeFilters.has('At-risk') && !activeFilters.has('Alert')) {
-      // Show all on-site if only "On site" is active
+    // Status filter from clickable badges
+    if (statusFilter !== 'all') {
+      result = result.filter(l => l.status === statusFilter);
     }
 
     return result;
-  }, [insideList, searchQuery, activeFilters]);
+  }, [insideList, searchQuery, statusFilter]);
 
   const toggleFilter = (label: string) => {
     setActiveFilters(prev => {
@@ -199,29 +199,51 @@ export default function DashboardPanel() {
         </div>
       </div>
 
-      {/* Alert Badges Summary (SignOnSite style) */}
-      <div className="flex items-center gap-3 flex-wrap">
-        <div className={cn(
-          "flex items-center gap-2 px-4 py-2 rounded-xl border",
-          stats.alert > 0 ? "bg-red-500/10 border-red-500/30 text-red-400" : "bg-card/30 border-border text-white/70"
-        )}>
-          <AlertTriangle className="w-4 h-4" />
-          <span className="text-2xl font-bold">{stats.alert}</span>
-          <span className="text-sm">Alerta</span>
-        </div>
-        <div className={cn(
-          "flex items-center gap-2 px-4 py-2 rounded-xl border",
-          stats.atRisk > 0 ? "bg-amber-500/10 border-amber-500/30 text-amber-400" : "bg-card/30 border-border text-white/70"
-        )}>
-          <Clock className="w-4 h-4" />
-          <span className="text-2xl font-bold">{stats.atRisk}</span>
-          <span className="text-sm">En riesgo</span>
-        </div>
-        <div className="flex items-center gap-2 px-4 py-2 rounded-xl border bg-card/30 border-border text-white/70">
-          <UserCheck className="w-4 h-4" />
-          <span className="text-2xl font-bold">{stats.onSite}</span>
-          <span className="text-sm">En sitio</span>
-        </div>
+      {/* Alert Badges Summary - Clickable to filter */}
+      <div className="grid grid-cols-3 gap-2">
+        <button
+          onClick={() => setStatusFilter(statusFilter === 'crit' ? 'all' : 'crit')}
+          className={cn(
+            "flex items-center gap-1.5 px-2 py-2 rounded-xl border justify-center transition-all",
+            statusFilter === 'crit'
+              ? "bg-red-500/30 border-red-400 text-red-300 ring-2 ring-red-400/50"
+              : stats.alert > 0
+                ? "bg-red-500/10 border-red-500/30 text-red-400 hover:bg-red-500/20"
+                : "bg-card/30 border-border text-white/70 hover:bg-card/50"
+          )}
+        >
+          <AlertTriangle className="w-3.5 h-3.5" />
+          <span className="text-xl font-bold">{stats.alert}</span>
+          <span className="text-xs hidden sm:inline">Alerta</span>
+        </button>
+        <button
+          onClick={() => setStatusFilter(statusFilter === 'warn' ? 'all' : 'warn')}
+          className={cn(
+            "flex items-center gap-1.5 px-2 py-2 rounded-xl border justify-center transition-all",
+            statusFilter === 'warn'
+              ? "bg-amber-500/30 border-amber-400 text-amber-300 ring-2 ring-amber-400/50"
+              : stats.atRisk > 0
+                ? "bg-amber-500/10 border-amber-500/30 text-amber-400 hover:bg-amber-500/20"
+                : "bg-card/30 border-border text-white/70 hover:bg-card/50"
+          )}
+        >
+          <Clock className="w-3.5 h-3.5" />
+          <span className="text-xl font-bold">{stats.atRisk}</span>
+          <span className="text-xs hidden sm:inline">Riesgo</span>
+        </button>
+        <button
+          onClick={() => setStatusFilter(statusFilter === 'ok' ? 'all' : 'ok')}
+          className={cn(
+            "flex items-center gap-1.5 px-2 py-2 rounded-xl border justify-center transition-all",
+            statusFilter === 'ok'
+              ? "bg-emerald-500/30 border-emerald-400 text-emerald-300 ring-2 ring-emerald-400/50"
+              : "bg-card/30 border-border text-white/70 hover:bg-card/50"
+          )}
+        >
+          <UserCheck className="w-3.5 h-3.5" />
+          <span className="text-xl font-bold">{stats.onSite}</span>
+          <span className="text-xs hidden sm:inline">En sitio</span>
+        </button>
       </div>
 
       {loading ? (
@@ -285,6 +307,7 @@ export default function DashboardPanel() {
                       <PersonRow
                         key={log.id}
                         name={log.full_name}
+                        role={log.role}
                         contractor={log.contractor_snapshot}
                         status={log.status === 'crit' ? 'crit' : log.status === 'warn' ? 'at-risk' : 'on-site'}
                         checkedIn={formatTime(log.entry_at)}
@@ -305,6 +328,7 @@ export default function DashboardPanel() {
                       <PersonCard
                         key={log.id}
                         name={log.full_name}
+                        role={log.role}
                         contractor={log.contractor_snapshot}
                         status={log.status === 'crit' ? 'crit' : log.status === 'warn' ? 'at-risk' : 'on-site'}
                         checkedIn={formatTime(log.entry_at)}
