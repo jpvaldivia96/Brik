@@ -12,6 +12,7 @@ interface PersonRowProps {
     insuranceExpiry?: string | null;
     inductionDate?: string | null;
     className?: string;
+    onClick?: () => void;
 }
 
 // Compliance status check
@@ -27,19 +28,39 @@ function ComplianceIcons({ insuranceExpiry, inductionDate }: { insuranceExpiry?:
     const insuranceOk = isComplianceValid(insuranceExpiry);
     const inductionOk = !!inductionDate; // Just needs to exist
 
+    // Format date for tooltip
+    const formatDate = (dateStr: string | null | undefined) => {
+        if (!dateStr) return null;
+        return new Date(dateStr).toLocaleDateString('es-BO', { day: '2-digit', month: 'short', year: 'numeric' });
+    };
+
+    const insuranceTooltip = insuranceExpiry
+        ? (insuranceOk ? `Seguro vence: ${formatDate(insuranceExpiry)}` : `Seguro VENCIDO: ${formatDate(insuranceExpiry)}`)
+        : 'Sin seguro registrado';
+
+    const inductionTooltip = inductionDate
+        ? `Inducción: ${formatDate(inductionDate)}`
+        : 'Sin inducción';
+
     return (
         <div className="flex items-center gap-1">
-            <div className={cn(
-                "flex items-center gap-0.5 text-[10px]",
-                insuranceOk ? "text-emerald-400" : "text-red-400"
-            )}>
+            <div
+                title={insuranceTooltip}
+                className={cn(
+                    "flex items-center gap-0.5 text-[10px] cursor-help",
+                    insuranceOk ? "text-emerald-400" : "text-red-400"
+                )}
+            >
                 <Shield className="w-3 h-3" />
                 {insuranceOk ? <Check className="w-2.5 h-2.5" /> : <X className="w-2.5 h-2.5" />}
             </div>
-            <div className={cn(
-                "flex items-center gap-0.5 text-[10px]",
-                inductionOk ? "text-emerald-400" : "text-red-400"
-            )}>
+            <div
+                title={inductionTooltip}
+                className={cn(
+                    "flex items-center gap-0.5 text-[10px] cursor-help",
+                    inductionOk ? "text-emerald-400" : "text-red-400"
+                )}
+            >
                 <GraduationCap className="w-3 h-3" />
                 {inductionOk ? <Check className="w-2.5 h-2.5" /> : <X className="w-2.5 h-2.5" />}
             </div>
@@ -121,14 +142,18 @@ function Avatar({
     );
 }
 
-export function PersonRow({ name, role, contractor, status, checkedIn, hours, photoUrl, insuranceExpiry, inductionDate, className }: PersonRowProps) {
+export function PersonRow({ name, role, contractor, status, checkedIn, hours, photoUrl, insuranceExpiry, inductionDate, className, onClick }: PersonRowProps) {
     const statusConfig = getStatusConfig(status);
 
     return (
-        <div className={cn(
-            "flex items-center gap-3 px-4 py-3 hover:bg-card/50 transition-colors border-b border-border/50 last:border-b-0",
-            className
-        )}>
+        <div
+            onClick={onClick}
+            className={cn(
+                "flex items-center gap-3 px-4 py-3 hover:bg-card/50 transition-colors border-b border-border/50 last:border-b-0",
+                onClick && "cursor-pointer",
+                className
+            )}
+        >
             {/* Avatar */}
             <Avatar name={name} photoUrl={photoUrl} status={status} size="md" />
 
@@ -165,14 +190,18 @@ export function PersonRow({ name, role, contractor, status, checkedIn, hours, ph
 }
 
 // Mobile card variant
-export function PersonCard({ name, role, contractor, status, checkedIn, hours, photoUrl, insuranceExpiry, inductionDate, className }: PersonRowProps) {
+export function PersonCard({ name, role, contractor, status, checkedIn, hours, photoUrl, insuranceExpiry, inductionDate, className, onClick }: PersonRowProps) {
     const statusConfig = getStatusConfig(status);
 
     return (
-        <div className={cn(
-            "flex items-start gap-3 p-4 bg-card/30 rounded-xl border border-border/50",
-            className
-        )}>
+        <div
+            onClick={onClick}
+            className={cn(
+                "flex items-start gap-3 p-4 bg-card/30 rounded-xl border border-border/50",
+                onClick && "cursor-pointer",
+                className
+            )}
+        >
             {/* Avatar */}
             <Avatar name={name} photoUrl={photoUrl} status={status} size="lg" />
 

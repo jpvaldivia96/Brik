@@ -2,13 +2,18 @@ import { useState, useEffect, useMemo } from 'react';
 import { useSite } from '@/contexts/SiteContext';
 import { supabase } from '@/integrations/supabase/client';
 import { Spinner } from '@/components/ui/spinner';
+import { Button } from '@/components/ui/button';
 import { AttendanceFilters } from './AttendanceFilters';
 import { PersonRow, PersonCard } from './PersonRow';
-import { Users, AlertTriangle, Clock, Building2, UserCheck } from 'lucide-react';
+import { EditWorkerModal } from './EditWorkerModal';
+import { ExportButton } from './ExportButton';
+import { ExitQueueModal } from './ExitQueueModal';
+import { Users, AlertTriangle, Clock, Building2, UserCheck, UserMinus } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 interface InsideLog {
   id: string;
+  person_id: string;
   name_snapshot: string | null;
   ci_snapshot: string | null;
   contractor_snapshot: string | null;
@@ -44,6 +49,8 @@ export default function DashboardPanel() {
   const [statusFilter, setStatusFilter] = useState<'all' | 'crit' | 'warn' | 'ok'>('all');
   const [sortBy, setSortBy] = useState<'name' | 'status' | 'entry'>('entry');
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc');
+  const [editingPersonId, setEditingPersonId] = useState<string | null>(null);
+  const [showExitQueue, setShowExitQueue] = useState(false);
 
   // Stats
   const stats = useMemo(() => {
@@ -101,6 +108,7 @@ export default function DashboardPanel() {
 
       return {
         id: log.id,
+        person_id: log.person_id,
         name_snapshot: log.name_snapshot,
         ci_snapshot: log.ci_snapshot,
         contractor_snapshot: log.contractor_snapshot,
@@ -329,15 +337,37 @@ export default function DashboardPanel() {
             </div>
 
             <div className="p-4">
-              {/* Filters */}
-              <AttendanceFilters
-                searchQuery={searchQuery}
-                onSearchChange={setSearchQuery}
-                selectedDate={selectedDate}
-                onDateChange={setSelectedDate}
-                filters={filterBadges}
-                onFilterClick={toggleFilter}
-              />
+              {/* Filters and Export */}
+              <div className="flex items-start gap-3">
+                <div className="flex-1">
+                  <AttendanceFilters
+                    searchQuery={searchQuery}
+                    onSearchChange={setSearchQuery}
+                    selectedDate={selectedDate}
+                    onDateChange={setSelectedDate}
+                    filters={filterBadges}
+                    onFilterClick={toggleFilter}
+                  />
+                </div>
+                <div className="flex gap-2">
+                  {selectedDate === new Date().toISOString().split('T')[0] && filteredList.length > 0 && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setShowExitQueue(true)}
+                      className="gap-2"
+                    >
+                      <UserMinus className="w-4 h-4" />
+                      <span className="hidden sm:inline">Preparar Salida</span>
+                    </Button>
+                  )}
+                  <ExportButton
+                    data={filteredList}
+                    selectedDate={selectedDate}
+                    siteName={currentSite?.name}
+                  />
+                </div>
+              </div>
 
               {activeTab === 'people' ? (
                 <>
@@ -378,6 +408,7 @@ export default function DashboardPanel() {
                         photoUrl={log.photo_url}
                         insuranceExpiry={log.insurance_expiry}
                         inductionDate={log.induction_date}
+                        onClick={() => setEditingPersonId(log.person_id)}
                       />
                     ))}
                     {filteredList.length === 0 && (
@@ -401,6 +432,7 @@ export default function DashboardPanel() {
                         photoUrl={log.photo_url}
                         insuranceExpiry={log.insurance_expiry}
                         inductionDate={log.induction_date}
+                        onClick={() => setEditingPersonId(log.person_id)}
                       />
                     ))}
                     {filteredList.length === 0 && (
@@ -442,6 +474,33 @@ export default function DashboardPanel() {
           </div>
         </>
       )}
+
+      {/* Edit Worker Modal */}
+      {editingPersonId && (
+        <EditWorkerModal
+          open={!!editingPersonId}
+          onClose={() => setEditingPersonId(null)}
+          personId={editingPersonId}
+          onSaved={fetchData}
+        />
+      )}
+
+      {/* Exit Queue Modal */}
+      <ExitQueueModal
+        open={showExitQueue}
+        onClose={() => setShowExitQueue(false)}
+        people={filteredList.map(l => ({
+          person_id: l.person_id,
+          full_name: l.full_name,
+          contractor_snapshot: l.contractor_snapshot,
+          photo_url: l.photo_url,
+          log_id: l.id
+        }))}
+        onStartQueue={(queue) => {
+          console.log('Starting exit queue with:', queue);
+          // TODO: Navigate to Exit tab with queue
+        }}
+      />
     </div>
   );
 }
