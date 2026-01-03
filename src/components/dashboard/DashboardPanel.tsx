@@ -238,7 +238,7 @@ export default function DashboardPanel() {
                   "px-4 py-2 rounded-lg text-sm font-medium transition-colors",
                   activeTab === 'people'
                     ? "bg-primary text-primary-foreground"
-                    : "text-white/60 hover:text-white hover:bg-card"
+                    : "text-white/60 hover:text-white/90 hover:bg-white/10"
                 )}
               >
                 <Users className="w-4 h-4 inline mr-2" />
@@ -250,7 +250,7 @@ export default function DashboardPanel() {
                   "px-4 py-2 rounded-lg text-sm font-medium transition-colors",
                   activeTab === 'companies'
                     ? "bg-primary text-primary-foreground"
-                    : "text-white/60 hover:text-white hover:bg-card"
+                    : "text-white/60 hover:text-white/90 hover:bg-white/10"
                 )}
               >
                 <Building2 className="w-4 h-4 inline mr-2" />

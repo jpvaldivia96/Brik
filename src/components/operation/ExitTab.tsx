@@ -39,6 +39,20 @@ export default function ExitTab() {
     return () => stopCamera();
   }, [scanning, loadModels]);
 
+  // Auto-search with debounce
+  useEffect(() => {
+    if (query.trim().length < 2) {
+      setResults([]);
+      return;
+    }
+
+    const timer = setTimeout(() => {
+      handleSearchAuto(query.trim());
+    }, 300);
+
+    return () => clearTimeout(timer);
+  }, [query, currentSite]);
+
   const startCamera = async () => {
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ video: true });
@@ -134,6 +148,46 @@ export default function ExitTab() {
       } finally {
         setProcessingScan(false);
       }
+    }
+  };
+
+  // Auto-search function (called by debounce effect)
+  const handleSearchAuto = async (searchTerm: string) => {
+    if (!searchTerm || !currentSite) return;
+    setSearching(true);
+    setMessage(null);
+
+    try {
+      const { data: logs, error } = await supabase
+        .from('access_logs')
+        .select('id, person_id, people(*)')
+        .eq('site_id', currentSite.id)
+        .is('exit_at', null)
+        .is('voided_at', null);
+
+      if (error) throw error;
+
+      const filtered = (logs || []).filter(log => {
+        const p = log.people as any;
+        return p && (
+          p.ci === searchTerm ||
+          p.full_name.toLowerCase().includes(searchTerm.toLowerCase())
+        );
+      }).map(log => ({
+        ...(log.people as any),
+        type: (log.people as any).type as 'worker' | 'visitor',
+        is_inside: true,
+        log_id: log.id,
+      }));
+
+      setResults(filtered);
+      if (filtered.length === 1) {
+        setSelected(filtered[0]);
+      }
+    } catch (err: any) {
+      setMessage({ type: 'error', text: err.message });
+    } finally {
+      setSearching(false);
     }
   };
 

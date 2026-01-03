@@ -41,6 +41,20 @@ export default function EntryTab() {
     return () => stopCamera();
   }, [scanning, loadModels]);
 
+  // Auto-search with debounce
+  useEffect(() => {
+    if (query.trim().length < 2) {
+      setResults([]);
+      return;
+    }
+
+    const timer = setTimeout(() => {
+      handleSearchAuto(query.trim());
+    }, 300);
+
+    return () => clearTimeout(timer);
+  }, [query, currentSite]);
+
   const startCamera = async () => {
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ video: true });
@@ -134,6 +148,50 @@ export default function EntryTab() {
       } finally {
         setProcessingScan(false);
       }
+    }
+  };
+
+  // Auto-search function (called by debounce effect)
+  const handleSearchAuto = async (searchTerm: string) => {
+    if (!searchTerm || !currentSite) return;
+    setSearching(true);
+    setMessage(null);
+
+    try {
+      const { data, error } = await supabase
+        .from('people')
+        .select('*, workers_profile(*), visitors_profile(*)')
+        .eq('site_id', currentSite.id)
+        .or(`ci.eq.${searchTerm},full_name.ilike.%${searchTerm}%`)
+        .limit(20);
+
+      if (error) throw error;
+
+      const peopleIds = (data || []).map(p => p.id);
+      const { data: logs } = await supabase
+        .from('access_logs')
+        .select('person_id')
+        .eq('site_id', currentSite.id)
+        .is('exit_at', null)
+        .is('voided_at', null)
+        .in('person_id', peopleIds);
+
+      const insideSet = new Set((logs || []).map(l => l.person_id));
+
+      const enriched: PersonSearchResult[] = (data || []).map(p => ({
+        ...p,
+        type: p.type as 'worker' | 'visitor',
+        is_inside: insideSet.has(p.id),
+      }));
+
+      setResults(enriched);
+      if (enriched.length === 1) {
+        setSelected(enriched[0]);
+      }
+    } catch (err: any) {
+      setMessage({ type: 'error', text: err.message });
+    } finally {
+      setSearching(false);
     }
   };
 
