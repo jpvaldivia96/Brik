@@ -299,8 +299,8 @@ export default function BottomActionBar({ activeAction, onActionChange }: Omit<B
             className={cn(
               "flex flex-col items-center justify-center gap-1 px-3 py-2 rounded-2xl transition-all duration-300 min-w-[60px]",
               activeAction === 'worker'
-                ? "bg-gradient-to-r from-purple-500 to-blue-500 text-white shadow-lg shadow-purple-500/25"
-                : "text-white/60 hover:text-white hover:bg-white/10 hover:scale-105"
+                ? "bg-gradient-to-r from-purple-500 to-blue-500 text-white shadow-lg shadow-purple-500/30"
+                : "text-white/60 hover:text-white hover:bg-purple-500/20 hover:shadow-lg hover:shadow-purple-500/25 hover:scale-105"
             )}
           >
             <HardHat className="w-5 h-5" />
@@ -311,7 +311,7 @@ export default function BottomActionBar({ activeAction, onActionChange }: Omit<B
           <div className="flex flex-col items-center">
             <button
               onClick={() => handleScan('entry')}
-              className="flex flex-col items-center gap-1 px-5 py-2.5 rounded-2xl transition-all duration-300 bg-gradient-to-r from-emerald-500 to-green-500 text-white shadow-lg shadow-emerald-500/30 hover:shadow-xl hover:shadow-emerald-500/40 hover:scale-105 active:scale-95"
+              className="flex flex-col items-center gap-1 px-6 py-3 rounded-2xl transition-all duration-300 bg-gradient-to-r from-emerald-500 via-teal-500 to-purple-500 text-white shadow-lg shadow-emerald-500/30 hover:shadow-xl hover:shadow-emerald-500/50 hover:scale-105 active:scale-95"
             >
               <LogIn className="w-6 h-6" />
               <span className="text-[10px] font-semibold">Entrada</span>
@@ -328,14 +328,14 @@ export default function BottomActionBar({ activeAction, onActionChange }: Omit<B
           <div className="flex flex-col items-center">
             <button
               onClick={() => handleScan('exit')}
-              className="flex flex-col items-center gap-1 px-5 py-2.5 rounded-2xl transition-all duration-300 bg-gradient-to-r from-orange-500 to-red-500 text-white shadow-lg shadow-orange-500/30 hover:shadow-xl hover:shadow-orange-500/40 hover:scale-105 active:scale-95"
+              className="flex flex-col items-center gap-1 px-6 py-3 rounded-2xl transition-all duration-300 bg-gradient-to-r from-red-500 via-orange-500 to-purple-500 text-white shadow-lg shadow-red-500/30 hover:shadow-xl hover:shadow-red-500/50 hover:scale-105 active:scale-95"
             >
               <LogOut className="w-6 h-6" />
               <span className="text-[10px] font-semibold">Salida</span>
             </button>
             <button
               onClick={() => handleManualOpen('exit')}
-              className="text-[9px] text-white/40 hover:text-orange-400 mt-1 transition-colors"
+              className="text-[9px] text-white/40 hover:text-red-400 mt-1 transition-colors"
             >
               manual
             </button>
@@ -347,8 +347,8 @@ export default function BottomActionBar({ activeAction, onActionChange }: Omit<B
             className={cn(
               "flex flex-col items-center justify-center gap-1 px-3 py-2 rounded-2xl transition-all duration-300 min-w-[60px]",
               activeAction === 'visitor'
-                ? "bg-gradient-to-r from-purple-500 to-blue-500 text-white shadow-lg shadow-purple-500/25"
-                : "text-white/60 hover:text-white hover:bg-white/10 hover:scale-105"
+                ? "bg-gradient-to-r from-purple-500 to-blue-500 text-white shadow-lg shadow-purple-500/30"
+                : "text-white/60 hover:text-white hover:bg-purple-500/20 hover:shadow-lg hover:shadow-purple-500/25 hover:scale-105"
             )}
           >
             <User className="w-5 h-5" />
@@ -361,8 +361,8 @@ export default function BottomActionBar({ activeAction, onActionChange }: Omit<B
             className={cn(
               "flex flex-col items-center justify-center gap-1 px-3 py-2 rounded-2xl transition-all duration-300 min-w-[60px]",
               activeAction === 'favorites'
-                ? "bg-gradient-to-r from-purple-500 to-blue-500 text-white shadow-lg shadow-purple-500/25"
-                : "text-white/60 hover:text-white hover:bg-white/10 hover:scale-105"
+                ? "bg-gradient-to-r from-purple-500 to-blue-500 text-white shadow-lg shadow-purple-500/30"
+                : "text-white/60 hover:text-white hover:bg-purple-500/20 hover:shadow-lg hover:shadow-purple-500/25 hover:scale-105"
             )}
           >
             <Star className="w-5 h-5" />
