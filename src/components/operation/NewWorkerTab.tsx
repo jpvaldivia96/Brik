@@ -40,6 +40,7 @@ export default function NewWorkerTab() {
     phone: '',
     emergencyContact: '',
     bloodType: '',
+    inductionCompleted: false,
   });
 
   const captchaRef = useRef<HCaptchaRef>(null);
@@ -248,6 +249,7 @@ export default function NewWorkerTab() {
           role: form.role.trim() || null,
           insurance_number: form.insuranceNumber.trim() || null,
           insurance_expiry: form.insuranceExpiry || null,
+          induction_date: form.inductionCompleted ? new Date().toISOString().split('T')[0] : null,
           phone: form.phone.trim() || null,
           emergency_contact: form.emergencyContact.trim() || null,
           blood_type: form.bloodType.trim() || null,
@@ -277,7 +279,7 @@ export default function NewWorkerTab() {
         setMessage({ type: 'success', text: `Trabajador ${form.fullName} creado exitosamente.` });
       }
 
-      setForm({ ci: '', fullName: '', contractor: '', role: '', insuranceNumber: '', insuranceExpiry: '', phone: '', emergencyContact: '', bloodType: '' });
+      setForm({ ci: '', fullName: '', contractor: '', role: '', insuranceNumber: '', insuranceExpiry: '', phone: '', emergencyContact: '', bloodType: '', inductionCompleted: false });
       setCapturedImage(null);
       setFaceDescriptor(null);
     } catch (err: any) {
@@ -418,6 +420,23 @@ export default function NewWorkerTab() {
             <Label htmlFor="bloodType">Tipo de sangre</Label>
             <Input id="bloodType" value={form.bloodType} onChange={(e) => setForm({ ...form, bloodType: e.target.value })} placeholder="Ej: O+" />
           </div>
+        </div>
+
+        {/* Induction Checkbox */}
+        <div className="flex items-center gap-3 p-4 bg-card/50 rounded-xl border border-border mt-4">
+          <input
+            type="checkbox"
+            id="inductionCompleted"
+            checked={form.inductionCompleted}
+            onChange={(e) => setForm({ ...form, inductionCompleted: e.target.checked })}
+            className="w-5 h-5 rounded border-border text-primary focus:ring-primary"
+          />
+          <Label htmlFor="inductionCompleted" className="flex-1 cursor-pointer">
+            <span className="font-medium">Inducción completada</span>
+            <p className="text-xs text-muted-foreground mt-0.5">
+              Marcar si el trabajador completó la charla de seguridad del sitio
+            </p>
+          </Label>
         </div>
 
         <div className="grid grid-cols-1 gap-3 mt-6">

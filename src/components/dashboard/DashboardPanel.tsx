@@ -68,7 +68,7 @@ export default function DashboardPanel() {
       // Show currently open (inside) logs for today
       const { data: openLogs } = await supabase
         .from('access_logs')
-        .select('*, people(full_name, ci, photo_url, insurance_expiry, induction_date)')
+        .select('*, people(full_name, ci, photo_url, workers_profile(insurance_expiry, induction_date, role))')
         .eq('site_id', currentSite.id)
         .is('exit_at', null)
         .is('voided_at', null);
@@ -79,7 +79,7 @@ export default function DashboardPanel() {
       const endOfDay = `${selectedDate}T23:59:59`;
       const { data: historicalLogs } = await supabase
         .from('access_logs')
-        .select('*, people(full_name, ci, photo_url, insurance_expiry, induction_date)')
+        .select('*, people(full_name, ci, photo_url, workers_profile(insurance_expiry, induction_date, role))')
         .eq('site_id', currentSite.id)
         .is('voided_at', null)
         .gte('entry_at', startOfDay)
@@ -95,6 +95,10 @@ export default function DashboardPanel() {
       const status: 'ok' | 'warn' | 'crit' = isViewingToday
         ? (hours >= critH ? 'crit' : hours >= warnH ? 'warn' : 'ok')
         : 'ok'; // Historical logs always show as 'ok'
+
+      // Get workers_profile data (it's related to people, which is related to access_logs)
+      const wp = log.people?.workers_profile;
+
       return {
         id: log.id,
         name_snapshot: log.name_snapshot,
@@ -106,9 +110,9 @@ export default function DashboardPanel() {
         full_name: log.name_snapshot || log.people?.full_name || 'Sin nombre',
         ci: log.ci_snapshot || log.people?.ci || '',
         photo_url: log.people?.photo_url || null,
-        role: null, // Will be populated once workers_profile.role column is added
-        insurance_expiry: log.people?.insurance_expiry || null,
-        induction_date: log.people?.induction_date || null
+        role: wp?.role || null,
+        insurance_expiry: wp?.insurance_expiry || null,
+        induction_date: wp?.induction_date || null
       };
     }).sort((a, b) => b.hours - a.hours);
 
