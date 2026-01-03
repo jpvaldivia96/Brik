@@ -15,9 +15,10 @@ interface InsideLog {
   entry_at: string;
   hours: number;
   status: 'ok' | 'warn' | 'crit';
-  people?: { full_name: string; ci: string } | null;
+  people?: { full_name: string; ci: string; photo_url: string | null } | null;
   full_name: string;
   ci: string;
+  photo_url: string | null;
 }
 
 interface ContractorStat {
@@ -56,7 +57,7 @@ export default function DashboardPanel() {
     // Get open logs
     const { data: openLogs } = await supabase
       .from('access_logs')
-      .select('*, people(full_name, ci)')
+      .select('*, people(full_name, ci, photo_url)')
       .eq('site_id', currentSite.id)
       .is('exit_at', null)
       .is('voided_at', null);
@@ -70,7 +71,8 @@ export default function DashboardPanel() {
         hours,
         status,
         full_name: log.name_snapshot || log.people?.full_name || 'Sin nombre',
-        ci: log.ci_snapshot || log.people?.ci || ''
+        ci: log.ci_snapshot || log.people?.ci || '',
+        photo_url: log.people?.photo_url || null
       } as InsideLog;
     }).sort((a, b) => b.hours - a.hours);
 
@@ -287,6 +289,7 @@ export default function DashboardPanel() {
                         status={log.status === 'crit' ? 'crit' : log.status === 'warn' ? 'at-risk' : 'on-site'}
                         checkedIn={formatTime(log.entry_at)}
                         hours={log.hours}
+                        photoUrl={log.photo_url}
                       />
                     ))}
                     {filteredList.length === 0 && (
@@ -306,6 +309,7 @@ export default function DashboardPanel() {
                         status={log.status === 'crit' ? 'crit' : log.status === 'warn' ? 'at-risk' : 'on-site'}
                         checkedIn={formatTime(log.entry_at)}
                         hours={log.hours}
+                        photoUrl={log.photo_url}
                       />
                     ))}
                     {filteredList.length === 0 && (

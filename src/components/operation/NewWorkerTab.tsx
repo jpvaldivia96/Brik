@@ -50,6 +50,43 @@ export default function NewWorkerTab() {
     return `${seconds} segundos`;
   };
 
+  // Upload photo to Supabase Storage
+  const uploadPhoto = async (base64Image: string, ci: string): Promise<string | null> => {
+    if (!currentSite) return null;
+
+    try {
+      // Convert base64 to blob
+      const response = await fetch(base64Image);
+      const blob = await response.blob();
+
+      // Generate unique filename
+      const filename = `${currentSite.id}/${ci}_${Date.now()}.jpg`;
+
+      // Upload to storage
+      const { data, error } = await supabase.storage
+        .from('worker-photos')
+        .upload(filename, blob, {
+          contentType: 'image/jpeg',
+          upsert: true
+        });
+
+      if (error) {
+        console.error('Photo upload error:', error);
+        return null;
+      }
+
+      // Get public URL
+      const { data: urlData } = supabase.storage
+        .from('worker-photos')
+        .getPublicUrl(filename);
+
+      return urlData.publicUrl;
+    } catch (err) {
+      console.error('Photo upload failed:', err);
+      return null;
+    }
+  };
+
   useEffect(() => {
     if (cameraActive) {
       loadModels();
@@ -163,6 +200,13 @@ export default function NewWorkerTab() {
         setSubmitting(false);
         return;
       }
+
+      // Upload photo if captured
+      let photoUrl: string | null = null;
+      if (capturedImage) {
+        photoUrl = await uploadPhoto(capturedImage, form.ci.trim());
+      }
+
       // Create person
       const { data: person, error: personError } = await supabase
         .from('people')
@@ -172,12 +216,8 @@ export default function NewWorkerTab() {
           full_name: form.fullName.trim(),
           type: 'worker',
           contractor: form.contractor.trim() || null,
-          // Save face descriptor as JSON string
           face_descriptor: faceDescriptor ? JSON.stringify(Array.from(faceDescriptor)) : null,
-          // Ideally upload photo to storage, skipping for now to keep it simple, or store small base64?
-          // Base64 is too large for TEXT column usually, but let's try or leave null.
-          // User asked for biometric entry, descriptor is key.
-          photo_url: null
+          photo_url: photoUrl
         })
         .select()
         .single();

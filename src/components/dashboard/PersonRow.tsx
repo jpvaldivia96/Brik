@@ -6,6 +6,7 @@ interface PersonRowProps {
     status: 'on-site' | 'off-site' | 'at-risk' | 'warn' | 'crit';
     checkedIn: string;
     hours?: number;
+    photoUrl?: string | null;
     className?: string;
 }
 
@@ -33,8 +34,57 @@ function getStatusConfig(status: PersonRowProps['status']) {
     }
 }
 
-export function PersonRow({ name, contractor, status, checkedIn, hours, className }: PersonRowProps) {
+function Avatar({
+    name,
+    photoUrl,
+    status,
+    size = 'md'
+}: {
+    name: string;
+    photoUrl?: string | null;
+    status: PersonRowProps['status'];
+    size?: 'sm' | 'md' | 'lg';
+}) {
     const initials = getInitials(name);
+    const sizeClasses = {
+        sm: 'w-8 h-8 text-xs',
+        md: 'w-10 h-10 text-sm',
+        lg: 'w-11 h-11 text-sm'
+    };
+
+    const bgClass = status === 'crit'
+        ? "bg-red-500/20 text-red-400"
+        : status === 'warn' || status === 'at-risk'
+            ? "bg-amber-500/20 text-amber-400"
+            : "bg-primary/20 text-primary";
+
+    if (photoUrl) {
+        return (
+            <img
+                src={photoUrl}
+                alt={name}
+                className={cn(
+                    "rounded-full object-cover flex-shrink-0",
+                    sizeClasses[size],
+                    status === 'crit' && "ring-2 ring-red-500/50",
+                    status === 'warn' || status === 'at-risk' && "ring-2 ring-amber-500/50"
+                )}
+            />
+        );
+    }
+
+    return (
+        <div className={cn(
+            "flex-shrink-0 rounded-full flex items-center justify-center font-semibold",
+            sizeClasses[size],
+            bgClass
+        )}>
+            {initials}
+        </div>
+    );
+}
+
+export function PersonRow({ name, contractor, status, checkedIn, hours, photoUrl, className }: PersonRowProps) {
     const statusConfig = getStatusConfig(status);
 
     return (
@@ -42,15 +92,8 @@ export function PersonRow({ name, contractor, status, checkedIn, hours, classNam
             "flex items-center gap-3 px-4 py-3 hover:bg-card/50 transition-colors border-b border-border/50 last:border-b-0",
             className
         )}>
-            {/* Avatar with initials */}
-            <div className={cn(
-                "flex-shrink-0 w-10 h-10 rounded-full flex items-center justify-center text-sm font-semibold",
-                status === 'crit' ? "bg-red-500/20 text-red-400" :
-                    status === 'warn' || status === 'at-risk' ? "bg-amber-500/20 text-amber-400" :
-                        "bg-primary/20 text-primary"
-            )}>
-                {initials}
-            </div>
+            {/* Avatar */}
+            <Avatar name={name} photoUrl={photoUrl} status={status} size="md" />
 
             {/* Name and contractor */}
             <div className="flex-1 min-w-0">
@@ -80,8 +123,7 @@ export function PersonRow({ name, contractor, status, checkedIn, hours, classNam
 }
 
 // Mobile card variant
-export function PersonCard({ name, contractor, status, checkedIn, hours, className }: PersonRowProps) {
-    const initials = getInitials(name);
+export function PersonCard({ name, contractor, status, checkedIn, hours, photoUrl, className }: PersonRowProps) {
     const statusConfig = getStatusConfig(status);
 
     return (
@@ -89,15 +131,8 @@ export function PersonCard({ name, contractor, status, checkedIn, hours, classNa
             "flex items-start gap-3 p-4 bg-card/30 rounded-xl border border-border/50",
             className
         )}>
-            {/* Avatar with initials */}
-            <div className={cn(
-                "flex-shrink-0 w-11 h-11 rounded-full flex items-center justify-center text-sm font-semibold",
-                status === 'crit' ? "bg-red-500/20 text-red-400" :
-                    status === 'warn' || status === 'at-risk' ? "bg-amber-500/20 text-amber-400" :
-                        "bg-primary/20 text-primary"
-            )}>
-                {initials}
-            </div>
+            {/* Avatar */}
+            <Avatar name={name} photoUrl={photoUrl} status={status} size="lg" />
 
             {/* Content */}
             <div className="flex-1 min-w-0">
