@@ -292,7 +292,7 @@ export default function BottomActionBar({ activeAction, onActionChange }: Omit<B
   return (
     <>
       <div className="fixed bottom-0 left-0 right-0 backdrop-blur-xl bg-slate-900/80 border-t border-white/10 z-50 pb-safe">
-        <div className="flex items-center justify-center gap-2 sm:gap-3 px-3 sm:px-4 py-3 sm:py-4">
+        <div className="flex items-center justify-center gap-2 sm:gap-3 px-5 sm:px-4 py-3 sm:py-4">
           {/* Worker Button */}
           <button
             onClick={() => onActionChange('worker')}
