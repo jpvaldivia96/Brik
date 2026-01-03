@@ -1,12 +1,11 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useSite } from '@/contexts/SiteContext';
 import { supabase } from '@/integrations/supabase/client';
-import { KPICard } from '@/components/ui/kpi-card';
-import { StatusBadge } from '@/components/ui/status-badge';
 import { Spinner } from '@/components/ui/spinner';
-import { Button } from '@/components/ui/button';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Users, LogIn, LogOut, AlertTriangle, RefreshCw, Star, ShieldAlert, Building2 } from 'lucide-react';
+import { AttendanceFilters } from './AttendanceFilters';
+import { PersonRow, PersonCard } from './PersonRow';
+import { Users, AlertTriangle, Clock, Building2, UserCheck } from 'lucide-react';
+import { cn } from '@/lib/utils';
 
 interface InsideLog {
   id: string;
@@ -17,6 +16,8 @@ interface InsideLog {
   hours: number;
   status: 'ok' | 'warn' | 'crit';
   people?: { full_name: string; ci: string } | null;
+  full_name: string;
+  ci: string;
 }
 
 interface ContractorStat {
@@ -25,33 +26,25 @@ interface ContractorStat {
   entriesToday: number;
 }
 
-interface InsuranceAlert {
-  id: string;
-  full_name: string;
-  ci: string;
-  contractor: string | null;
-  insurance_expiry: string;
-  days_left: number;
-  status: 'expired' | 'expiring';
-}
-
-interface FavoriteStatus {
-  id: string;
-  full_name: string;
-  ci: string;
-  is_inside: boolean;
-  hours: number | null;
-  status: 'ok' | 'warn' | 'crit' | null;
-}
-
 export default function DashboardPanel() {
   const { currentSite, currentSettings } = useSite();
   const [loading, setLoading] = useState(true);
-  const [stats, setStats] = useState({ insideNow: 0, entriesToday: 0, exitsToday: 0, warnCount: 0, critCount: 0 });
   const [insideList, setInsideList] = useState<InsideLog[]>([]);
   const [contractors, setContractors] = useState<ContractorStat[]>([]);
-  const [insuranceAlerts, setInsuranceAlerts] = useState<InsuranceAlert[]>([]);
-  const [favorites, setFavorites] = useState<FavoriteStatus[]>([]);
+
+  // Filter states
+  const [searchQuery, setSearchQuery] = useState('');
+  const [dateFilter, setDateFilter] = useState<'today' | 'week' | 'all'>('today');
+  const [activeFilters, setActiveFilters] = useState<Set<string>>(new Set());
+  const [activeTab, setActiveTab] = useState<'people' | 'companies'>('people');
+
+  // Stats
+  const stats = useMemo(() => {
+    const onSite = insideList.length;
+    const atRisk = insideList.filter(l => l.status === 'warn').length;
+    const alert = insideList.filter(l => l.status === 'crit').length;
+    return { onSite, atRisk, alert };
+  }, [insideList]);
 
   const fetchData = async () => {
     if (!currentSite) return;
@@ -59,7 +52,6 @@ export default function DashboardPanel() {
 
     const warnH = Number(currentSettings?.warn_hours) || 10;
     const critH = Number(currentSettings?.crit_hours) || 12;
-    const seguroWarnDays = currentSettings?.seguro_warn_days || 30;
 
     // Get open logs
     const { data: openLogs } = await supabase
@@ -73,23 +65,14 @@ export default function DashboardPanel() {
     const inside: InsideLog[] = (openLogs || []).map(log => {
       const hours = (now - new Date(log.entry_at).getTime()) / 3600000;
       const status = hours >= critH ? 'crit' : hours >= warnH ? 'warn' : 'ok';
-      return { ...log, hours, status } as InsideLog;
+      return {
+        ...log,
+        hours,
+        status,
+        full_name: log.name_snapshot || log.people?.full_name || 'Sin nombre',
+        ci: log.ci_snapshot || log.people?.ci || ''
+      } as InsideLog;
     }).sort((a, b) => b.hours - a.hours);
-
-    // Today's entries/exits using site timezone
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    const todayStr = today.toISOString();
-
-    const { data: todayLogs } = await supabase
-      .from('access_logs')
-      .select('entry_at, exit_at, contractor_snapshot')
-      .eq('site_id', currentSite.id)
-      .is('voided_at', null)
-      .gte('entry_at', todayStr);
-
-    const entriesToday = (todayLogs || []).length;
-    const exitsToday = (todayLogs || []).filter(l => l.exit_at).length;
 
     // Contractor stats
     const contractorMap = new Map<string, { inside: number; entriesToday: number }>();
@@ -99,100 +82,43 @@ export default function DashboardPanel() {
       stat.inside++;
       contractorMap.set(c, stat);
     });
+
+    // Today's entries per contractor
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const { data: todayLogs } = await supabase
+      .from('access_logs')
+      .select('contractor_snapshot')
+      .eq('site_id', currentSite.id)
+      .is('voided_at', null)
+      .gte('entry_at', today.toISOString());
+
     (todayLogs || []).forEach(log => {
       const c = log.contractor_snapshot || 'Sin contratista';
       const stat = contractorMap.get(c) || { inside: 0, entriesToday: 0 };
       stat.entriesToday++;
       contractorMap.set(c, stat);
     });
-    const contractorStats: ContractorStat[] = Array.from(contractorMap.entries())
+
+    const contractorStats = Array.from(contractorMap.entries())
       .map(([contractor, stat]) => ({ contractor, ...stat }))
       .sort((a, b) => b.inside - a.inside);
 
-    // Insurance alerts
-    const futureDate = new Date();
-    futureDate.setDate(futureDate.getDate() + seguroWarnDays);
-    const futureDateStr = futureDate.toISOString().split('T')[0];
-    const todayDateStr = new Date().toISOString().split('T')[0];
-
-    const { data: workersWithInsurance } = await supabase
-      .from('workers_profile')
-      .select('person_id, insurance_expiry, people(id, full_name, ci, contractor, site_id)')
-      .not('insurance_expiry', 'is', null)
-      .lte('insurance_expiry', futureDateStr);
-
-    const insuranceList: InsuranceAlert[] = (workersWithInsurance || [])
-      .filter(w => (w.people as any)?.site_id === currentSite.id)
-      .map(w => {
-        const expiry = new Date(w.insurance_expiry!);
-        const daysLeft = Math.floor((expiry.getTime() - now) / (1000 * 60 * 60 * 24));
-        const p = w.people as any;
-        return {
-          id: p.id,
-          full_name: p.full_name,
-          ci: p.ci,
-          contractor: p.contractor,
-          insurance_expiry: w.insurance_expiry!,
-          days_left: daysLeft,
-          status: daysLeft < 0 ? 'expired' : 'expiring',
-        } as InsuranceAlert;
-      })
-      .sort((a, b) => a.days_left - b.days_left);
-
-    // Favorites
-    const { data: favs } = await supabase
-      .from('favorites')
-      .select('id, person_id, people(id, full_name, ci)')
-      .eq('site_id', currentSite.id);
-
-    const favPeopleIds = (favs || []).map(f => (f.people as any)?.id).filter(Boolean);
-    const { data: favLogs } = await supabase
-      .from('access_logs')
-      .select('person_id, entry_at')
-      .eq('site_id', currentSite.id)
-      .is('exit_at', null)
-      .is('voided_at', null)
-      .in('person_id', favPeopleIds);
-
-    const favInsideMap = new Map((favLogs || []).map(l => [l.person_id, l.entry_at]));
-
-    const favoritesList: FavoriteStatus[] = (favs || []).map(f => {
-      const p = f.people as any;
-      const entryAt = favInsideMap.get(p.id);
-      const hours = entryAt ? (now - new Date(entryAt).getTime()) / 3600000 : null;
-      const status = hours !== null ? (hours >= critH ? 'crit' : hours >= warnH ? 'warn' : 'ok') : null;
-      return {
-        id: f.id,
-        full_name: p.full_name,
-        ci: p.ci,
-        is_inside: !!entryAt,
-        hours,
-        status,
-      };
-    });
-
-    setStats({
-      insideNow: inside.length,
-      entriesToday,
-      exitsToday,
-      warnCount: inside.filter(i => i.status === 'warn').length,
-      critCount: inside.filter(i => i.status === 'crit').length,
-    });
-    setInsideList(inside.slice(0, 50));
+    setInsideList(inside);
     setContractors(contractorStats);
-    setInsuranceAlerts(insuranceList);
-    setFavorites(favoritesList);
     setLoading(false);
   };
 
-  useEffect(() => { fetchData(); }, [currentSite, currentSettings]);
+  useEffect(() => {
+    fetchData();
+  }, [currentSite, currentSettings]);
 
-  // Realtime subscription for access_logs changes
+  // Realtime subscription
   useEffect(() => {
     if (!currentSite) return;
 
     const channel = supabase
-      .channel('dashboard-realtime')
+      .channel('dashboard-live')
       .on(
         'postgres_changes',
         {
@@ -201,10 +127,7 @@ export default function DashboardPanel() {
           table: 'access_logs',
           filter: `site_id=eq.${currentSite.id}`
         },
-        () => {
-          // Refetch data when any change happens
-          fetchData();
-        }
+        () => fetchData()
       )
       .subscribe();
 
@@ -213,16 +136,58 @@ export default function DashboardPanel() {
     };
   }, [currentSite, currentSettings]);
 
+  // Filtered list
+  const filteredList = useMemo(() => {
+    let result = insideList;
+
+    // Search filter
+    if (searchQuery) {
+      const q = searchQuery.toLowerCase();
+      result = result.filter(l =>
+        l.full_name.toLowerCase().includes(q) ||
+        l.ci.toLowerCase().includes(q) ||
+        (l.contractor_snapshot || '').toLowerCase().includes(q)
+      );
+    }
+
+    // Status filters
+    if (activeFilters.has('At-risk')) {
+      result = result.filter(l => l.status === 'warn');
+    }
+    if (activeFilters.has('Alert')) {
+      result = result.filter(l => l.status === 'crit');
+    }
+    if (activeFilters.has('On site') && !activeFilters.has('At-risk') && !activeFilters.has('Alert')) {
+      // Show all on-site if only "On site" is active
+    }
+
+    return result;
+  }, [insideList, searchQuery, activeFilters]);
+
+  const toggleFilter = (label: string) => {
+    setActiveFilters(prev => {
+      const next = new Set(prev);
+      if (next.has(label)) {
+        next.delete(label);
+      } else {
+        next.add(label);
+      }
+      return next;
+    });
+  };
+
   const formatTime = (isoString: string) => {
     return new Date(isoString).toLocaleTimeString('es-BO', { hour: '2-digit', minute: '2-digit' });
   };
 
-  const formatDate = (dateStr: string) => {
-    return new Date(dateStr).toLocaleDateString('es-BO', { day: '2-digit', month: 'short', year: 'numeric' });
-  };
+  const filterBadges = [
+    { label: 'On site', count: stats.onSite, active: activeFilters.has('On site'), icon: <Users className="w-3 h-3" /> },
+    { label: 'At-risk', count: stats.atRisk, active: activeFilters.has('At-risk'), variant: 'warn' as const, icon: <Clock className="w-3 h-3" /> },
+    { label: 'Alert', count: stats.alert, active: activeFilters.has('Alert'), variant: 'crit' as const, icon: <AlertTriangle className="w-3 h-3" /> },
+  ];
 
   return (
-    <div className="space-y-6 animate-fade-in">
+    <div className="space-y-4 animate-fade-in">
       {/* Header */}
       <div className="flex items-center justify-between">
         <h2 className="text-xl font-semibold text-white">Dashboard</h2>
@@ -232,186 +197,152 @@ export default function DashboardPanel() {
         </div>
       </div>
 
+      {/* Alert Badges Summary (SignOnSite style) */}
+      <div className="flex items-center gap-3 flex-wrap">
+        <div className={cn(
+          "flex items-center gap-2 px-4 py-2 rounded-xl border",
+          stats.alert > 0 ? "bg-red-500/10 border-red-500/30 text-red-400" : "bg-card/30 border-border text-muted-foreground"
+        )}>
+          <AlertTriangle className="w-4 h-4" />
+          <span className="text-2xl font-bold">{stats.alert}</span>
+          <span className="text-sm">Alert</span>
+        </div>
+        <div className={cn(
+          "flex items-center gap-2 px-4 py-2 rounded-xl border",
+          stats.atRisk > 0 ? "bg-amber-500/10 border-amber-500/30 text-amber-400" : "bg-card/30 border-border text-muted-foreground"
+        )}>
+          <Clock className="w-4 h-4" />
+          <span className="text-2xl font-bold">{stats.atRisk}</span>
+          <span className="text-sm">Warning</span>
+        </div>
+        <div className="flex items-center gap-2 px-4 py-2 rounded-xl border bg-card/30 border-border text-muted-foreground">
+          <UserCheck className="w-4 h-4" />
+          <span className="text-2xl font-bold">{stats.onSite}</span>
+          <span className="text-sm">On site</span>
+        </div>
+      </div>
+
       {loading ? (
         <div className="flex justify-center py-12"><Spinner size="lg" /></div>
       ) : (
         <>
-          {/* KPIs */}
-          <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
-            <KPICard value={stats.insideNow} label="Dentro ahora" icon={<Users className="w-5 h-5" />} />
-            <KPICard value={stats.entriesToday} label="Entradas hoy" icon={<LogIn className="w-5 h-5" />} />
-            <KPICard value={stats.exitsToday} label="Salidas hoy" icon={<LogOut className="w-5 h-5" />} />
-            <KPICard value={stats.warnCount} label="Alerta WARN" variant="warn" icon={<AlertTriangle className="w-5 h-5" />} />
-            <KPICard value={stats.critCount} label="Alerta CRIT" variant="crit" icon={<AlertTriangle className="w-5 h-5" />} />
-          </div>
+          {/* Attendance Section */}
+          <div className="card-cosmos overflow-hidden">
+            {/* Tabs */}
+            <div className="flex items-center gap-1 p-2 border-b border-border bg-card/30">
+              <button
+                onClick={() => setActiveTab('people')}
+                className={cn(
+                  "px-4 py-2 rounded-lg text-sm font-medium transition-colors",
+                  activeTab === 'people'
+                    ? "bg-primary text-primary-foreground"
+                    : "text-muted-foreground hover:text-foreground hover:bg-card"
+                )}
+              >
+                <Users className="w-4 h-4 inline mr-2" />
+                People
+              </button>
+              <button
+                onClick={() => setActiveTab('companies')}
+                className={cn(
+                  "px-4 py-2 rounded-lg text-sm font-medium transition-colors",
+                  activeTab === 'companies'
+                    ? "bg-primary text-primary-foreground"
+                    : "text-muted-foreground hover:text-foreground hover:bg-card"
+                )}
+              >
+                <Building2 className="w-4 h-4 inline mr-2" />
+                Companies
+              </button>
+            </div>
 
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            {/* Inside table */}
-            <div className="card-cosmos overflow-hidden lg:col-span-2">
-              <div className="card-cosmos-header">
-                <h3 className="font-medium flex items-center gap-2">
-                  <Users className="w-4 h-4" /> Personas dentro ahora
-                </h3>
-              </div>
+            <div className="p-4">
+              {/* Filters */}
+              <AttendanceFilters
+                searchQuery={searchQuery}
+                onSearchChange={setSearchQuery}
+                dateFilter={dateFilter}
+                onDateFilterChange={setDateFilter}
+                filters={filterBadges}
+                onFilterClick={toggleFilter}
+              />
 
-              {/* Desktop Table */}
-              <div className="hidden md:block overflow-x-auto">
-                <table className="table-cosmos">
-                  <thead>
-                    <tr><th>Estado</th><th>Nombre</th><th>CI</th><th>Contratista</th><th>Entró</th><th>Horas</th></tr>
-                  </thead>
-                  <tbody>
-                    {insideList.map((log) => (
-                      <tr key={log.id}>
-                        <td><StatusBadge status={log.status} /></td>
-                        <td className="font-medium">{log.name_snapshot || log.people?.full_name}</td>
-                        <td>{log.ci_snapshot || log.people?.ci}</td>
-                        <td>{log.contractor_snapshot || '-'}</td>
-                        <td>{formatTime(log.entry_at)}</td>
-                        <td>{log.hours.toFixed(1)}</td>
-                      </tr>
+              {activeTab === 'people' ? (
+                <>
+                  {/* Desktop Table Header */}
+                  <div className="hidden md:grid grid-cols-[auto_1fr_120px_100px] gap-4 items-center px-4 py-2 text-xs text-muted-foreground uppercase tracking-wider border-b border-border">
+                    <div className="w-10"></div>
+                    <div>Name</div>
+                    <div>Status</div>
+                    <div>Checked in</div>
+                  </div>
+
+                  {/* Desktop Rows */}
+                  <div className="hidden md:block">
+                    {filteredList.map((log) => (
+                      <PersonRow
+                        key={log.id}
+                        name={log.full_name}
+                        contractor={log.contractor_snapshot}
+                        status={log.status === 'crit' ? 'crit' : log.status === 'warn' ? 'at-risk' : 'on-site'}
+                        checkedIn={formatTime(log.entry_at)}
+                        hours={log.hours}
+                      />
                     ))}
-                    {insideList.length === 0 && (
-                      <tr><td colSpan={6} className="text-center text-muted-foreground py-8">No hay personas dentro</td></tr>
+                    {filteredList.length === 0 && (
+                      <div className="text-center text-muted-foreground py-8">
+                        {searchQuery ? 'No se encontraron resultados' : 'No hay personas dentro'}
+                      </div>
                     )}
-                  </tbody>
-                </table>
-              </div>
+                  </div>
 
-              {/* Mobile Cards */}
-              <div className="md:hidden p-4 space-y-3">
-                {insideList.map((log) => (
-                  <div key={log.id} className="bg-card/50 border border-border rounded-lg p-3 flex justify-between items-start">
-                    <div>
-                      <div className="font-medium">{log.name_snapshot || log.people?.full_name}</div>
-                      <div className="text-sm text-muted-foreground">{log.contractor_snapshot || 'Sin contratista'}</div>
-                      <div className="text-xs text-muted-foreground mt-1">
-                        Entró: {formatTime(log.entry_at)} • {log.hours.toFixed(1)}h
+                  {/* Mobile Cards */}
+                  <div className="md:hidden space-y-3">
+                    {filteredList.map((log) => (
+                      <PersonCard
+                        key={log.id}
+                        name={log.full_name}
+                        contractor={log.contractor_snapshot}
+                        status={log.status === 'crit' ? 'crit' : log.status === 'warn' ? 'at-risk' : 'on-site'}
+                        checkedIn={formatTime(log.entry_at)}
+                        hours={log.hours}
+                      />
+                    ))}
+                    {filteredList.length === 0 && (
+                      <div className="text-center text-muted-foreground py-8">
+                        {searchQuery ? 'No se encontraron resultados' : 'No hay personas dentro'}
+                      </div>
+                    )}
+                  </div>
+                </>
+              ) : (
+                /* Companies Tab */
+                <div className="space-y-2">
+                  {contractors.map((c) => (
+                    <div
+                      key={c.contractor}
+                      className="flex items-center justify-between p-3 bg-card/30 rounded-lg border border-border/50"
+                    >
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-full bg-primary/20 flex items-center justify-center">
+                          <Building2 className="w-5 h-5 text-primary" />
+                        </div>
+                        <div>
+                          <div className="font-medium">{c.contractor}</div>
+                          <div className="text-sm text-muted-foreground">{c.entriesToday} entradas hoy</div>
+                        </div>
+                      </div>
+                      <div className="text-right">
+                        <div className="text-2xl font-bold text-primary">{c.inside}</div>
+                        <div className="text-xs text-muted-foreground">dentro</div>
                       </div>
                     </div>
-                    <StatusBadge status={log.status} />
-                  </div>
-                ))}
-                {insideList.length === 0 && (
-                  <div className="text-center text-muted-foreground py-4">No hay personas dentro</div>
-                )}
-              </div>
-            </div>
-
-            {/* Contractors table */}
-            <div className="card-cosmos overflow-hidden">
-              <div className="card-cosmos-header">
-                <h3 className="font-medium flex items-center gap-2">
-                  <Building2 className="w-4 h-4" /> Por contratista
-                </h3>
-              </div>
-              <div className="overflow-x-auto">
-                <table className="table-cosmos">
-                  <thead>
-                    <tr><th>Contratista</th><th>Dentro</th><th>Hoy</th></tr>
-                  </thead>
-                  <tbody>
-                    {contractors.map((c) => (
-                      <tr key={c.contractor}>
-                        <td className="font-medium text-sm md:text-base max-w-[120px] truncate" title={c.contractor}>{c.contractor}</td>
-                        <td>{c.inside}</td>
-                        <td>{c.entriesToday}</td>
-                      </tr>
-                    ))}
-                    {contractors.length === 0 && (
-                      <tr><td colSpan={3} className="text-center text-muted-foreground py-6">Sin datos</td></tr>
-                    )}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-
-            {/* Favorites table */}
-            <div className="card-cosmos overflow-hidden">
-              <div className="card-cosmos-header">
-                <h3 className="font-medium flex items-center gap-2">
-                  <Star className="w-4 h-4" /> Favoritos
-                </h3>
-              </div>
-              <div className="overflow-x-auto">
-                <table className="table-cosmos">
-                  <thead>
-                    <tr><th>Nombre</th><th>Estado</th><th>Horas</th></tr>
-                  </thead>
-                  <tbody>
-                    {favorites.map((f) => (
-                      <tr key={f.id}>
-                        <td className="font-medium">{f.full_name}</td>
-                        <td><StatusBadge status={f.is_inside ? (f.status || 'ok') : 'outside'} /></td>
-                        <td>{f.hours !== null ? f.hours.toFixed(1) : '-'}</td>
-                      </tr>
-                    ))}
-                    {favorites.length === 0 && (
-                      <tr><td colSpan={3} className="text-center text-muted-foreground py-6">Sin favoritos</td></tr>
-                    )}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-
-            {/* Insurance alerts */}
-            <div className="card-cosmos overflow-hidden lg:col-span-2">
-              <div className="card-cosmos-header">
-                <h3 className="font-medium flex items-center gap-2">
-                  <ShieldAlert className="w-4 h-4" /> Seguros por vencer / vencidos
-                </h3>
-              </div>
-
-              {/* Desktop Table */}
-              <div className="hidden md:block overflow-x-auto">
-                <table className="table-cosmos">
-                  <thead>
-                    <tr><th>Estado</th><th>Nombre</th><th>CI</th><th>Contratista</th><th>Vencimiento</th><th>Días</th></tr>
-                  </thead>
-                  <tbody>
-                    {insuranceAlerts.map((a) => (
-                      <tr key={a.id}>
-                        <td>
-                          <StatusBadge status={a.status === 'expired' ? 'crit' : 'warn'}>
-                            {a.status === 'expired' ? 'VENCIDO' : 'Por vencer'}
-                          </StatusBadge>
-                        </td>
-                        <td className="font-medium">{a.full_name}</td>
-                        <td>{a.ci}</td>
-                        <td>{a.contractor || '-'}</td>
-                        <td>{formatDate(a.insurance_expiry)}</td>
-                        <td className={a.days_left < 0 ? 'text-status-crit font-medium' : 'text-status-warn'}>
-                          {a.days_left < 0 ? `${Math.abs(a.days_left)}d vencido` : `${a.days_left}d`}
-                        </td>
-                      </tr>
-                    ))}
-                    {insuranceAlerts.length === 0 && (
-                      <tr><td colSpan={6} className="text-center text-muted-foreground py-6">Sin alertas de seguro</td></tr>
-                    )}
-                  </tbody>
-                </table>
-              </div>
-
-              {/* Mobile Cards */}
-              <div className="md:hidden p-4 space-y-3">
-                {insuranceAlerts.map((a) => (
-                  <div key={a.id} className="bg-card/50 border border-border rounded-lg p-3 flex justify-between items-start">
-                    <div>
-                      <div className="font-medium">{a.full_name}</div>
-                      <div className="text-sm text-center text-muted-foreground mb-1">{a.contractor || 'Sin contratista'}</div>
-                      <div className={a.days_left < 0 ? 'text-status-crit text-sm font-medium' : 'text-status-warn text-sm'}>
-                        {a.days_left < 0 ? `Venció hace ${Math.abs(a.days_left)}d` : `Vence en ${a.days_left}d`} ({formatDate(a.insurance_expiry)})
-                      </div>
-                    </div>
-                    <StatusBadge status={a.status === 'expired' ? 'crit' : 'warn'}>
-                      {a.status === 'expired' ? '!' : 'Warn'}
-                    </StatusBadge>
-                  </div>
-                ))}
-                {insuranceAlerts.length === 0 && (
-                  <div className="text-center text-muted-foreground py-4">Sin alertas de seguro</div>
-                )}
-              </div>
+                  ))}
+                  {contractors.length === 0 && (
+                    <div className="text-center text-muted-foreground py-8">Sin contratistas</div>
+                  )}
+                </div>
+              )}
             </div>
           </div>
         </>
