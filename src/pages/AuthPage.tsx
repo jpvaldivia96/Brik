@@ -100,17 +100,19 @@ export default function AuthPage() {
         }}
       />
 
-      {/* Glassmorphism card */}
+      {/* Clean centered content - no card border */}
       <div className="w-full max-w-sm relative z-10">
-        <div className="animate-fade-in backdrop-blur-xl bg-white/10 rounded-3xl border border-white/20 p-8 shadow-2xl">
-          {/* Logo */}
+        <div className="animate-fade-in p-8">
+          {/* Logo centered */}
           <div className="text-center mb-10">
             <img
               src="/brik-logo-white.png"
               alt="BRIK"
-              className="w-64 mx-auto mb-4 object-contain drop-shadow-lg"
+              className="w-80 mx-auto mb-1 object-contain drop-shadow-lg"
             />
-            <p className="text-white/80 text-base font-light tracking-wide">Tu obra, bajo control</p>
+            <p className="text-white/80 text-base font-light tracking-wide -mt-10">
+              Software líder de control y seguridad en obra
+            </p>
           </div>
 
           {/* Form */}

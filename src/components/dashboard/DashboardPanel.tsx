@@ -183,9 +183,9 @@ export default function DashboardPanel() {
   };
 
   const filterBadges = [
-    { label: 'On site', count: stats.onSite, active: activeFilters.has('On site'), icon: <Users className="w-3 h-3" /> },
-    { label: 'At-risk', count: stats.atRisk, active: activeFilters.has('At-risk'), variant: 'warn' as const, icon: <Clock className="w-3 h-3" /> },
-    { label: 'Alert', count: stats.alert, active: activeFilters.has('Alert'), variant: 'crit' as const, icon: <AlertTriangle className="w-3 h-3" /> },
+    { label: 'En sitio', count: stats.onSite, active: activeFilters.has('En sitio'), icon: <Users className="w-3 h-3" /> },
+    { label: 'En riesgo', count: stats.atRisk, active: activeFilters.has('En riesgo'), variant: 'warn' as const, icon: <Clock className="w-3 h-3" /> },
+    { label: 'Alerta', count: stats.alert, active: activeFilters.has('Alerta'), variant: 'crit' as const, icon: <AlertTriangle className="w-3 h-3" /> },
   ];
 
   return (
@@ -203,24 +203,24 @@ export default function DashboardPanel() {
       <div className="flex items-center gap-3 flex-wrap">
         <div className={cn(
           "flex items-center gap-2 px-4 py-2 rounded-xl border",
-          stats.alert > 0 ? "bg-red-500/10 border-red-500/30 text-red-400" : "bg-card/30 border-border text-muted-foreground"
+          stats.alert > 0 ? "bg-red-500/10 border-red-500/30 text-red-400" : "bg-card/30 border-border text-white/70"
         )}>
           <AlertTriangle className="w-4 h-4" />
           <span className="text-2xl font-bold">{stats.alert}</span>
-          <span className="text-sm">Alert</span>
+          <span className="text-sm">Alerta</span>
         </div>
         <div className={cn(
           "flex items-center gap-2 px-4 py-2 rounded-xl border",
-          stats.atRisk > 0 ? "bg-amber-500/10 border-amber-500/30 text-amber-400" : "bg-card/30 border-border text-muted-foreground"
+          stats.atRisk > 0 ? "bg-amber-500/10 border-amber-500/30 text-amber-400" : "bg-card/30 border-border text-white/70"
         )}>
           <Clock className="w-4 h-4" />
           <span className="text-2xl font-bold">{stats.atRisk}</span>
-          <span className="text-sm">Warning</span>
+          <span className="text-sm">En riesgo</span>
         </div>
-        <div className="flex items-center gap-2 px-4 py-2 rounded-xl border bg-card/30 border-border text-muted-foreground">
+        <div className="flex items-center gap-2 px-4 py-2 rounded-xl border bg-card/30 border-border text-white/70">
           <UserCheck className="w-4 h-4" />
           <span className="text-2xl font-bold">{stats.onSite}</span>
-          <span className="text-sm">On site</span>
+          <span className="text-sm">En sitio</span>
         </div>
       </div>
 
@@ -238,11 +238,11 @@ export default function DashboardPanel() {
                   "px-4 py-2 rounded-lg text-sm font-medium transition-colors",
                   activeTab === 'people'
                     ? "bg-primary text-primary-foreground"
-                    : "text-muted-foreground hover:text-foreground hover:bg-card"
+                    : "text-white/60 hover:text-white hover:bg-card"
                 )}
               >
                 <Users className="w-4 h-4 inline mr-2" />
-                People
+                Personas
               </button>
               <button
                 onClick={() => setActiveTab('companies')}
@@ -250,11 +250,11 @@ export default function DashboardPanel() {
                   "px-4 py-2 rounded-lg text-sm font-medium transition-colors",
                   activeTab === 'companies'
                     ? "bg-primary text-primary-foreground"
-                    : "text-muted-foreground hover:text-foreground hover:bg-card"
+                    : "text-white/60 hover:text-white hover:bg-card"
                 )}
               >
                 <Building2 className="w-4 h-4 inline mr-2" />
-                Companies
+                Contratistas
               </button>
             </div>
 
@@ -272,11 +272,11 @@ export default function DashboardPanel() {
               {activeTab === 'people' ? (
                 <>
                   {/* Desktop Table Header */}
-                  <div className="hidden md:grid grid-cols-[auto_1fr_120px_100px] gap-4 items-center px-4 py-2 text-xs text-muted-foreground uppercase tracking-wider border-b border-border">
+                  <div className="hidden md:grid grid-cols-[auto_1fr_120px_100px] gap-4 items-center px-4 py-2 text-xs text-white/60 uppercase tracking-wider border-b border-border">
                     <div className="w-10"></div>
-                    <div>Name</div>
-                    <div>Status</div>
-                    <div>Checked in</div>
+                    <div>Nombre</div>
+                    <div>Estado</div>
+                    <div>Entrada</div>
                   </div>
 
                   {/* Desktop Rows */}
@@ -293,7 +293,7 @@ export default function DashboardPanel() {
                       />
                     ))}
                     {filteredList.length === 0 && (
-                      <div className="text-center text-muted-foreground py-8">
+                      <div className="text-center text-white/60 py-8">
                         {searchQuery ? 'No se encontraron resultados' : 'No hay personas dentro'}
                       </div>
                     )}
@@ -313,7 +313,7 @@ export default function DashboardPanel() {
                       />
                     ))}
                     {filteredList.length === 0 && (
-                      <div className="text-center text-muted-foreground py-8">
+                      <div className="text-center text-white/60 py-8">
                         {searchQuery ? 'No se encontraron resultados' : 'No hay personas dentro'}
                       </div>
                     )}
