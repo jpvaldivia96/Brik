@@ -291,34 +291,34 @@ export default function BottomActionBar({ activeAction, onActionChange }: Omit<B
 
   return (
     <>
-      <div className="fixed bottom-0 left-0 right-0 backdrop-blur-xl bg-slate-900/90 border-t border-white/10 z-50 pb-safe">
-        <div className="flex items-stretch justify-around px-1 py-2">
+      <div className="fixed bottom-0 left-0 right-0 backdrop-blur-xl bg-slate-900/80 border-t border-white/10 z-50 pb-safe">
+        <div className="flex items-stretch justify-around px-2 py-3">
           {/* Worker Button */}
           <button
             onClick={() => onActionChange('worker')}
             className={cn(
-              "flex flex-col items-center justify-center gap-1 px-2 py-2 rounded-xl transition-all duration-200 min-w-[56px]",
+              "flex flex-col items-center justify-center gap-1 px-3 py-2 rounded-2xl transition-all duration-300 min-w-[60px]",
               activeAction === 'worker'
-                ? "bg-purple-500/20 text-purple-400"
-                : "text-white/40 hover:text-purple-400 hover:bg-purple-500/10"
+                ? "bg-gradient-to-r from-purple-500 to-blue-500 text-white shadow-lg shadow-purple-500/25"
+                : "text-white/60 hover:text-white hover:bg-white/10 hover:scale-105"
             )}
           >
             <HardHat className="w-5 h-5" />
-            <span className="text-[9px] font-medium">Trabajador</span>
+            <span className="text-[10px] font-medium">Trabajador</span>
           </button>
 
           {/* Entry Button Group */}
           <div className="flex flex-col items-center">
             <button
               onClick={() => handleScan('entry')}
-              className="flex flex-col items-center gap-1 px-4 py-2 rounded-xl transition-all duration-200 bg-gradient-to-br from-emerald-500/20 to-green-500/20 text-emerald-400 hover:from-emerald-500/30 hover:to-green-500/30 hover:shadow-lg hover:shadow-emerald-500/20"
+              className="flex flex-col items-center gap-1 px-5 py-2.5 rounded-2xl transition-all duration-300 bg-gradient-to-r from-emerald-500 to-green-500 text-white shadow-lg shadow-emerald-500/30 hover:shadow-xl hover:shadow-emerald-500/40 hover:scale-105 active:scale-95"
             >
               <LogIn className="w-6 h-6" />
               <span className="text-[10px] font-semibold">Entrada</span>
             </button>
             <button
               onClick={() => handleManualOpen('entry')}
-              className="text-[8px] text-white/30 hover:text-white/60 mt-0.5 transition-colors"
+              className="text-[9px] text-white/40 hover:text-emerald-400 mt-1 transition-colors"
             >
               manual
             </button>
@@ -328,14 +328,14 @@ export default function BottomActionBar({ activeAction, onActionChange }: Omit<B
           <div className="flex flex-col items-center">
             <button
               onClick={() => handleScan('exit')}
-              className="flex flex-col items-center gap-1 px-4 py-2 rounded-xl transition-all duration-200 bg-gradient-to-br from-orange-500/20 to-red-500/20 text-orange-400 hover:from-orange-500/30 hover:to-red-500/30 hover:shadow-lg hover:shadow-orange-500/20"
+              className="flex flex-col items-center gap-1 px-5 py-2.5 rounded-2xl transition-all duration-300 bg-gradient-to-r from-orange-500 to-red-500 text-white shadow-lg shadow-orange-500/30 hover:shadow-xl hover:shadow-orange-500/40 hover:scale-105 active:scale-95"
             >
               <LogOut className="w-6 h-6" />
               <span className="text-[10px] font-semibold">Salida</span>
             </button>
             <button
               onClick={() => handleManualOpen('exit')}
-              className="text-[8px] text-white/30 hover:text-white/60 mt-0.5 transition-colors"
+              className="text-[9px] text-white/40 hover:text-orange-400 mt-1 transition-colors"
             >
               manual
             </button>
@@ -345,28 +345,28 @@ export default function BottomActionBar({ activeAction, onActionChange }: Omit<B
           <button
             onClick={() => onActionChange('visitor')}
             className={cn(
-              "flex flex-col items-center justify-center gap-1 px-2 py-2 rounded-xl transition-all duration-200 min-w-[56px]",
+              "flex flex-col items-center justify-center gap-1 px-3 py-2 rounded-2xl transition-all duration-300 min-w-[60px]",
               activeAction === 'visitor'
-                ? "bg-blue-500/20 text-blue-400"
-                : "text-white/40 hover:text-blue-400 hover:bg-blue-500/10"
+                ? "bg-gradient-to-r from-purple-500 to-blue-500 text-white shadow-lg shadow-purple-500/25"
+                : "text-white/60 hover:text-white hover:bg-white/10 hover:scale-105"
             )}
           >
             <User className="w-5 h-5" />
-            <span className="text-[9px] font-medium">Visitante</span>
+            <span className="text-[10px] font-medium">Visitante</span>
           </button>
 
           {/* Favorites Button */}
           <button
             onClick={() => onActionChange('favorites')}
             className={cn(
-              "flex flex-col items-center justify-center gap-1 px-2 py-2 rounded-xl transition-all duration-200 min-w-[56px]",
+              "flex flex-col items-center justify-center gap-1 px-3 py-2 rounded-2xl transition-all duration-300 min-w-[60px]",
               activeAction === 'favorites'
-                ? "bg-yellow-500/20 text-yellow-400"
-                : "text-white/40 hover:text-yellow-400 hover:bg-yellow-500/10"
+                ? "bg-gradient-to-r from-purple-500 to-blue-500 text-white shadow-lg shadow-purple-500/25"
+                : "text-white/60 hover:text-white hover:bg-white/10 hover:scale-105"
             )}
           >
             <Star className="w-5 h-5" />
-            <span className="text-[9px] font-medium">Favoritos</span>
+            <span className="text-[10px] font-medium">Favoritos</span>
           </button>
         </div>
       </div>
