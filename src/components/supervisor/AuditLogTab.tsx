@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Spinner } from '@/components/ui/spinner';
-import { History, Search, ChevronDown, ChevronUp } from 'lucide-react';
+import { History, Search, ChevronDown, ChevronUp, Download } from 'lucide-react';
 
 interface AuditEvent {
   id: string;
@@ -33,13 +33,46 @@ export default function AuditLogTab() {
     'all',
     'ENTRY_CREATED',
     'EXIT_SET',
+    'MANUAL_ENTRY',
+    'MANUAL_EXIT',
     'PERSON_CREATED',
+    'PERSON_EDITED',
+    'PERSON_DELETED',
     'ACCESS_LOG_EDITED',
     'ACCESS_LOG_VOIDED',
     'ACCESS_LOG_FORCE_EXIT',
     'SETTINGS_UPDATED',
     'IMPORT_COMPLETED',
   ];
+
+  const exportCSV = () => {
+    if (events.length === 0) return;
+
+    const headers = ['Fecha', 'Hora', 'Accion', 'Tipo', 'Nota', 'Antes', 'Despues'];
+    const rows = events.map(e => {
+      const date = new Date(e.created_at);
+      return [
+        date.toLocaleDateString('es-BO'),
+        date.toLocaleTimeString('es-BO'),
+        e.action,
+        e.entity_type || '',
+        e.note || '',
+        e.before ? JSON.stringify(e.before) : '',
+        e.after ? JSON.stringify(e.after) : '',
+      ].map(v => `"${String(v).replace(/"/g, '""')}"`).join(',');
+    });
+
+    const csv = [headers.join(','), ...rows].join('\n');
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `auditoria_${new Date().toISOString().split('T')[0]}.csv`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  };
 
   const fetchEvents = async () => {
     if (!currentSite) return;
@@ -85,16 +118,22 @@ export default function AuditLogTab() {
 
   const getActionColor = (action: string) => {
     if (action.includes('VOIDED') || action.includes('DELETE')) return 'text-status-crit';
-    if (action.includes('EDITED') || action.includes('FORCE')) return 'text-status-warn';
+    if (action.includes('EDITED') || action.includes('FORCE') || action.includes('MANUAL')) return 'text-status-warn';
     if (action.includes('CREATED') || action.includes('SET')) return 'text-status-ok';
     return 'text-foreground';
   };
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center gap-3">
-        <History className="w-6 h-6 text-primary" />
-        <h3 className="text-lg font-medium">Historial de Auditoría</h3>
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-3">
+          <History className="w-6 h-6 text-primary" />
+          <h3 className="text-lg font-medium">Historial de Auditoría</h3>
+        </div>
+        <Button variant="outline" size="sm" onClick={exportCSV} disabled={events.length === 0}>
+          <Download className="w-4 h-4 mr-2" />
+          Exportar CSV
+        </Button>
       </div>
 
       {/* Filters */}
@@ -139,7 +178,7 @@ export default function AuditLogTab() {
           <div className="divide-y divide-border">
             {events.map(event => (
               <div key={event.id} className="p-4">
-                <div 
+                <div
                   className="flex items-center justify-between cursor-pointer"
                   onClick={() => setExpandedId(expandedId === event.id ? null : event.id)}
                 >

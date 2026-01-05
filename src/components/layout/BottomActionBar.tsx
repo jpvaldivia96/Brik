@@ -49,6 +49,93 @@ export default function BottomActionBar({ activeAction, onActionChange }: Omit<B
     return () => stopCamera();
   }, [scanning, loadModels]);
 
+  // Auto-search with debounce when typing
+  useEffect(() => {
+    if (!manualOpen) {
+      setResults([]);
+      return;
+    }
+
+    if (query.trim().length < 2) {
+      setResults([]);
+      return;
+    }
+
+    const timer = setTimeout(() => {
+      handleSearchDebounced();
+    }, 300);
+
+    return () => clearTimeout(timer);
+  }, [query, manualOpen, manualType, currentSite]);
+
+  // Search function for debounced auto-search
+  const handleSearchDebounced = async () => {
+    if (!query.trim() || !currentSite) return;
+    setSearching(true);
+
+    try {
+      if (manualType === 'entry') {
+        const { data } = await supabase
+          .from('people')
+          .select('*, workers_profile(*), visitors_profile(*)')
+          .eq('site_id', currentSite.id)
+          .or(`ci.ilike.%${query.trim()}%,full_name.ilike.%${query.trim()}%`)
+          .limit(20);
+
+        const peopleIds = (data || []).map(p => p.id);
+        const { data: logs } = await supabase
+          .from('access_logs')
+          .select('person_id')
+          .eq('site_id', currentSite.id)
+          .is('exit_at', null)
+          .is('voided_at', null)
+          .in('person_id', peopleIds);
+
+        const insideSet = new Set((logs || []).map(l => l.person_id));
+
+        const enriched: PersonSearchResult[] = (data || []).map(p => ({
+          ...p,
+          type: p.type as 'worker' | 'visitor',
+          is_inside: insideSet.has(p.id),
+        }));
+        setResults(enriched);
+      } else {
+        // For exit: First find people matching search, then find their open logs
+        const { data: matchingPeople } = await supabase
+          .from('people')
+          .select('id')
+          .eq('site_id', currentSite.id)
+          .or(`ci.ilike.%${query.trim()}%,full_name.ilike.%${query.trim()}%`);
+
+        const personIds = (matchingPeople || []).map(p => p.id);
+
+        if (personIds.length === 0) {
+          setResults([]);
+        } else {
+          const { data: logs } = await supabase
+            .from('access_logs')
+            .select('id, person_id, people(*)')
+            .eq('site_id', currentSite.id)
+            .is('exit_at', null)
+            .is('voided_at', null)
+            .in('person_id', personIds);
+
+          const enriched: PersonSearchResult[] = (logs || []).map(l => ({
+            ...(l.people as any),
+            type: (l.people as any).type as 'worker' | 'visitor',
+            is_inside: true,
+            log_id: l.id,
+          }));
+          setResults(enriched);
+        }
+      }
+    } catch (err) {
+      console.error('Auto-search error:', err);
+    } finally {
+      setSearching(false);
+    }
+  };
+
   const startCamera = async () => {
     try {
       const stream = await navigator.mediaDevices.getUserMedia({
@@ -206,7 +293,7 @@ export default function BottomActionBar({ activeAction, onActionChange }: Omit<B
           .from('people')
           .select('*, workers_profile(*), visitors_profile(*)')
           .eq('site_id', currentSite.id)
-          .or(`ci.eq.${query.trim()},full_name.ilike.%${query.trim()}%`)
+          .or(`ci.ilike.%${query.trim()}%,full_name.ilike.%${query.trim()}%`)
           .limit(20);
 
         const peopleIds = (data || []).map(p => p.id);
@@ -227,22 +314,34 @@ export default function BottomActionBar({ activeAction, onActionChange }: Omit<B
         }));
         setResults(enriched);
       } else {
-        // For exit, search only people inside
-        const { data: logs } = await supabase
-          .from('access_logs')
-          .select('id, person_id, people!inner(*)')
+        // For exit: First find people matching search, then find their open logs
+        const { data: matchingPeople } = await supabase
+          .from('people')
+          .select('id')
           .eq('site_id', currentSite.id)
-          .is('exit_at', null)
-          .is('voided_at', null)
-          .or(`people.ci.eq.${query.trim()},people.full_name.ilike.%${query.trim()}%`);
+          .or(`ci.ilike.%${query.trim()}%,full_name.ilike.%${query.trim()}%`);
 
-        const enriched: PersonSearchResult[] = (logs || []).map(l => ({
-          ...(l.people as any),
-          type: (l.people as any).type as 'worker' | 'visitor',
-          is_inside: true,
-          log_id: l.id,
-        }));
-        setResults(enriched);
+        const personIds = (matchingPeople || []).map(p => p.id);
+
+        if (personIds.length === 0) {
+          setResults([]);
+        } else {
+          const { data: logs } = await supabase
+            .from('access_logs')
+            .select('id, person_id, people(*)')
+            .eq('site_id', currentSite.id)
+            .is('exit_at', null)
+            .is('voided_at', null)
+            .in('person_id', personIds);
+
+          const enriched: PersonSearchResult[] = (logs || []).map(l => ({
+            ...(l.people as any),
+            type: (l.people as any).type as 'worker' | 'visitor',
+            is_inside: true,
+            log_id: l.id,
+          }));
+          setResults(enriched);
+        }
       }
     } catch (err: any) {
       toast({ title: 'Error', description: err.message, variant: 'destructive' });

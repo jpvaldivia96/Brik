@@ -82,7 +82,7 @@ export default function FavoritesTab() {
       .from('people')
       .select('*')
       .eq('site_id', currentSite.id)
-      .or(`ci.eq.${query.trim()},full_name.ilike.%${query.trim()}%`)
+      .or(`ci.ilike.%${query.trim()}%,full_name.ilike.%${query.trim()}%`)
       .limit(10);
 
     setSearchResults(data || []);

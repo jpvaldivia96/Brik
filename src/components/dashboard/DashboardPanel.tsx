@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useSite } from '@/contexts/SiteContext';
 import { supabase } from '@/integrations/supabase/client';
 import { Spinner } from '@/components/ui/spinner';
@@ -62,7 +62,7 @@ export default function DashboardPanel() {
     return { onSite, atRisk, alert };
   }, [insideList]);
 
-  const fetchData = async () => {
+  const fetchData = useCallback(async () => {
     if (!currentSite) return;
     setLoading(true);
 
@@ -159,11 +159,11 @@ export default function DashboardPanel() {
     setInsideList(inside);
     setContractors(contractorStats);
     setLoading(false);
-  };
+  }, [currentSite, currentSettings, selectedDate]);
 
   useEffect(() => {
     fetchData();
-  }, [currentSite, currentSettings, selectedDate]);
+  }, [fetchData]);
 
   // Realtime subscription
   useEffect(() => {
@@ -186,7 +186,7 @@ export default function DashboardPanel() {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [currentSite, currentSettings]);
+  }, [currentSite, currentSettings, fetchData]);
 
   // Filtered list
   const filteredList = useMemo(() => {
@@ -471,12 +471,12 @@ export default function DashboardPanel() {
                         </div>
                         <div>
                           <div className="font-medium">{c.contractor}</div>
-                          <div className="text-sm text-muted-foreground">{c.entriesToday} entradas hoy</div>
+                          <div className="text-sm text-white/70">{c.entriesToday} entradas hoy</div>
                         </div>
                       </div>
                       <div className="text-right">
                         <div className="text-2xl font-bold text-primary">{c.inside}</div>
-                        <div className="text-xs text-muted-foreground">dentro</div>
+                        <div className="text-xs text-white/50">dentro</div>
                       </div>
                     </div>
                   ))}

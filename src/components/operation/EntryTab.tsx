@@ -202,7 +202,7 @@ export default function EntryTab() {
         .from('people')
         .select('*, workers_profile(*), visitors_profile(*)')
         .eq('site_id', currentSite.id)
-        .or(`ci.eq.${searchTerm},full_name.ilike.%${searchTerm}%`)
+        .or(`ci.ilike.%${searchTerm}%,full_name.ilike.%${searchTerm}%`)
         .limit(20);
 
       if (error) throw error;
@@ -247,7 +247,7 @@ export default function EntryTab() {
         .from('people')
         .select('*, workers_profile(*), visitors_profile(*)')
         .eq('site_id', currentSite.id)
-        .or(`ci.eq.${query.trim()},full_name.ilike.%${query.trim()}%`)
+        .or(`ci.ilike.%${query.trim()}%,full_name.ilike.%${query.trim()}%`)
         .limit(20);
 
       if (error) throw error;
