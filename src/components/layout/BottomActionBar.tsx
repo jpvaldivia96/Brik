@@ -12,6 +12,8 @@ import { PersonCard } from '@/components/ui/person-card';
 import { Spinner } from '@/components/ui/spinner';
 import type { PersonSearchResult } from '@/lib/types';
 import { triggerDashboardRefresh } from '@/lib/dashboardRefresh';
+import { logAuditEvent } from '@/lib/auditLog';
+import { useAuth } from '@/contexts/AuthContext';
 
 interface BottomActionBarProps {
   activeAction: string;
@@ -21,6 +23,7 @@ interface BottomActionBarProps {
 
 export default function BottomActionBar({ activeAction, onActionChange }: Omit<BottomActionBarProps, 'onAdminClick'>) {
   const { currentSite } = useSite();
+  const { user } = useAuth();
   const { toast } = useToast();
   const { findMatch, loadModels } = useFace();
 
@@ -374,6 +377,15 @@ export default function BottomActionBar({ activeAction, onActionChange }: Omit<B
         });
         toast({ title: '✓ Entrada registrada', description: selected.full_name });
         triggerDashboardRefresh();
+        // Audit log for manual entry
+        logAuditEvent({
+          siteId: currentSite.id,
+          userId: user?.id || null,
+          action: 'MANUAL_ENTRY',
+          entityType: 'access_log',
+          entityId: selected.id,
+          note: `Entrada MANUAL de ${selected.full_name} (CI: ${selected.ci})`,
+        });
       } else {
         const logId = (selected as any).log_id;
         if (logId) {
@@ -383,6 +395,15 @@ export default function BottomActionBar({ activeAction, onActionChange }: Omit<B
             .eq('id', logId);
           toast({ title: '✓ Salida registrada', description: selected.full_name });
           triggerDashboardRefresh();
+          // Audit log for manual exit
+          logAuditEvent({
+            siteId: currentSite.id,
+            userId: user?.id || null,
+            action: 'MANUAL_EXIT',
+            entityType: 'access_log',
+            entityId: logId,
+            note: `Salida MANUAL de ${selected.full_name} (CI: ${selected.ci})`,
+          });
         }
       }
       setManualOpen(false);

@@ -12,6 +12,7 @@ import { useToast } from '@/hooks/use-toast';
 import { HCaptcha, HCaptchaRef } from '@/components/ui/hcaptcha';
 import { useRateLimit } from '@/hooks/useRateLimit';
 import { printVisitorBadge } from '@/lib/printBadge';
+import { logAuditEvent } from '@/lib/auditLog';
 
 export default function NewVisitorTab() {
   const { currentSite } = useSite();
@@ -108,10 +109,28 @@ export default function NewVisitorTab() {
         setMessage({ type: 'success', text: `${form.fullName} creado e ingresado exitosamente.` });
         // Save visitor data for printing badge
         setLastVisitor({ ci: form.ci.trim(), fullName: form.fullName.trim(), company: form.company.trim() });
+        // Audit log for visitor creation with entry
+        logAuditEvent({
+          siteId: currentSite.id,
+          userId: user?.id || null,
+          action: 'VISITOR_CREATED',
+          entityType: 'person',
+          after: { ci: form.ci.trim(), full_name: form.fullName.trim(), company: form.company.trim(), with_entry: true },
+          note: `Visitante ${form.fullName} (CI: ${form.ci}) creado e ingresado`,
+        });
       } else {
         toast({ title: 'Visitante creado', description: `${form.fullName} registrado correctamente.` });
         setMessage({ type: 'success', text: `Visitante ${form.fullName} creado exitosamente.` });
         setLastVisitor(null); // Don't offer badge print for just registration
+        // Audit log for visitor creation without entry
+        logAuditEvent({
+          siteId: currentSite.id,
+          userId: user?.id || null,
+          action: 'VISITOR_CREATED',
+          entityType: 'person',
+          after: { ci: form.ci.trim(), full_name: form.fullName.trim(), company: form.company.trim(), with_entry: false },
+          note: `Visitante ${form.fullName} (CI: ${form.ci}) creado (sin entrada)`,
+        });
       }
 
       setForm({ ci: '', fullName: '', company: '' });

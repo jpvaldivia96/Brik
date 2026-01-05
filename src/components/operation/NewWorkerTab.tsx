@@ -12,6 +12,7 @@ import { useToast } from '@/hooks/use-toast';
 import { useFace } from '@/hooks/useFace';
 import { HCaptcha, HCaptchaRef } from '@/components/ui/hcaptcha';
 import { useRateLimit } from '@/hooks/useRateLimit';
+import { logAuditEvent } from '@/lib/auditLog';
 
 export default function NewWorkerTab() {
   const { currentSite } = useSite();
@@ -274,9 +275,27 @@ export default function NewWorkerTab() {
         if (logError) throw logError;
         toast({ title: 'Trabajador creado e ingresado', description: `${form.fullName} registrado y ya está dentro.` });
         setMessage({ type: 'success', text: `${form.fullName} creado e ingresado exitosamente.` });
+        // Audit log for worker creation with entry
+        logAuditEvent({
+          siteId: currentSite.id,
+          userId: user?.id || null,
+          action: 'PERSON_CREATED',
+          entityType: 'person',
+          after: { ci: form.ci.trim(), full_name: form.fullName.trim(), contractor: form.contractor.trim(), with_entry: true },
+          note: `Trabajador ${form.fullName} (CI: ${form.ci}) creado e ingresado`,
+        });
       } else {
         toast({ title: 'Trabajador creado', description: `${form.fullName} registrado con biometría.` });
         setMessage({ type: 'success', text: `Trabajador ${form.fullName} creado exitosamente.` });
+        // Audit log for worker creation without entry
+        logAuditEvent({
+          siteId: currentSite.id,
+          userId: user?.id || null,
+          action: 'PERSON_CREATED',
+          entityType: 'person',
+          after: { ci: form.ci.trim(), full_name: form.fullName.trim(), contractor: form.contractor.trim(), with_entry: false },
+          note: `Trabajador ${form.fullName} (CI: ${form.ci}) creado (sin entrada)`,
+        });
       }
 
       setForm({ ci: '', fullName: '', contractor: '', role: '', insuranceNumber: '', insuranceExpiry: '', phone: '', emergencyContact: '', bloodType: '', inductionCompleted: false });
