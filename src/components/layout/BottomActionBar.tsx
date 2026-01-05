@@ -11,6 +11,7 @@ import { Button } from '@/components/ui/button';
 import { PersonCard } from '@/components/ui/person-card';
 import { Spinner } from '@/components/ui/spinner';
 import type { PersonSearchResult } from '@/lib/types';
+import { triggerDashboardRefresh } from '@/lib/dashboardRefresh';
 
 interface BottomActionBarProps {
   activeAction: string;
@@ -226,6 +227,7 @@ export default function BottomActionBar({ activeAction, onActionChange }: Omit<B
                   contractor_snapshot: personData.contractor,
                 });
                 toast({ title: '✓ Entrada registrada', description: personData.full_name });
+                triggerDashboardRefresh();
               }
             }
             setScanning(false);
@@ -259,6 +261,7 @@ export default function BottomActionBar({ activeAction, onActionChange }: Omit<B
                 .update({ exit_at: new Date().toISOString() })
                 .eq('id', logToUpdate.id);
               toast({ title: '✓ Salida registrada', description: (logToUpdate.people as any).full_name });
+              triggerDashboardRefresh();
             }
             setScanning(false);
           } else {
@@ -370,6 +373,7 @@ export default function BottomActionBar({ activeAction, onActionChange }: Omit<B
           contractor_snapshot: selected.contractor,
         });
         toast({ title: '✓ Entrada registrada', description: selected.full_name });
+        triggerDashboardRefresh();
       } else {
         const logId = (selected as any).log_id;
         if (logId) {
@@ -378,6 +382,7 @@ export default function BottomActionBar({ activeAction, onActionChange }: Omit<B
             .update({ exit_at: new Date().toISOString() })
             .eq('id', logId);
           toast({ title: '✓ Salida registrada', description: selected.full_name });
+          triggerDashboardRefresh();
         }
       }
       setManualOpen(false);

@@ -10,6 +10,7 @@ import type { PersonSearchResult } from '@/lib/types';
 import { LogOut, Camera, SwitchCamera } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useFace } from '@/hooks/useFace';
+import { triggerDashboardRefresh } from '@/lib/dashboardRefresh';
 
 export default function ExitTab() {
   const { currentSite } = useSite();
@@ -278,6 +279,7 @@ export default function ExitTab() {
       if (error) throw error;
 
       toast({ title: 'Salida registrada', description: `${selected.full_name} salió correctamente.` });
+      triggerDashboardRefresh();
       setSelected(null);
       setQuery('');
       setResults([]);

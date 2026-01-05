@@ -11,6 +11,7 @@ import type { PersonSearchResult } from '@/lib/types';
 import { LogIn, Camera, SwitchCamera, ShieldAlert } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useFace } from '@/hooks/useFace';
+import { triggerDashboardRefresh } from '@/lib/dashboardRefresh';
 
 export default function EntryTab() {
   const { currentSite } = useSite();
@@ -325,6 +326,7 @@ export default function EntryTab() {
       if (error) throw error;
 
       toast({ title: 'Entrada registrada', description: `${selected.full_name} ingresó correctamente.` });
+      triggerDashboardRefresh();
       setSelected(null);
       setQuery('');
       setObservations('');

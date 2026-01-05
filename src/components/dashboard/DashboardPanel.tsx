@@ -188,6 +188,13 @@ export default function DashboardPanel() {
     };
   }, [currentSite, currentSettings, fetchData]);
 
+  // Listen for refresh events from entry/exit components
+  useEffect(() => {
+    const handleRefresh = () => fetchData();
+    window.addEventListener('dashboard-refresh', handleRefresh);
+    return () => window.removeEventListener('dashboard-refresh', handleRefresh);
+  }, [fetchData]);
+
   // Filtered list
   const filteredList = useMemo(() => {
     let result = insideList;
