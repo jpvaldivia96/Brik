@@ -8,7 +8,7 @@ import { PersonCard } from '@/components/ui/person-card';
 import { AlertCosmos } from '@/components/ui/alert-cosmos';
 import { Spinner } from '@/components/ui/spinner';
 import type { PersonSearchResult } from '@/lib/types';
-import { LogIn, Camera, SwitchCamera } from 'lucide-react';
+import { LogIn, Camera, SwitchCamera, ShieldAlert } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useFace } from '@/hooks/useFace';
 
@@ -30,6 +30,9 @@ export default function EntryTab() {
   const [facingMode, setFacingMode] = useState<'user' | 'environment'>('environment');
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
+
+  // Watchlist state
+  const [watchlistAlert, setWatchlistAlert] = useState<{ isBlocked: boolean; reason: string | null } | null>(null);
 
   useEffect(() => {
     if (scanning) {
@@ -93,6 +96,31 @@ export default function EntryTab() {
     setProcessingScan(false);
   };
 
+  // Check if person is on watchlist (blocked)
+  const checkWatchlist = async (personId: string) => {
+    if (!currentSite) return;
+
+    const { data } = await supabase
+      .from('favorites')
+      .select('is_blocked, block_reason')
+      .eq('site_id', currentSite.id)
+      .eq('person_id', personId)
+      .eq('is_blocked', true)
+      .maybeSingle();
+
+    if (data) {
+      setWatchlistAlert({ isBlocked: true, reason: (data as any).block_reason || null });
+    } else {
+      setWatchlistAlert(null);
+    }
+  };
+
+  // Select person and check watchlist
+  const selectPerson = (person: PersonSearchResult) => {
+    setSelected(person);
+    checkWatchlist(person.id);
+  };
+
   const handleScanCapture = async () => {
     if (!videoRef.current || !canvasRef.current || !currentSite) return;
 
@@ -145,7 +173,7 @@ export default function EntryTab() {
 
             const isInside = logs && logs.length > 0;
 
-            setSelected({
+            selectPerson({
               ...personData,
               type: personData.type as 'worker' | 'visitor',
               is_inside: !!isInside
@@ -198,7 +226,7 @@ export default function EntryTab() {
 
       setResults(enriched);
       if (enriched.length === 1) {
-        setSelected(enriched[0]);
+        selectPerson(enriched[0]);
       }
     } catch (err: any) {
       setMessage({ type: 'error', text: err.message });
@@ -244,7 +272,7 @@ export default function EntryTab() {
 
       setResults(enriched);
       if (enriched.length === 1) {
-        setSelected(enriched[0]);
+        selectPerson(enriched[0]);
       }
     } catch (err: any) {
       setMessage({ type: 'error', text: err.message });
@@ -395,7 +423,7 @@ export default function EntryTab() {
           {results.map((p) => (
             <button
               key={p.id}
-              onClick={() => setSelected(p)}
+              onClick={() => selectPerson(p)}
               className="w-full text-left transition-transform hover:scale-[1.02]"
             >
               <PersonCard
@@ -415,6 +443,24 @@ export default function EntryTab() {
       {/* Selected person */}
       {selected && (
         <div className="space-y-4">
+          {/* Watchlist Alert */}
+          {watchlistAlert?.isBlocked && (
+            <div className="p-4 bg-red-500/20 border-2 border-red-500/50 rounded-xl animate-pulse">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 bg-red-500 rounded-full flex items-center justify-center flex-shrink-0">
+                  <ShieldAlert className="w-5 h-5 text-white" />
+                </div>
+                <div>
+                  <p className="font-semibold text-red-400">⚠️ PERSONA EN LISTA DE BLOQUEO</p>
+                  {watchlistAlert.reason && (
+                    <p className="text-sm text-red-300/80 mt-0.5">Motivo: {watchlistAlert.reason}</p>
+                  )}
+                  <p className="text-xs text-red-300/60 mt-1">El guardia debe decidir si permite la entrada.</p>
+                </div>
+              </div>
+            </div>
+          )}
+
           <PersonCard
             name={selected.full_name}
             ci={selected.ci}

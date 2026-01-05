@@ -8,7 +8,8 @@ import { PersonRow, PersonCard } from './PersonRow';
 import { EditWorkerModal } from './EditWorkerModal';
 import { ExportButton } from './ExportButton';
 import { ExitQueueModal } from './ExitQueueModal';
-import { Users, AlertTriangle, Clock, Building2, UserCheck, UserMinus } from 'lucide-react';
+import { EmergencyRollCall } from './EmergencyRollCall';
+import { Users, AlertTriangle, Clock, Building2, UserCheck, UserMinus, Siren } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 interface InsideLog {
@@ -51,6 +52,7 @@ export default function DashboardPanel() {
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc');
   const [editingPersonId, setEditingPersonId] = useState<string | null>(null);
   const [showExitQueue, setShowExitQueue] = useState(false);
+  const [showEmergency, setShowEmergency] = useState(false);
 
   // Stats
   const stats = useMemo(() => {
@@ -249,9 +251,23 @@ export default function DashboardPanel() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <h2 className="text-xl font-semibold text-white">Dashboard</h2>
-        <div className="flex items-center gap-2">
-          <span className="text-xs text-white/40">Live</span>
-          <div className="w-2 h-2 rounded-full bg-green-400 animate-pulse" />
+        <div className="flex items-center gap-3">
+          {/* Emergency Button - only show when people on site */}
+          {stats.onSite > 0 && (
+            <Button
+              variant="destructive"
+              size="sm"
+              onClick={() => setShowEmergency(true)}
+              className="gap-2 bg-red-600 hover:bg-red-700 animate-pulse"
+            >
+              <Siren className="w-4 h-4" />
+              <span className="hidden sm:inline">Emergencia</span>
+            </Button>
+          )}
+          <div className="flex items-center gap-2">
+            <span className="text-xs text-white/40">Live</span>
+            <div className="w-2 h-2 rounded-full bg-green-400 animate-pulse" />
+          </div>
         </div>
       </div>
 
@@ -337,36 +353,35 @@ export default function DashboardPanel() {
             </div>
 
             <div className="p-4">
-              {/* Filters and Export */}
-              <div className="flex items-start gap-3">
-                <div className="flex-1">
-                  <AttendanceFilters
-                    searchQuery={searchQuery}
-                    onSearchChange={setSearchQuery}
-                    selectedDate={selectedDate}
-                    onDateChange={setSelectedDate}
-                    filters={filterBadges}
-                    onFilterClick={toggleFilter}
-                  />
-                </div>
-                <div className="flex gap-2">
-                  {selectedDate === new Date().toISOString().split('T')[0] && filteredList.length > 0 && (
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => setShowExitQueue(true)}
-                      className="gap-2"
-                    >
-                      <UserMinus className="w-4 h-4" />
-                      <span className="hidden sm:inline">Preparar Salida</span>
-                    </Button>
-                  )}
-                  <ExportButton
-                    data={filteredList}
-                    selectedDate={selectedDate}
-                    siteName={currentSite?.name}
-                  />
-                </div>
+              {/* Filters */}
+              <AttendanceFilters
+                searchQuery={searchQuery}
+                onSearchChange={setSearchQuery}
+                selectedDate={selectedDate}
+                onDateChange={setSelectedDate}
+                filters={filterBadges}
+                onFilterClick={toggleFilter}
+              />
+
+              {/* Action Buttons - Same row as filters */}
+              <div className="flex items-center gap-2 -mt-1 mb-4">
+                <div className="flex-1" />
+                {selectedDate === new Date().toISOString().split('T')[0] && filteredList.length > 0 && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setShowExitQueue(true)}
+                    className="gap-2"
+                  >
+                    <UserMinus className="w-4 h-4" />
+                    <span className="hidden sm:inline">Preparar Salida</span>
+                  </Button>
+                )}
+                <ExportButton
+                  data={filteredList}
+                  selectedDate={selectedDate}
+                  siteName={currentSite?.name}
+                />
               </div>
 
               {activeTab === 'people' ? (
@@ -500,6 +515,12 @@ export default function DashboardPanel() {
           console.log('Starting exit queue with:', queue);
           // TODO: Navigate to Exit tab with queue
         }}
+      />
+
+      {/* Emergency Roll Call Modal */}
+      <EmergencyRollCall
+        open={showEmergency}
+        onClose={() => setShowEmergency(false)}
       />
     </div>
   );

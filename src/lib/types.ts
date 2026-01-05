@@ -142,6 +142,9 @@ export interface FavoriteStatus {
   entry_at: string | null;
   hours: number | null;
   status: 'ok' | 'warn' | 'crit' | null;
+  // Watchlist fields
+  is_blocked?: boolean;
+  block_reason?: string | null;
 }
 
 // Search result

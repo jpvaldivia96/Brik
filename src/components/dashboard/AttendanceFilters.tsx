@@ -36,33 +36,33 @@ export function AttendanceFilters({
     };
 
     return (
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between mb-4">
-            {/* Search and Date */}
-            <div className="flex items-center gap-2 flex-1">
-                <div className="relative flex-1 max-w-xs">
+        <div className="space-y-3 mb-4">
+            {/* Row 1: Search and Date */}
+            <div className="flex items-center gap-3">
+                <div className="relative flex-1">
                     <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                     <Input
                         type="text"
                         placeholder="Buscar..."
                         value={searchQuery}
                         onChange={(e) => onSearchChange(e.target.value)}
-                        className="pl-9 h-9 bg-card/50 border-border"
+                        className="pl-9 h-10 bg-card/50 border-border"
                     />
                 </div>
 
                 {/* Date Picker */}
-                <div className="relative flex items-center">
+                <div className="flex items-center gap-2">
                     <input
                         type="date"
                         value={selectedDate}
                         max={today}
                         onChange={(e) => onDateChange(e.target.value)}
-                        className="h-9 px-3 rounded-lg bg-card/50 border border-border text-sm text-foreground cursor-pointer focus:outline-none focus:ring-2 focus:ring-primary/50"
+                        className="h-10 px-3 rounded-lg bg-card/50 border border-border text-sm text-foreground cursor-pointer focus:outline-none focus:ring-2 focus:ring-primary/50"
                     />
                     {!isToday && (
                         <button
                             onClick={() => onDateChange(today)}
-                            className="ml-2 px-2 py-1 text-xs bg-primary/20 text-primary rounded-lg hover:bg-primary/30 transition-colors"
+                            className="px-3 py-2 text-xs bg-primary/20 text-primary rounded-lg hover:bg-primary/30 transition-colors"
                         >
                             Hoy
                         </button>
@@ -70,8 +70,8 @@ export function AttendanceFilters({
                 </div>
             </div>
 
-            {/* Filter Badges */}
-            <div className="flex items-center gap-2 flex-wrap">
+            {/* Row 2: Filter Badges */}
+            <div className="flex items-center gap-2">
                 {filters.map((filter) => (
                     <button
                         key={filter.label}

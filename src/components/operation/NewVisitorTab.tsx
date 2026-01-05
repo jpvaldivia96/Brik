@@ -7,10 +7,11 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { AlertCosmos } from '@/components/ui/alert-cosmos';
 import { Spinner } from '@/components/ui/spinner';
-import { Users, LogIn } from 'lucide-react';
+import { Users, LogIn, Printer } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { HCaptcha, HCaptchaRef } from '@/components/ui/hcaptcha';
 import { useRateLimit } from '@/hooks/useRateLimit';
+import { printVisitorBadge } from '@/lib/printBadge';
 
 export default function NewVisitorTab() {
   const { currentSite } = useSite();
@@ -20,6 +21,9 @@ export default function NewVisitorTab() {
   const [message, setMessage] = useState<{ type: 'success' | 'error' | 'warning'; text: string } | null>(null);
 
   const [form, setForm] = useState({ ci: '', fullName: '', company: '' });
+
+  // State for print badge feature
+  const [lastVisitor, setLastVisitor] = useState<{ ci: string; fullName: string; company: string } | null>(null);
 
   const captchaRef = useRef<HCaptchaRef>(null);
   const { checkRateLimit, isLimited, retryAfter } = useRateLimit();
@@ -102,9 +106,12 @@ export default function NewVisitorTab() {
         if (logError) throw logError;
         toast({ title: 'Visitante creado e ingresado', description: `${form.fullName} registrado y ya está dentro.` });
         setMessage({ type: 'success', text: `${form.fullName} creado e ingresado exitosamente.` });
+        // Save visitor data for printing badge
+        setLastVisitor({ ci: form.ci.trim(), fullName: form.fullName.trim(), company: form.company.trim() });
       } else {
         toast({ title: 'Visitante creado', description: `${form.fullName} registrado correctamente.` });
         setMessage({ type: 'success', text: `Visitante ${form.fullName} creado exitosamente.` });
+        setLastVisitor(null); // Don't offer badge print for just registration
       }
 
       setForm({ ci: '', fullName: '', company: '' });
@@ -187,6 +194,36 @@ export default function NewVisitorTab() {
       </form>
 
       {message && <AlertCosmos type={message.type} className="mt-4">{message.text}</AlertCosmos>}
+
+      {/* Print Badge Button - Shows after successful registration with entry */}
+      {lastVisitor && (
+        <div className="mt-4 p-4 bg-gradient-to-r from-purple-500/10 to-blue-500/10 border border-purple-500/30 rounded-xl">
+          <div className="flex items-center justify-between gap-4">
+            <div className="min-w-0">
+              <p className="font-medium text-foreground truncate">{lastVisitor.fullName}</p>
+              <p className="text-sm text-muted-foreground">Visitante ingresado</p>
+            </div>
+            <Button
+              onClick={() => {
+                if (currentSite) {
+                  printVisitorBadge({
+                    fullName: lastVisitor.fullName,
+                    ci: lastVisitor.ci,
+                    company: lastVisitor.company || null,
+                    photoUrl: null,
+                    siteName: currentSite.name,
+                    date: new Date(),
+                  });
+                }
+              }}
+              className="flex-shrink-0 bg-gradient-to-r from-purple-500 to-blue-500 hover:from-purple-600 hover:to-blue-600"
+            >
+              <Printer className="w-4 h-4 mr-2" />
+              Imprimir Credencial
+            </Button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

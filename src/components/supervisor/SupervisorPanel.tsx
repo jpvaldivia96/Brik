@@ -1,12 +1,13 @@
 import { useState } from 'react';
 import { useSite } from '@/contexts/SiteContext';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Settings, History, Wrench, FileText, Upload } from 'lucide-react';
+import { Settings, History, Wrench, FileText, Upload, Bell } from 'lucide-react';
 import SettingsTab from './SettingsTab';
 import AuditLogTab from './AuditLogTab';
 import ToolsTab from './ToolsTab';
 import ReportsTab from './ReportsTab';
 import ImportTab from './ImportTab';
+import { NotificationSettings } from './NotificationSettings';
 
 export default function SupervisorPanel() {
   const { isSupervisor } = useSite();
@@ -30,10 +31,14 @@ export default function SupervisorPanel() {
       </div>
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-        <TabsList className="grid w-full grid-cols-5 lg:w-auto lg:inline-flex">
+        <TabsList className="grid w-full grid-cols-6 lg:w-auto lg:inline-flex">
           <TabsTrigger value="settings" className="gap-2">
             <Settings className="w-4 h-4 hidden sm:block" />
             <span>Config</span>
+          </TabsTrigger>
+          <TabsTrigger value="notifications" className="gap-2">
+            <Bell className="w-4 h-4 hidden sm:block" />
+            <span>Notif.</span>
           </TabsTrigger>
           <TabsTrigger value="audit" className="gap-2">
             <History className="w-4 h-4 hidden sm:block" />
@@ -56,6 +61,9 @@ export default function SupervisorPanel() {
         <div className="mt-6">
           <TabsContent value="settings">
             <SettingsTab />
+          </TabsContent>
+          <TabsContent value="notifications">
+            <NotificationSettings />
           </TabsContent>
           <TabsContent value="audit">
             <AuditLogTab />
