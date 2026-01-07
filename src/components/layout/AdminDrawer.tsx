@@ -1,7 +1,8 @@
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { Button } from '@/components/ui/button';
-import { Settings, FileText, Wrench, Upload, History, LayoutDashboard, X, Users } from 'lucide-react';
+import { Settings, FileText, Wrench, Upload, History, LayoutDashboard, X, Users, UserCog } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { useSite } from '@/contexts/SiteContext';
 
 interface AdminDrawerProps {
   open: boolean;
@@ -11,20 +12,28 @@ interface AdminDrawerProps {
 }
 
 const adminOptions = [
-  { id: 'dashboard', icon: LayoutDashboard, label: 'Dashboard', description: 'KPIs y resumen' },
-  { id: 'people', icon: Users, label: 'Personal', description: 'Gestionar y eliminar' },
-  { id: 'settings', icon: Settings, label: 'Configuración', description: 'Ajustes de la obra' },
-  { id: 'audit', icon: History, label: 'Auditoría', description: 'Historial de cambios' },
-  { id: 'tools', icon: Wrench, label: 'Herramientas', description: 'Correcciones y ajustes' },
-  { id: 'reports', icon: FileText, label: 'Reportes', description: 'Descargar informes' },
-  { id: 'import', icon: Upload, label: 'Importar', description: 'Cargar datos CSV' },
+  { id: 'dashboard', icon: LayoutDashboard, label: 'Dashboard', description: 'KPIs y resumen', supervisorOnly: false },
+  { id: 'people', icon: Users, label: 'Personal', description: 'Gestionar y eliminar', supervisorOnly: false },
+  { id: 'users', icon: UserCog, label: 'Usuarios', description: 'Gestionar accesos', supervisorOnly: true },
+  { id: 'settings', icon: Settings, label: 'Configuración', description: 'Ajustes de la obra', supervisorOnly: true },
+  { id: 'audit', icon: History, label: 'Auditoría', description: 'Historial de cambios', supervisorOnly: true },
+  { id: 'tools', icon: Wrench, label: 'Herramientas', description: 'Correcciones y ajustes', supervisorOnly: true },
+  { id: 'reports', icon: FileText, label: 'Reportes', description: 'Descargar informes', supervisorOnly: true },
+  { id: 'import', icon: Upload, label: 'Importar', description: 'Cargar datos CSV', supervisorOnly: true },
 ];
 
 export default function AdminDrawer({ open, onOpenChange, activePanel, onPanelChange }: AdminDrawerProps) {
+  const { isSupervisor } = useSite();
+
   const handleSelect = (panelId: string) => {
     onPanelChange(panelId);
     onOpenChange(false);
   };
+
+  // Filter options based on role
+  const visibleOptions = adminOptions.filter(option =>
+    !option.supervisorOnly || isSupervisor
+  );
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
@@ -34,7 +43,7 @@ export default function AdminDrawer({ open, onOpenChange, activePanel, onPanelCh
         </SheetHeader>
 
         <div className="grid grid-cols-2 gap-3">
-          {adminOptions.map((option) => {
+          {visibleOptions.map((option) => {
             const Icon = option.icon;
             const isActive = activePanel === option.id;
             return (

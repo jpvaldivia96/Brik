@@ -346,17 +346,40 @@ export default function ReportsTab() {
               color: #7c3aed;
               font-weight: 600;
             }
+            .back-button {
+              display: inline-flex;
+              align-items: center;
+              gap: 6px;
+              padding: 10px 20px;
+              background: rgba(255,255,255,0.15);
+              border: 1px solid rgba(255,255,255,0.3);
+              border-radius: 10px;
+              color: white;
+              text-decoration: none;
+              font-size: 14px;
+              cursor: pointer;
+              transition: background 0.2s;
+            }
+            .back-button:hover { background: rgba(255,255,255,0.25); }
+            .table-wrapper {
+              overflow-x: auto;
+              -webkit-overflow-scrolling: touch;
+            }
             @media print {
               body { background: white; }
               .header { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
               .stat { border: 1px solid #e5e7eb; }
               th { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+              .back-button { display: none; }
             }
           </style>
         </head>
         <body>
           <div class="header">
-            <img src="/brik-logo-white.png" alt="BRIK" style="height: 48px; margin-bottom: 16px;" />
+            <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 16px;">
+              <img src="/brik-logo-white.png" alt="BRIK" style="height: 36px;" onerror="this.outerHTML='<span style=font-size:24px;font-weight:700>BRIK</span>'" />
+              <button class="back-button" onclick="window.close()">← Volver</button>
+            </div>
             <h1>Reporte de Accesos</h1>
             <p class="subtitle">${data.site} • ${data.period.from} al ${data.period.to}</p>
             <div class="filter-badge">${data.filter}</div>
@@ -383,6 +406,7 @@ export default function ReportsTab() {
             </div>
 
             <h2>Detalle de Accesos</h2>
+            <div class="table-wrapper">
             <table>
               <thead>
                 <tr>
@@ -415,6 +439,7 @@ export default function ReportsTab() {
         }
               </tbody>
             </table>
+            </div>
 
             <div class="footer">
               <span>Generado: ${new Date().toLocaleString('es-BO')}</span>

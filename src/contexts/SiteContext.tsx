@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { useAuth } from './AuthContext';
 import { supabase } from '@/integrations/supabase/client';
+import { isNetworkError } from '@/lib/offline/errorHandler';
 import type { Site, SiteMembership, SiteSettings, RoleEnum } from '@/lib/types';
 
 interface SiteContextType {
@@ -76,8 +77,11 @@ export function SiteProvider({ children }: { children: React.ReactNode }) {
           }
         }
       }
-    } catch (error) {
-      console.error('Error fetching sites:', error);
+    } catch (error: any) {
+      // Silently ignore network errors when offline
+      if (!isNetworkError(error)) {
+        console.error('Error fetching sites:', error);
+      }
     } finally {
       setLoading(false);
     }

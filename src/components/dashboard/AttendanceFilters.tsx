@@ -27,7 +27,9 @@ export function AttendanceFilters({
     filters,
     onFilterClick,
 }: AttendanceFiltersProps) {
-    const today = new Date().toISOString().split('T')[0];
+    // Use local date instead of UTC
+    const d = new Date();
+    const today = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
     const isToday = selectedDate === today;
 
     const formatDisplayDate = (dateStr: string) => {
@@ -62,7 +64,7 @@ export function AttendanceFilters({
                     {!isToday && (
                         <button
                             onClick={() => onDateChange(today)}
-                            className="px-3 py-2 text-xs bg-primary/20 text-primary rounded-lg hover:bg-primary/30 transition-colors"
+                            className="px-3 py-2 text-xs bg-purple-600 text-white font-medium rounded-lg hover:bg-purple-500 transition-colors"
                         >
                             Hoy
                         </button>

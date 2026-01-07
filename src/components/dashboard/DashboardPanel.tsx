@@ -20,6 +20,7 @@ interface InsideLog {
   contractor_snapshot: string | null;
   entry_at: string;
   hours: number;
+  totalHoursToday: number; // Accumulated hours for the day
   status: 'ok' | 'warn' | 'crit';
   full_name: string;
   ci: string;
@@ -38,13 +39,18 @@ interface ContractorStat {
 
 export default function DashboardPanel() {
   const { currentSite, currentSettings } = useSite();
+
+  // Use local date instead of UTC to ensure "Today" matches user's local timezone
+  const d = new Date();
+  const today = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+
   const [loading, setLoading] = useState(true);
   const [insideList, setInsideList] = useState<InsideLog[]>([]);
   const [contractors, setContractors] = useState<ContractorStat[]>([]);
 
   // Filter states
   const [searchQuery, setSearchQuery] = useState('');
-  const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
+  const [selectedDate, setSelectedDate] = useState(today);
   const [activeFilters, setActiveFilters] = useState<Set<string>>(new Set());
   const [activeTab, setActiveTab] = useState<'people' | 'companies'>('people');
   const [statusFilter, setStatusFilter] = useState<'all' | 'crit' | 'warn' | 'ok'>('all');
@@ -68,7 +74,7 @@ export default function DashboardPanel() {
 
     const warnH = Number(currentSettings?.warn_hours) || 10;
     const critH = Number(currentSettings?.crit_hours) || 12;
-    const today = new Date().toISOString().split('T')[0];
+    // 'today' variable is now defined at component level
     const isViewingToday = selectedDate === today;
 
     let logs: any[] = [];
@@ -97,10 +103,32 @@ export default function DashboardPanel() {
     }
 
     const now = Date.now();
+
+    // Fetch ALL logs for today to calculate accumulated hours per person
+    const accStartOfDay = `${selectedDate}T00:00:00`;
+    const accEndOfDay = `${selectedDate}T23:59:59`;
+    const { data: allTodayLogs } = await supabase
+      .from('access_logs')
+      .select('person_id, entry_at, exit_at')
+      .eq('site_id', currentSite.id)
+      .is('voided_at', null)
+      .gte('entry_at', accStartOfDay)
+      .lte('entry_at', accEndOfDay);
+
+    // Calculate total hours per person for the day
+    const personTotalHours = new Map<string, number>();
+    (allTodayLogs || []).forEach(log => {
+      const entryTime = new Date(log.entry_at).getTime();
+      const exitTime = log.exit_at ? new Date(log.exit_at).getTime() : now;
+      const hrs = (exitTime - entryTime) / 3600000;
+      personTotalHours.set(log.person_id, (personTotalHours.get(log.person_id) || 0) + hrs);
+    });
+
     const inside: InsideLog[] = logs.map(log => {
       const entryTime = new Date(log.entry_at).getTime();
       const exitTime = log.exit_at ? new Date(log.exit_at).getTime() : now;
       const hours = (exitTime - entryTime) / 3600000;
+      const totalHoursToday = personTotalHours.get(log.person_id) || hours;
       const status: 'ok' | 'warn' | 'crit' = isViewingToday
         ? (hours >= critH ? 'crit' : hours >= warnH ? 'warn' : 'ok')
         : 'ok'; // Historical logs always show as 'ok'
@@ -116,6 +144,7 @@ export default function DashboardPanel() {
         contractor_snapshot: log.contractor_snapshot,
         entry_at: log.entry_at,
         hours,
+        totalHoursToday,
         status,
         full_name: log.name_snapshot || log.people?.full_name || 'Sin nombre',
         ci: log.ci_snapshot || log.people?.ci || '',
@@ -373,7 +402,7 @@ export default function DashboardPanel() {
               {/* Action Buttons - Same row as filters */}
               <div className="flex items-center gap-2 -mt-1 mb-4">
                 <div className="flex-1" />
-                {selectedDate === new Date().toISOString().split('T')[0] && filteredList.length > 0 && (
+                {selectedDate === today && filteredList.length > 0 && (
                   <Button
                     variant="outline"
                     size="sm"
@@ -427,6 +456,7 @@ export default function DashboardPanel() {
                         status={log.status === 'crit' ? 'crit' : log.status === 'warn' ? 'at-risk' : 'on-site'}
                         checkedIn={formatTime(log.entry_at)}
                         hours={log.hours}
+                        totalHoursToday={log.totalHoursToday}
                         photoUrl={log.photo_url}
                         insuranceExpiry={log.insurance_expiry}
                         inductionDate={log.induction_date}
@@ -451,6 +481,7 @@ export default function DashboardPanel() {
                         status={log.status === 'crit' ? 'crit' : log.status === 'warn' ? 'at-risk' : 'on-site'}
                         checkedIn={formatTime(log.entry_at)}
                         hours={log.hours}
+                        totalHoursToday={log.totalHoursToday}
                         photoUrl={log.photo_url}
                         insuranceExpiry={log.insurance_expiry}
                         inductionDate={log.induction_date}

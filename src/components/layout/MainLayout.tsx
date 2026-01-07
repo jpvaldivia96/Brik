@@ -20,6 +20,7 @@ import ToolsTab from '@/components/supervisor/ToolsTab';
 import ReportsTab from '@/components/supervisor/ReportsTab';
 import ImportTab from '@/components/supervisor/ImportTab';
 import PeopleTab from '@/components/supervisor/PeopleTab';
+import UserManagementTab from '@/components/supervisor/UserManagementTab';
 
 // Live Date/Time Display Component
 function DateTimeDisplay() {
@@ -72,6 +73,8 @@ export default function MainLayout() {
         return <DashboardPanel />;
       case 'people':
         return <PeopleTab />;
+      case 'users':
+        return <UserManagementTab />;
       case 'settings':
         return <SettingsTab />;
       case 'audit':
@@ -91,6 +94,7 @@ export default function MainLayout() {
     const titles: Record<string, string> = {
       dashboard: 'Dashboard',
       people: 'Personal',
+      users: 'Usuarios',
       settings: 'Configuración',
       audit: 'Auditoría',
       tools: 'Herramientas',

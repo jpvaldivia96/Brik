@@ -8,6 +8,7 @@ interface PersonRowProps {
     status: 'on-site' | 'off-site' | 'at-risk' | 'warn' | 'crit';
     checkedIn: string;
     hours?: number;
+    totalHoursToday?: number; // Accumulated hours for the day
     photoUrl?: string | null;
     insuranceExpiry?: string | null;
     inductionDate?: string | null;
@@ -142,7 +143,7 @@ function Avatar({
     );
 }
 
-export function PersonRow({ name, role, contractor, status, checkedIn, hours, photoUrl, insuranceExpiry, inductionDate, className, onClick }: PersonRowProps) {
+export function PersonRow({ name, role, contractor, status, checkedIn, hours, totalHoursToday, photoUrl, insuranceExpiry, inductionDate, className, onClick }: PersonRowProps) {
     const statusConfig = getStatusConfig(status);
 
     return (
@@ -160,10 +161,10 @@ export function PersonRow({ name, role, contractor, status, checkedIn, hours, ph
             {/* Name, role and contractor */}
             <div className="flex-1 min-w-0">
                 <div className="font-medium text-foreground truncate">{name}</div>
-                <div className="text-xs text-muted-foreground truncate">
-                    {role && <span className="text-primary/80">{role}</span>}
-                    {role && contractor && <span className="mx-1">·</span>}
-                    {contractor || (!role && 'Sin contratista')}
+                <div className="text-xs text-yellow-300 truncate">
+                    {role && <span className="text-yellow-300">{role}</span>}
+                    {role && contractor && <span className="mx-1 text-white/60">·</span>}
+                    <span className="text-white/70">{contractor || (!role && 'Sin contratista')}</span>
                 </div>
             </div>
 
@@ -179,10 +180,13 @@ export function PersonRow({ name, role, contractor, status, checkedIn, hours, ph
             </div>
 
             {/* Check-in time */}
-            <div className="text-sm text-muted-foreground whitespace-nowrap hidden sm:block">
+            <div className="text-sm text-white/80 whitespace-nowrap hidden sm:block">
                 {checkedIn}
                 {hours !== undefined && hours > 0 && (
-                    <span className="ml-1 text-xs">({hours.toFixed(1)}h)</span>
+                    <span className="ml-1 text-xs text-white/60">({hours.toFixed(1)}h)</span>
+                )}
+                {totalHoursToday !== undefined && totalHoursToday > 0 && Math.abs(totalHoursToday - (hours || 0)) > 0.1 && (
+                    <span className="ml-1 text-xs text-cyan-300">(Total: {totalHoursToday.toFixed(1)}h)</span>
                 )}
             </div>
         </div>
@@ -190,7 +194,7 @@ export function PersonRow({ name, role, contractor, status, checkedIn, hours, ph
 }
 
 // Mobile card variant
-export function PersonCard({ name, role, contractor, status, checkedIn, hours, photoUrl, insuranceExpiry, inductionDate, className, onClick }: PersonRowProps) {
+export function PersonCard({ name, role, contractor, status, checkedIn, hours, totalHoursToday, photoUrl, insuranceExpiry, inductionDate, className, onClick }: PersonRowProps) {
     const statusConfig = getStatusConfig(status);
 
     return (
@@ -216,16 +220,19 @@ export function PersonCard({ name, role, contractor, status, checkedIn, hours, p
                         {statusConfig.label}
                     </div>
                 </div>
-                <div className="text-xs text-muted-foreground truncate mt-0.5">
-                    {role && <span className="text-primary/80">{role}</span>}
-                    {role && contractor && <span className="mx-1">·</span>}
-                    {contractor || (!role && 'Sin contratista')}
+                <div className="text-xs text-yellow-300 truncate mt-0.5">
+                    {role && <span className="text-yellow-300">{role}</span>}
+                    {role && contractor && <span className="mx-1 text-white/60">·</span>}
+                    <span className="text-white/70">{contractor || (!role && 'Sin contratista')}</span>
                 </div>
                 <div className="flex items-center justify-between mt-1">
-                    <div className="text-xs text-muted-foreground">
+                    <div className="text-xs text-white/70">
                         {checkedIn}
                         {hours !== undefined && hours > 0 && (
-                            <span className="ml-1">• {hours.toFixed(1)}h</span>
+                            <span className="ml-1 text-white/50">• {hours.toFixed(1)}h</span>
+                        )}
+                        {totalHoursToday !== undefined && totalHoursToday > 0 && totalHoursToday !== hours && (
+                            <span className="ml-1 text-cyan-300">(Total: {totalHoursToday.toFixed(1)}h)</span>
                         )}
                     </div>
                     <ComplianceIcons insuranceExpiry={insuranceExpiry} inductionDate={inductionDate} />

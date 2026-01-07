@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useSite } from '@/contexts/SiteContext';
 import { supabase } from '@/integrations/supabase/client';
+import { isNetworkError } from '@/lib/offline/errorHandler';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { AlertCosmos } from '@/components/ui/alert-cosmos';
@@ -56,7 +57,9 @@ export default function PeopleTab() {
             if (error) throw error;
             setAllPeople(data || []);
         } catch (err: any) {
-            toast({ title: 'Error', description: err.message, variant: 'destructive' });
+            if (!isNetworkError(err)) {
+                toast({ title: 'Error', description: err.message, variant: 'destructive' });
+            }
         } finally {
             setLoading(false);
         }

@@ -74,6 +74,20 @@ export default function FavoritesTab() {
 
   useEffect(() => { fetchItems(); }, [currentSite]);
 
+  // Auto-search as user types with debounce
+  useEffect(() => {
+    if (!query.trim() || !currentSite) {
+      setSearchResults([]);
+      return;
+    }
+
+    const timer = setTimeout(() => {
+      handleSearch();
+    }, 300);
+
+    return () => clearTimeout(timer);
+  }, [query, currentSite]);
+
   const handleSearch = async () => {
     if (!query.trim() || !currentSite) return;
     setSearching(true);
