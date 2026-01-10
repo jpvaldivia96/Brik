@@ -25,7 +25,7 @@ export default function BottomActionBar({ activeAction, onActionChange }: Omit<B
   const { currentSite } = useSite();
   const { user } = useAuth();
   const { toast } = useToast();
-  const { findMatch, loadModels } = useFace();
+  const { findMatch, loadModels, loading: modelsLoading, error: modelsError, modelLoaded } = useFace();
 
   // Camera state
   const [scanning, setScanning] = useState(false);
@@ -516,6 +516,29 @@ export default function BottomActionBar({ activeAction, onActionChange }: Omit<B
               {scanType === 'entry' ? 'Escanear Entrada' : 'Escanear Salida'}
             </h3>
 
+            {/* Model Loading Status */}
+            {modelsLoading && (
+              <div className="p-3 bg-blue-500/20 border border-blue-500/50 rounded-lg text-center">
+                <Spinner size="sm" className="inline mr-2" />
+                <span className="text-blue-600 text-sm">Cargando modelos de IA...</span>
+              </div>
+            )}
+
+            {/* Model Error */}
+            {modelsError && (
+              <div className="p-3 bg-red-500/20 border border-red-500/50 rounded-lg">
+                <p className="text-red-600 text-sm font-medium">⚠️ Error de IA:</p>
+                <p className="text-red-500 text-xs mt-1">{modelsError}</p>
+              </div>
+            )}
+
+            {/* Model Loaded Success */}
+            {modelLoaded && !modelsLoading && !modelsError && (
+              <div className="p-2 bg-green-500/20 border border-green-500/50 rounded-lg text-center">
+                <span className="text-green-600 text-sm">✓ Modelos de IA listos</span>
+              </div>
+            )}
+
             <div className="relative rounded-xl overflow-hidden bg-black aspect-[4/3]">
               <video ref={videoRef} autoPlay playsInline muted className="w-full h-full object-cover" />
               <div className="absolute inset-0 border-4 border-primary/30 rounded-xl" />
@@ -530,7 +553,7 @@ export default function BottomActionBar({ activeAction, onActionChange }: Omit<B
               </Button>
               <Button
                 onClick={handleScanCapture}
-                disabled={processingScan}
+                disabled={processingScan || modelsLoading || !!modelsError}
               >
                 {processingScan ? <Spinner size="sm" /> : 'Escanear'}
               </Button>
