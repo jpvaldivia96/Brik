@@ -58,12 +58,35 @@ export function EmergencyRollCall({ open, onClose }: EmergencyRollCallProps) {
         setLoading(false);
     };
 
+    // Send emergency push notification
+    const sendEmergencyNotification = async () => {
+        if (!currentSite) return;
+        try {
+            await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/send-notification`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
+                },
+                body: JSON.stringify({
+                    site_id: currentSite.id,
+                    type: 'emergency',
+                    title: '🚨 EMERGENCIA',
+                    body: `Evacuación iniciada en ${currentSite.name}`,
+                }),
+            });
+        } catch (error) {
+            console.error('Error sending emergency notification:', error);
+        }
+    };
+
     // Start timer when modal opens
     useEffect(() => {
         if (open) {
             fetchPeople();
             setEvacuated(new Map());
             setStartTime(new Date());
+            sendEmergencyNotification(); // Send push notification to all site users
         }
     }, [open, currentSite]);
 

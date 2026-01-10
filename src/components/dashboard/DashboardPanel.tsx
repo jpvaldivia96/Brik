@@ -59,6 +59,7 @@ export default function DashboardPanel() {
   const [editingPersonId, setEditingPersonId] = useState<string | null>(null);
   const [showExitQueue, setShowExitQueue] = useState(false);
   const [showEmergency, setShowEmergency] = useState(false);
+  const [expandedContractors, setExpandedContractors] = useState<Set<string>>(new Set());
 
   // Stats
   const stats = useMemo(() => {
@@ -158,7 +159,8 @@ export default function DashboardPanel() {
     // Contractor stats
     const contractorMap = new Map<string, { inside: number; entriesToday: number }>();
     inside.forEach(log => {
-      const c = log.contractor_snapshot || 'Sin contratista';
+      // Normalize to uppercase to avoid duplicates from different cases
+      const c = (log.contractor_snapshot || 'Sin contratista').trim().toUpperCase();
       const stat = contractorMap.get(c) || { inside: 0, entriesToday: 0 };
       stat.inside++;
       contractorMap.set(c, stat);
@@ -175,7 +177,8 @@ export default function DashboardPanel() {
       .gte('entry_at', todayStart.toISOString());
 
     (todayLogs || []).forEach(log => {
-      const c = log.contractor_snapshot || 'Sin contratista';
+      // Normalize to uppercase to avoid duplicates from different cases
+      const c = (log.contractor_snapshot || 'Sin contratista').trim().toUpperCase();
       const stat = contractorMap.get(c) || { inside: 0, entriesToday: 0 };
       stat.entriesToday++;
       contractorMap.set(c, stat);
@@ -498,28 +501,76 @@ export default function DashboardPanel() {
               ) : (
                 /* Companies Tab */
                 <div className="space-y-2">
-                  {contractors.map((c) => (
-                    <div
-                      key={c.contractor}
-                      className="flex items-center justify-between p-3 bg-card/30 rounded-lg border border-border/50"
-                    >
-                      <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-full bg-primary/20 flex items-center justify-center">
-                          <Building2 className="w-5 h-5 text-primary" />
-                        </div>
-                        <div>
-                          <div className="font-medium">{c.contractor}</div>
-                          <div className="text-sm text-white/70">{c.entriesToday} entradas hoy</div>
-                        </div>
+                  {contractors.map((c) => {
+                    const isExpanded = expandedContractors.has(c.contractor);
+                    const contractorWorkers = insideList.filter(l =>
+                      (l.contractor_snapshot || '').toUpperCase() === c.contractor.toUpperCase()
+                    );
+
+                    return (
+                      <div key={c.contractor} className="space-y-1">
+                        <button
+                          onClick={() => {
+                            const next = new Set(expandedContractors);
+                            if (isExpanded) {
+                              next.delete(c.contractor);
+                            } else {
+                              next.add(c.contractor);
+                            }
+                            setExpandedContractors(next);
+                          }}
+                          className="w-full flex items-center justify-between p-3 bg-card/30 rounded-lg border border-border/50 hover:bg-card/50 transition-colors"
+                        >
+                          <div className="text-left">
+                            <div className="font-medium text-white">{c.contractor}</div>
+                            <div className="text-sm text-white/60">{c.entriesToday} entradas hoy</div>
+                          </div>
+                          <div className="text-right flex items-center gap-3">
+                            <div>
+                              <div className="text-2xl font-bold text-primary">{c.inside}</div>
+                              <div className="text-xs text-white/50">dentro</div>
+                            </div>
+                            <span className={cn(
+                              "text-white/50 transition-transform",
+                              isExpanded && "rotate-180"
+                            )}>▼</span>
+                          </div>
+                        </button>
+
+                        {/* Expanded workers list */}
+                        {isExpanded && contractorWorkers.length > 0 && (
+                          <div className="ml-4 space-y-1 border-l-2 border-primary/30 pl-3">
+                            {contractorWorkers.map((worker) => (
+                              <div
+                                key={worker.id}
+                                onClick={() => setEditingPersonId(worker.person_id)}
+                                className="flex items-center justify-between p-2 bg-card/20 rounded-lg cursor-pointer hover:bg-card/40 transition-colors"
+                              >
+                                <div className="flex items-center gap-2">
+                                  {worker.photo_url ? (
+                                    <img src={worker.photo_url} alt="" className="w-8 h-8 rounded-full object-cover" />
+                                  ) : (
+                                    <div className="w-8 h-8 rounded-full bg-primary/20 flex items-center justify-center text-xs text-primary font-medium">
+                                      {worker.full_name.split(' ').map(n => n[0]).slice(0, 2).join('').toUpperCase()}
+                                    </div>
+                                  )}
+                                  <div>
+                                    <div className="text-sm text-white font-medium">{worker.full_name}</div>
+                                    {worker.role && <div className="text-xs text-yellow-300">{worker.role}</div>}
+                                  </div>
+                                </div>
+                                <div className="text-xs text-white/60">
+                                  {formatTime(worker.entry_at)}
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        )}
                       </div>
-                      <div className="text-right">
-                        <div className="text-2xl font-bold text-primary">{c.inside}</div>
-                        <div className="text-xs text-white/50">dentro</div>
-                      </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                   {contractors.length === 0 && (
-                    <div className="text-center text-muted-foreground py-8">Sin contratistas</div>
+                    <div className="text-center text-white/60 py-8">Sin contratistas</div>
                   )}
                 </div>
               )}

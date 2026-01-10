@@ -10,6 +10,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useSite } from '@/contexts/SiteContext';
 import { logAuditEvent } from '@/lib/auditLog';
 import { Save, X, Pencil, User } from 'lucide-react';
+import { ContractorAutocomplete } from '@/components/ui/contractor-autocomplete';
 
 interface EditWorkerModalProps {
     open: boolean;
@@ -34,6 +35,178 @@ interface WorkerData {
         blood_type: string | null;
     };
 }
+
+// Extracted View Mode Component
+const ViewForm = ({ workerData, form, handleClose, setEditing }: any) => (
+    <div className="space-y-4">
+        {/* Photo and basic info */}
+        <div className="flex gap-4 items-start">
+            <div className="w-24 h-24 rounded-xl overflow-hidden bg-muted flex-shrink-0">
+                {workerData?.photo_url ? (
+                    <img
+                        src={workerData.photo_url}
+                        alt={workerData.full_name}
+                        className="w-full h-full object-cover"
+                    />
+                ) : (
+                    <div className="w-full h-full flex items-center justify-center bg-primary/10">
+                        <User className="w-10 h-10 text-muted-foreground" />
+                    </div>
+                )}
+            </div>
+            <div className="flex-1 min-w-0">
+                <h3 className="text-lg font-semibold truncate">{workerData?.full_name}</h3>
+                <p className="text-muted-foreground">CI: {workerData?.ci}</p>
+                <p className="text-sm text-muted-foreground">{workerData?.contractor || 'Sin contratista'}</p>
+            </div>
+        </div>
+
+        {/* Data fields in a simple grid */}
+        <div className="grid grid-cols-2 gap-3 text-sm">
+            <div className="p-3 bg-card/50 rounded-lg">
+                <p className="text-muted-foreground text-xs">Cargo</p>
+                <p className="font-medium">{form.role || '-'}</p>
+            </div>
+            <div className="p-3 bg-card/50 rounded-lg">
+                <p className="text-muted-foreground text-xs">Teléfono</p>
+                <p className="font-medium">{form.phone || '-'}</p>
+            </div>
+            <div className="p-3 bg-card/50 rounded-lg">
+                <p className="text-muted-foreground text-xs">Nº Seguro</p>
+                <p className="font-medium">{form.insuranceNumber || '-'}</p>
+            </div>
+            <div className="p-3 bg-card/50 rounded-lg">
+                <p className="text-muted-foreground text-xs">Venc. Seguro</p>
+                <p className="font-medium">{form.insuranceExpiry || '-'}</p>
+            </div>
+            <div className="p-3 bg-card/50 rounded-lg">
+                <p className="text-muted-foreground text-xs">Tipo de Sangre</p>
+                <p className="font-medium">{form.bloodType || '-'}</p>
+            </div>
+            <div className="p-3 bg-card/50 rounded-lg">
+                <p className="text-muted-foreground text-xs">Contacto Emergencia</p>
+                <p className="font-medium truncate">{form.emergencyContact || '-'}</p>
+            </div>
+        </div>
+
+        <div className="p-3 bg-card/50 rounded-lg flex items-center gap-2">
+            <div className={`w-3 h-3 rounded-full ${form.inductionCompleted ? 'bg-green-500' : 'bg-red-500'}`} />
+            <span className="text-sm">{form.inductionCompleted ? 'Inducción completada' : 'Inducción pendiente'}</span>
+        </div>
+
+        <div className="flex justify-end pt-2">
+            <Button variant="outline" onClick={handleClose}>
+                Cerrar
+            </Button>
+        </div>
+    </div>
+);
+
+// Extracted Edit Mode Component
+const EditForm = ({ form, setForm, saving, handleSave, setEditing }: any) => (
+    <div className="space-y-4">
+        <div className="grid grid-cols-2 gap-3">
+            <div className="col-span-2 space-y-2">
+                <Label>Nombre completo</Label>
+                <Input
+                    value={form.fullName}
+                    onChange={(e) => setForm({ ...form, fullName: e.target.value })}
+                />
+            </div>
+
+            <div className="space-y-2">
+                <Label>CI</Label>
+                <Input
+                    value={form.ci}
+                    onChange={(e) => setForm({ ...form, ci: e.target.value })}
+                />
+            </div>
+
+            <div className="space-y-2">
+                <Label>Contratista</Label>
+                <ContractorAutocomplete
+                    value={form.contractor}
+                    onChange={(val) => setForm({ ...form, contractor: val })}
+                    placeholder="Seleccionar contratista"
+                />
+            </div>
+
+            <div className="space-y-2">
+                <Label>Cargo / Rol</Label>
+                <Input
+                    value={form.role}
+                    onChange={(e) => setForm({ ...form, role: e.target.value })}
+                />
+            </div>
+
+            <div className="space-y-2">
+                <Label>Teléfono</Label>
+                <Input
+                    value={form.phone}
+                    onChange={(e) => setForm({ ...form, phone: e.target.value })}
+                />
+            </div>
+
+            <div className="space-y-2">
+                <Label>Nº Seguro</Label>
+                <Input
+                    value={form.insuranceNumber}
+                    onChange={(e) => setForm({ ...form, insuranceNumber: e.target.value })}
+                />
+            </div>
+
+            <div className="space-y-2">
+                <Label>Vencimiento Seguro</Label>
+                <Input
+                    type="date"
+                    value={form.insuranceExpiry}
+                    onChange={(e) => setForm({ ...form, insuranceExpiry: e.target.value })}
+                />
+            </div>
+
+            <div className="space-y-2">
+                <Label>Tipo de Sangre</Label>
+                <Input
+                    value={form.bloodType}
+                    onChange={(e) => setForm({ ...form, bloodType: e.target.value })}
+                    placeholder="Ej: O+"
+                />
+            </div>
+
+            <div className="space-y-2">
+                <Label>Contacto Emergencia</Label>
+                <Input
+                    value={form.emergencyContact}
+                    onChange={(e) => setForm({ ...form, emergencyContact: e.target.value })}
+                />
+            </div>
+        </div>
+
+        <div className="flex items-center gap-3 p-3 bg-card/50 rounded-xl border border-border">
+            <input
+                type="checkbox"
+                id="inductionEdit"
+                checked={form.inductionCompleted}
+                onChange={(e) => setForm({ ...form, inductionCompleted: e.target.checked })}
+                className="w-5 h-5 rounded"
+            />
+            <Label htmlFor="inductionEdit" className="cursor-pointer">
+                Inducción completada
+            </Label>
+        </div>
+
+        <div className="flex gap-2 pt-4">
+            <Button variant="outline" onClick={() => setEditing(false)} className="flex-1">
+                <X className="w-4 h-4 mr-2" />
+                Cancelar
+            </Button>
+            <Button onClick={handleSave} disabled={saving} className="flex-1">
+                {saving ? <Spinner size="sm" className="mr-2" /> : <Save className="w-4 h-4 mr-2" />}
+                Guardar
+            </Button>
+        </div>
+    </div>
+);
 
 export function EditWorkerModal({ open, onClose, personId, onSaved }: EditWorkerModalProps) {
     const { user } = useAuth();
@@ -154,177 +327,6 @@ export function EditWorkerModal({ open, onClose, personId, onSaved }: EditWorker
         onClose();
     };
 
-    // View mode: Display data in read-only format with photo
-    const ViewMode = () => (
-        <div className="space-y-4">
-            {/* Photo and basic info */}
-            <div className="flex gap-4 items-start">
-                <div className="w-24 h-24 rounded-xl overflow-hidden bg-muted flex-shrink-0">
-                    {workerData?.photo_url ? (
-                        <img
-                            src={workerData.photo_url}
-                            alt={workerData.full_name}
-                            className="w-full h-full object-cover"
-                        />
-                    ) : (
-                        <div className="w-full h-full flex items-center justify-center bg-primary/10">
-                            <User className="w-10 h-10 text-muted-foreground" />
-                        </div>
-                    )}
-                </div>
-                <div className="flex-1 min-w-0">
-                    <h3 className="text-lg font-semibold truncate">{workerData?.full_name}</h3>
-                    <p className="text-muted-foreground">CI: {workerData?.ci}</p>
-                    <p className="text-sm text-muted-foreground">{workerData?.contractor || 'Sin contratista'}</p>
-                </div>
-            </div>
-
-            {/* Data fields in a simple grid */}
-            <div className="grid grid-cols-2 gap-3 text-sm">
-                <div className="p-3 bg-card/50 rounded-lg">
-                    <p className="text-muted-foreground text-xs">Cargo</p>
-                    <p className="font-medium">{form.role || '-'}</p>
-                </div>
-                <div className="p-3 bg-card/50 rounded-lg">
-                    <p className="text-muted-foreground text-xs">Teléfono</p>
-                    <p className="font-medium">{form.phone || '-'}</p>
-                </div>
-                <div className="p-3 bg-card/50 rounded-lg">
-                    <p className="text-muted-foreground text-xs">Nº Seguro</p>
-                    <p className="font-medium">{form.insuranceNumber || '-'}</p>
-                </div>
-                <div className="p-3 bg-card/50 rounded-lg">
-                    <p className="text-muted-foreground text-xs">Venc. Seguro</p>
-                    <p className="font-medium">{form.insuranceExpiry || '-'}</p>
-                </div>
-                <div className="p-3 bg-card/50 rounded-lg">
-                    <p className="text-muted-foreground text-xs">Tipo de Sangre</p>
-                    <p className="font-medium">{form.bloodType || '-'}</p>
-                </div>
-                <div className="p-3 bg-card/50 rounded-lg">
-                    <p className="text-muted-foreground text-xs">Contacto Emergencia</p>
-                    <p className="font-medium truncate">{form.emergencyContact || '-'}</p>
-                </div>
-            </div>
-
-            <div className="p-3 bg-card/50 rounded-lg flex items-center gap-2">
-                <div className={`w-3 h-3 rounded-full ${form.inductionCompleted ? 'bg-green-500' : 'bg-red-500'}`} />
-                <span className="text-sm">{form.inductionCompleted ? 'Inducción completada' : 'Inducción pendiente'}</span>
-            </div>
-
-            <div className="flex justify-end pt-2">
-                <Button variant="outline" onClick={handleClose}>
-                    Cerrar
-                </Button>
-            </div>
-        </div>
-    );
-
-    // Edit mode: Full form with inputs
-    const EditMode = () => (
-        <div className="space-y-4">
-            <div className="grid grid-cols-2 gap-3">
-                <div className="col-span-2 space-y-2">
-                    <Label>Nombre completo</Label>
-                    <Input
-                        value={form.fullName}
-                        onChange={(e) => setForm({ ...form, fullName: e.target.value })}
-                    />
-                </div>
-
-                <div className="space-y-2">
-                    <Label>CI</Label>
-                    <Input
-                        value={form.ci}
-                        onChange={(e) => setForm({ ...form, ci: e.target.value })}
-                    />
-                </div>
-
-                <div className="space-y-2">
-                    <Label>Contratista</Label>
-                    <Input
-                        value={form.contractor}
-                        onChange={(e) => setForm({ ...form, contractor: e.target.value })}
-                    />
-                </div>
-
-                <div className="space-y-2">
-                    <Label>Cargo / Rol</Label>
-                    <Input
-                        value={form.role}
-                        onChange={(e) => setForm({ ...form, role: e.target.value })}
-                    />
-                </div>
-
-                <div className="space-y-2">
-                    <Label>Teléfono</Label>
-                    <Input
-                        value={form.phone}
-                        onChange={(e) => setForm({ ...form, phone: e.target.value })}
-                    />
-                </div>
-
-                <div className="space-y-2">
-                    <Label>Nº Seguro</Label>
-                    <Input
-                        value={form.insuranceNumber}
-                        onChange={(e) => setForm({ ...form, insuranceNumber: e.target.value })}
-                    />
-                </div>
-
-                <div className="space-y-2">
-                    <Label>Vencimiento Seguro</Label>
-                    <Input
-                        type="date"
-                        value={form.insuranceExpiry}
-                        onChange={(e) => setForm({ ...form, insuranceExpiry: e.target.value })}
-                    />
-                </div>
-
-                <div className="space-y-2">
-                    <Label>Tipo de Sangre</Label>
-                    <Input
-                        value={form.bloodType}
-                        onChange={(e) => setForm({ ...form, bloodType: e.target.value })}
-                        placeholder="Ej: O+"
-                    />
-                </div>
-
-                <div className="space-y-2">
-                    <Label>Contacto Emergencia</Label>
-                    <Input
-                        value={form.emergencyContact}
-                        onChange={(e) => setForm({ ...form, emergencyContact: e.target.value })}
-                    />
-                </div>
-            </div>
-
-            <div className="flex items-center gap-3 p-3 bg-card/50 rounded-xl border border-border">
-                <input
-                    type="checkbox"
-                    id="inductionEdit"
-                    checked={form.inductionCompleted}
-                    onChange={(e) => setForm({ ...form, inductionCompleted: e.target.checked })}
-                    className="w-5 h-5 rounded"
-                />
-                <Label htmlFor="inductionEdit" className="cursor-pointer">
-                    Inducción completada
-                </Label>
-            </div>
-
-            <div className="flex gap-2 pt-4">
-                <Button variant="outline" onClick={() => setEditing(false)} className="flex-1">
-                    <X className="w-4 h-4 mr-2" />
-                    Cancelar
-                </Button>
-                <Button onClick={handleSave} disabled={saving} className="flex-1">
-                    {saving ? <Spinner size="sm" className="mr-2" /> : <Save className="w-4 h-4 mr-2" />}
-                    Guardar
-                </Button>
-            </div>
-        </div>
-    );
-
     return (
         <Dialog open={open} onOpenChange={(o) => !o && handleClose()}>
             <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto">
@@ -347,9 +349,20 @@ export function EditWorkerModal({ open, onClose, personId, onSaved }: EditWorker
                         <Spinner size="lg" />
                     </div>
                 ) : editing ? (
-                    <EditMode />
+                    <EditForm
+                        form={form}
+                        setForm={setForm}
+                        saving={saving}
+                        handleSave={handleSave}
+                        setEditing={setEditing}
+                    />
                 ) : (
-                    <ViewMode />
+                    <ViewForm
+                        workerData={workerData}
+                        form={form}
+                        handleClose={handleClose}
+                        setEditing={setEditing}
+                    />
                 )}
             </DialogContent>
         </Dialog>

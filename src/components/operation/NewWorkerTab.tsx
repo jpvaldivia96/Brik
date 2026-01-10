@@ -13,6 +13,7 @@ import { useFace } from '@/hooks/useFace';
 import { HCaptcha, HCaptchaRef } from '@/components/ui/hcaptcha';
 import { useRateLimit } from '@/hooks/useRateLimit';
 import { logAuditEvent } from '@/lib/auditLog';
+import { ContractorAutocomplete } from '@/components/ui/contractor-autocomplete';
 
 export default function NewWorkerTab() {
   const { currentSite } = useSite();
@@ -407,7 +408,11 @@ export default function NewWorkerTab() {
           </div>
           <div className="space-y-2">
             <Label htmlFor="contractor">Contratista</Label>
-            <Input id="contractor" value={form.contractor} onChange={(e) => setForm({ ...form, contractor: e.target.value })} />
+            <ContractorAutocomplete
+              value={form.contractor}
+              onChange={(val) => setForm({ ...form, contractor: val })}
+              placeholder="Seleccionar contratista"
+            />
           </div>
           <div className="space-y-2">
             <Label htmlFor="role">Cargo / Rol</Label>

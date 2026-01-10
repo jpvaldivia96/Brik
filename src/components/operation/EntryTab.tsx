@@ -16,7 +16,7 @@ import { triggerDashboardRefresh } from '@/lib/dashboardRefresh';
 export default function EntryTab() {
   const { currentSite } = useSite();
   const { toast } = useToast();
-  const { findMatch, loadModels } = useFace();
+  const { findMatch, loadModels, loading: modelsLoading, error: modelsError, modelLoaded } = useFace();
 
   const [query, setQuery] = useState('');
   const [results, setResults] = useState<PersonSearchResult[]>([]);
@@ -28,6 +28,7 @@ export default function EntryTab() {
 
   const [scanning, setScanning] = useState(false);
   const [processingScan, setProcessingScan] = useState(false);
+  const [scanError, setScanError] = useState<string | null>(null);
   const [facingMode, setFacingMode] = useState<'user' | 'environment'>('environment');
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -126,6 +127,7 @@ export default function EntryTab() {
     if (!videoRef.current || !canvasRef.current || !currentSite) return;
 
     setProcessingScan(true);
+    setScanError(null); // Clear previous errors
     const video = videoRef.current;
     const canvas = canvasRef.current;
     const context = canvas.getContext('2d');
@@ -136,12 +138,32 @@ export default function EntryTab() {
       context.drawImage(video, 0, 0, canvas.width, canvas.height);
 
       try {
+        // Check if models are loading
+        if (modelsLoading) {
+          toast({ title: 'Cargando...', description: 'Los modelos de IA aún se están cargando. Espere un momento.' });
+          setProcessingScan(false);
+          return;
+        }
+
+        // Check for model errors
+        if (modelsError) {
+          toast({ title: 'Error de IA', variant: 'destructive', description: modelsError });
+          setProcessingScan(false);
+          return;
+        }
+
         // Fetch people with descriptors
-        const { data: people } = await supabase
+        const { data: people, error: fetchError } = await supabase
           .from('people')
           .select('id, face_descriptor')
           .eq('site_id', currentSite.id)
           .not('face_descriptor', 'is', null);
+
+        if (fetchError) {
+          toast({ title: 'Error de datos', variant: 'destructive', description: fetchError.message });
+          setProcessingScan(false);
+          return;
+        }
 
         if (!people || people.length === 0) {
           toast({ title: 'Sin datos', description: 'No hay personas con biometría registrada en esta obra.' });
@@ -149,6 +171,7 @@ export default function EntryTab() {
           return;
         }
 
+        console.log('EntryTab: Found', people.length, 'people with biometrics');
         const match = await findMatch(canvas, people as any[]);
 
         if (match) {
@@ -181,11 +204,18 @@ export default function EntryTab() {
             });
           }
         } else {
-          toast({ title: 'No reconocido', variant: 'destructive', description: 'No se encontró coincidencia.' });
+          // Check if it's because no face was detected vs no match
+          toast({
+            title: 'No reconocido',
+            variant: 'destructive',
+            description: 'No se detectó rostro o no coincide con ninguna persona registrada.'
+          });
         }
-      } catch (err) {
-        console.error(err);
-        toast({ title: 'Error', variant: 'destructive', description: 'Error al procesar biometría.' });
+      } catch (err: any) {
+        console.error('EntryTab: Scan error:', err);
+        const errorMsg = err?.message || 'Error desconocido al procesar biometría';
+        setScanError(errorMsg); // Persist error in modal
+        toast({ title: 'Error', variant: 'destructive', description: errorMsg });
       } finally {
         setProcessingScan(false);
       }
@@ -380,34 +410,56 @@ export default function EntryTab() {
 
       {/* Camera Modal/Sheet for Scanning */}
       {scanning && (
-        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-gradient-to-br from-slate-900 via-purple-900/95 to-slate-900 border border-white/10 rounded-2xl shadow-2xl max-w-sm w-full p-6 space-y-4">
-            <h3 className="text-lg font-medium text-center text-white">Escanear Rostro</h3>
+        <div className="fixed inset-0 z-50 bg-background/80 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-card border border-border rounded-xl shadow-2xl max-w-sm w-full p-4 space-y-4">
+            <h3 className="text-lg font-medium text-center">Escanear Rostro</h3>
+
+            {/* Model Loading Status */}
+            {modelsLoading && (
+              <div className="p-3 bg-blue-500/20 border border-blue-500/50 rounded-lg text-center">
+                <Spinner size="sm" className="inline mr-2" />
+                <span className="text-blue-300 text-sm">Cargando modelos de IA...</span>
+              </div>
+            )}
+
+            {/* Model Error */}
+            {modelsError && (
+              <div className="p-3 bg-red-500/20 border border-red-500/50 rounded-lg">
+                <p className="text-red-400 text-sm font-medium">⚠️ Error de IA:</p>
+                <p className="text-red-300 text-xs mt-1">{modelsError}</p>
+              </div>
+            )}
+
+            {/* Model Loaded Success */}
+            {modelLoaded && !modelsLoading && !modelsError && (
+              <div className="p-2 bg-green-500/20 border border-green-500/50 rounded-lg text-center">
+                <span className="text-green-300 text-sm">✓ Modelos de IA listos</span>
+              </div>
+            )}
+
+            {/* Scan Error */}
+            {scanError && (
+              <div className="p-3 bg-orange-500/20 border border-orange-500/50 rounded-lg">
+                <p className="text-orange-400 text-sm font-medium">⚠️ Error de escaneo:</p>
+                <p className="text-orange-300 text-xs mt-1">{scanError}</p>
+              </div>
+            )}
 
             <div className="relative rounded-xl overflow-hidden bg-black aspect-[4/3]">
               <video ref={videoRef} autoPlay playsInline muted className="w-full h-full object-cover" />
-              <div className="absolute inset-0 border-4 border-purple-500/30 rounded-xl" />
+              <div className="absolute inset-0 border-4 border-primary/30 rounded-xl" />
             </div>
 
             <div className="grid grid-cols-3 gap-3">
-              <Button
-                variant="outline"
-                onClick={stopScanning}
-                className="bg-white/10 border-white/20 text-white/80 hover:bg-white/20"
-              >
+              <Button variant="outline" onClick={stopScanning}>
                 Cancelar
               </Button>
-              <Button
-                variant="outline"
-                onClick={flipCamera}
-                className="bg-white/10 border-white/20 text-white/80 hover:bg-white/20"
-              >
+              <Button variant="outline" onClick={flipCamera}>
                 <SwitchCamera className="w-5 h-5" />
               </Button>
               <Button
                 onClick={handleScanCapture}
-                disabled={processingScan}
-                className="bg-gradient-to-r from-purple-500 to-blue-500 hover:from-purple-600 hover:to-blue-600"
+                disabled={processingScan || modelsLoading || !!modelsError}
               >
                 {processingScan ? <Spinner size="sm" /> : 'Escanear'}
               </Button>

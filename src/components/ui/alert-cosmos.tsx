@@ -28,9 +28,10 @@ const alertConfig = {
 };
 
 export function AlertCosmos({ type, title, children, className }: AlertCosmosProps) {
-  const config = alertConfig[type];
+  // Add safety check/fallback for missing or invalid type
+  const config = alertConfig[type] || alertConfig.info;
   const Icon = config.icon;
-  
+
   return (
     <div className={cn('alert-cosmos', config.className, className)}>
       <Icon className="w-5 h-5 flex-shrink-0 mt-0.5" />

@@ -68,8 +68,9 @@ export default function SettingsTab() {
 
   const handleChangeSite = () => {
     localStorage.removeItem('brik_current_site');
-    selectSite('');
-    window.location.reload();
+    localStorage.setItem('brik_force_site_selector', 'true');
+    // Force full page reload to reset all React state
+    window.location.replace('/');
   };
 
   return (
@@ -159,7 +160,10 @@ export default function SettingsTab() {
           </Button>
           <Button
             variant="outline"
-            onClick={signOut}
+            onClick={async () => {
+              await signOut();
+              window.location.href = '/auth';
+            }}
             className="bg-red-500/10 border-red-500/30 text-red-400 hover:bg-red-500/20 hover:text-red-300"
           >
             <LogOut className="w-4 h-4 mr-2" />

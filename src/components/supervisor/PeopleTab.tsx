@@ -18,6 +18,7 @@ import {
 } from '@/components/ui/dialog';
 import { Users, Trash2, Search, UserX, RefreshCw } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { EditWorkerModal } from '@/components/dashboard/EditWorkerModal';
 
 interface PersonResult {
     id: string;
@@ -36,6 +37,7 @@ export default function PeopleTab() {
     const [allPeople, setAllPeople] = useState<PersonResult[]>([]);
     const [selectedContractor, setSelectedContractor] = useState<string>('all');
     const [selectedPerson, setSelectedPerson] = useState<PersonResult | null>(null);
+    const [editingPersonId, setEditingPersonId] = useState<string | null>(null);
 
     // Delete Dialog
     const [deleteOpen, setDeleteOpen] = useState(false);
@@ -73,7 +75,10 @@ export default function PeopleTab() {
     const contractors = useMemo(() => {
         const set = new Set<string>();
         allPeople.forEach(p => {
-            if (p.contractor) set.add(p.contractor);
+            if (p.contractor) {
+                // Normalize to uppercase and trim to avoid duplicates
+                set.add(p.contractor.trim().toUpperCase());
+            }
         });
         return Array.from(set).sort();
     }, [allPeople]);
@@ -84,7 +89,7 @@ export default function PeopleTab() {
 
         // Filter by contractor
         if (selectedContractor !== 'all') {
-            filtered = filtered.filter(p => p.contractor === selectedContractor);
+            filtered = filtered.filter(p => (p.contractor || '').trim().toUpperCase() === selectedContractor.toUpperCase());
         }
 
         // Filter by query (CI or name) - case insensitive
@@ -232,7 +237,11 @@ export default function PeopleTab() {
                             </thead>
                             <tbody>
                                 {filteredPeople.map((p) => (
-                                    <tr key={p.id}>
+                                    <tr
+                                        key={p.id}
+                                        onClick={() => setEditingPersonId(p.id)}
+                                        className="hover:bg-white/5 cursor-pointer transition-colors"
+                                    >
                                         <td>
                                             <div className="font-medium text-white">{p.full_name}</div>
                                             <div className="text-xs text-white/50">{p.ci}</div>
@@ -248,7 +257,11 @@ export default function PeopleTab() {
                                                 variant="ghost"
                                                 size="sm"
                                                 className="text-red-400 hover:bg-red-500/10 hover:text-red-300"
-                                                onClick={() => { setSelectedPerson(p); setDeleteOpen(true); }}
+                                                onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    setSelectedPerson(p);
+                                                    setDeleteOpen(true);
+                                                }}
                                             >
                                                 <Trash2 className="w-4 h-4" />
                                             </Button>
@@ -262,7 +275,11 @@ export default function PeopleTab() {
                     {/* Mobile Cards */}
                     <div className="md:hidden p-4 space-y-3">
                         {filteredPeople.map((p) => (
-                            <div key={p.id} className="bg-white/5 border border-white/10 rounded-xl p-4 flex justify-between items-start">
+                            <div
+                                key={p.id}
+                                className="bg-white/5 border border-white/10 rounded-xl p-4 flex justify-between items-start cursor-pointer active:bg-white/10 transition-colors"
+                                onClick={() => setEditingPersonId(p.id)}
+                            >
                                 <div>
                                     <div className="font-medium text-white">{p.full_name}</div>
                                     <div className="text-sm text-white/50">CI: {p.ci}</div>
@@ -277,7 +294,11 @@ export default function PeopleTab() {
                                     variant="ghost"
                                     size="sm"
                                     className="text-red-400 hover:bg-red-500/10"
-                                    onClick={() => { setSelectedPerson(p); setDeleteOpen(true); }}
+                                    onClick={(e) => {
+                                        e.stopPropagation();
+                                        setSelectedPerson(p);
+                                        setDeleteOpen(true);
+                                    }}
                                 >
                                     <Trash2 className="w-4 h-4" />
                                 </Button>
@@ -341,6 +362,19 @@ export default function PeopleTab() {
                     </DialogFooter>
                 </DialogContent>
             </Dialog>
+
+            {/* Edit Modal */}
+            {editingPersonId && (
+                <EditWorkerModal
+                    open={!!editingPersonId}
+                    onClose={() => setEditingPersonId(null)}
+                    personId={editingPersonId}
+                    onSaved={() => {
+                        loadPeople();
+                        setEditingPersonId(null);
+                    }}
+                />
+            )}
         </div>
     );
 }

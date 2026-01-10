@@ -1,4 +1,5 @@
 import { useState, useRef } from 'react';
+import { ContractorAutocomplete } from '@/components/ui/contractor-autocomplete';
 import { useSite } from '@/contexts/SiteContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
@@ -183,11 +184,11 @@ export default function NewVisitorTab() {
           </div>
           <div className="space-y-2 md:col-span-2">
             <Label htmlFor="company">Empresa / Contratista</Label>
-            <Input
-              id="company"
+            <ContractorAutocomplete
               value={form.company}
-              onChange={(e) => setForm({ ...form, company: e.target.value })}
+              onChange={(val) => setForm({ ...form, company: val })}
               disabled={isLimited}
+              placeholder="Seleccionar o escribir empresa/contratista"
             />
           </div>
         </div>

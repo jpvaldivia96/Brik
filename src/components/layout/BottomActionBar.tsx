@@ -1,4 +1,4 @@
-import { LogIn, LogOut, HardHat, User, Star, Camera, Search } from 'lucide-react';
+import { LogIn, LogOut, HardHat, User, Star, Camera, Search, SwitchCamera } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useSite } from '@/contexts/SiteContext';
 import { useState, useRef, useEffect } from 'react';
@@ -31,6 +31,7 @@ export default function BottomActionBar({ activeAction, onActionChange }: Omit<B
   const [scanning, setScanning] = useState(false);
   const [scanType, setScanType] = useState<'entry' | 'exit'>('entry');
   const [processingScan, setProcessingScan] = useState(false);
+  const [facingMode, setFacingMode] = useState<'user' | 'environment'>('environment');
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
@@ -140,10 +141,15 @@ export default function BottomActionBar({ activeAction, onActionChange }: Omit<B
     }
   };
 
-  const startCamera = async () => {
+  const startCamera = async (facing: 'user' | 'environment' = facingMode) => {
     try {
+      // Stop existing stream first
+      if (videoRef.current && videoRef.current.srcObject) {
+        const oldStream = videoRef.current.srcObject as MediaStream;
+        oldStream.getTracks().forEach(track => track.stop());
+      }
       const stream = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: 'user' }
+        video: { facingMode: facing }
       });
       if (videoRef.current) {
         videoRef.current.srcObject = stream;
@@ -153,6 +159,12 @@ export default function BottomActionBar({ activeAction, onActionChange }: Omit<B
       toast({ title: 'Error', variant: 'destructive', description: 'No se pudo acceder a la cámara' });
       setScanning(false);
     }
+  };
+
+  const flipCamera = () => {
+    const newMode = facingMode === 'user' ? 'environment' : 'user';
+    setFacingMode(newMode);
+    startCamera(newMode);
   };
 
   const stopCamera = () => {
@@ -417,29 +429,29 @@ export default function BottomActionBar({ activeAction, onActionChange }: Omit<B
   return (
     <>
       <div className="fixed bottom-0 left-0 right-0 backdrop-blur-xl bg-slate-900/80 border-t border-white/10 z-50 pb-safe">
-        <div className="flex items-center justify-center gap-3 sm:gap-4 px-3 sm:px-6 py-4 sm:py-5">
+        <div className="flex items-center justify-center gap-2.5 sm:gap-3 px-2.5 sm:px-5 py-3 sm:py-4">
           {/* Worker Button */}
           <button
             onClick={() => onActionChange('worker')}
             className={cn(
-              "flex flex-col items-center justify-center gap-1 px-3.5 py-3.5 sm:px-4 sm:py-4 rounded-xl transition-all duration-300 min-w-0",
+              "flex flex-col items-center justify-center gap-0.5 px-3 py-2.5 sm:px-3.5 sm:py-3 rounded-xl transition-all duration-300 min-w-0",
               activeAction === 'worker'
                 ? "bg-gradient-to-r from-purple-500 to-blue-500 text-white shadow-lg shadow-purple-500/30"
                 : "text-white/50 hover:text-white hover:bg-purple-500/20 hover:shadow-lg hover:shadow-purple-500/25 hover:scale-105"
             )}
           >
-            <HardHat className="w-6 h-6 sm:w-9 sm:h-9" />
-            <span className="text-[11px] sm:text-sm font-medium">Trabajador</span>
+            <HardHat className="w-5 h-5 sm:w-7 sm:h-7" />
+            <span className="text-[10px] sm:text-xs font-medium">Trabajador</span>
           </button>
 
           {/* Entry Button Group */}
           <div className="flex flex-col items-center">
             <button
               onClick={() => handleScan('entry')}
-              className="flex items-center gap-2.5 sm:gap-3 px-5 sm:px-12 py-3.5 sm:py-4 rounded-xl transition-all duration-300 bg-gradient-to-r from-emerald-500 via-teal-500 to-purple-600 text-white shadow-lg shadow-emerald-500/40 hover:shadow-xl hover:shadow-emerald-500/60 hover:scale-105 active:scale-95"
+              className="flex items-center gap-2 sm:gap-2.5 px-4 sm:px-10 py-2.5 sm:py-3 rounded-xl transition-all duration-300 bg-gradient-to-r from-emerald-500 via-teal-500 to-purple-600 text-white shadow-lg shadow-emerald-500/40 hover:shadow-xl hover:shadow-emerald-500/60 hover:scale-105 active:scale-95"
             >
-              <LogIn className="w-5 h-5 sm:w-7 sm:h-7" />
-              <span className="text-sm sm:text-lg font-semibold">Entrada</span>
+              <LogIn className="w-4 h-4 sm:w-6 sm:h-6" />
+              <span className="text-xs sm:text-base font-semibold">Entrada</span>
             </button>
             <button
               onClick={() => handleManualOpen('entry')}
@@ -453,10 +465,10 @@ export default function BottomActionBar({ activeAction, onActionChange }: Omit<B
           <div className="flex flex-col items-center">
             <button
               onClick={() => handleScan('exit')}
-              className="flex items-center gap-2.5 sm:gap-3 px-5 sm:px-12 py-3.5 sm:py-4 rounded-xl transition-all duration-300 bg-gradient-to-r from-red-500 via-orange-500 to-purple-600 text-white shadow-lg shadow-red-500/40 hover:shadow-xl hover:shadow-red-500/60 hover:scale-105 active:scale-95"
+              className="flex items-center gap-2 sm:gap-2.5 px-4 sm:px-10 py-2.5 sm:py-3 rounded-xl transition-all duration-300 bg-gradient-to-r from-red-500 via-orange-500 to-purple-600 text-white shadow-lg shadow-red-500/40 hover:shadow-xl hover:shadow-red-500/60 hover:scale-105 active:scale-95"
             >
-              <LogOut className="w-5 h-5 sm:w-7 sm:h-7" />
-              <span className="text-sm sm:text-lg font-semibold">Salida</span>
+              <LogOut className="w-4 h-4 sm:w-6 sm:h-6" />
+              <span className="text-xs sm:text-base font-semibold">Salida</span>
             </button>
             <button
               onClick={() => handleManualOpen('exit')}
@@ -470,64 +482,55 @@ export default function BottomActionBar({ activeAction, onActionChange }: Omit<B
           <button
             onClick={() => onActionChange('visitor')}
             className={cn(
-              "flex flex-col items-center justify-center gap-1 px-3.5 py-3.5 sm:px-4 sm:py-4 rounded-xl transition-all duration-300 min-w-0",
+              "flex flex-col items-center justify-center gap-0.5 px-3 py-2.5 sm:px-3.5 sm:py-3 rounded-xl transition-all duration-300 min-w-0",
               activeAction === 'visitor'
                 ? "bg-gradient-to-r from-purple-500 to-blue-500 text-white shadow-lg shadow-purple-500/30"
                 : "text-white/50 hover:text-white hover:bg-purple-500/20 hover:shadow-lg hover:shadow-purple-500/25 hover:scale-105"
             )}
           >
-            <User className="w-6 h-6 sm:w-9 sm:h-9" />
-            <span className="text-[11px] sm:text-sm font-medium">Visitante</span>
+            <User className="w-5 h-5 sm:w-7 sm:h-7" />
+            <span className="text-[10px] sm:text-xs font-medium">Visitante</span>
           </button>
 
           {/* Favorites Button */}
           <button
             onClick={() => onActionChange('favorites')}
             className={cn(
-              "flex flex-col items-center justify-center gap-1 px-3.5 py-3.5 sm:px-4 sm:py-4 rounded-xl transition-all duration-300 min-w-0",
+              "flex flex-col items-center justify-center gap-0.5 px-3 py-2.5 sm:px-3.5 sm:py-3 rounded-xl transition-all duration-300 min-w-0",
               activeAction === 'favorites'
                 ? "bg-gradient-to-r from-purple-500 to-blue-500 text-white shadow-lg shadow-purple-500/30"
                 : "text-white/50 hover:text-white hover:bg-purple-500/20 hover:shadow-lg hover:shadow-purple-500/25 hover:scale-105"
             )}
           >
-            <Star className="w-6 h-6 sm:w-9 sm:h-9" />
-            <span className="text-[11px] sm:text-sm font-medium">Favoritos</span>
+            <Star className="w-5 h-5 sm:w-7 sm:h-7" />
+            <span className="text-[10px] sm:text-xs font-medium">Favoritos</span>
           </button>
         </div>
       </div>
 
       {/* Camera Modal */}
       {scanning && (
-        <div className="fixed inset-0 z-[60] bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-gradient-to-br from-slate-900 via-purple-900/95 to-slate-900 border border-white/10 rounded-2xl shadow-2xl max-w-sm w-full p-5 space-y-4">
-            <h3 className="text-lg font-medium text-center text-white">
-              {scanType === 'entry' ? '📸 Escanear Entrada' : '📸 Escanear Salida'}
+        <div className="fixed inset-0 z-[60] bg-background/80 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-card border border-border rounded-xl shadow-2xl max-w-sm w-full p-4 space-y-4">
+            <h3 className="text-lg font-medium text-center">
+              {scanType === 'entry' ? 'Escanear Entrada' : 'Escanear Salida'}
             </h3>
 
             <div className="relative rounded-xl overflow-hidden bg-black aspect-[4/3]">
               <video ref={videoRef} autoPlay playsInline muted className="w-full h-full object-cover" />
-              <div className={cn(
-                "absolute inset-0 border-4 rounded-xl transition-colors",
-                scanType === 'entry' ? "border-emerald-500/50" : "border-orange-500/50"
-              )} />
+              <div className="absolute inset-0 border-4 border-primary/30 rounded-xl" />
             </div>
 
-            <div className="grid grid-cols-2 gap-3">
-              <Button
-                variant="outline"
-                onClick={() => setScanning(false)}
-                className="bg-white/10 border-white/20 text-white/80 hover:bg-white/20"
-              >
+            <div className="grid grid-cols-3 gap-3">
+              <Button variant="outline" onClick={() => setScanning(false)}>
                 Cancelar
+              </Button>
+              <Button variant="outline" onClick={flipCamera}>
+                <SwitchCamera className="w-5 h-5" />
               </Button>
               <Button
                 onClick={handleScanCapture}
                 disabled={processingScan}
-                className={cn(
-                  scanType === 'entry'
-                    ? "bg-gradient-to-r from-emerald-500 to-green-500 hover:from-emerald-600 hover:to-green-600"
-                    : "bg-gradient-to-r from-orange-500 to-red-500 hover:from-orange-600 hover:to-red-600"
-                )}
               >
                 {processingScan ? <Spinner size="sm" /> : 'Escanear'}
               </Button>

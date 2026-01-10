@@ -60,7 +60,10 @@ export default function ReportsTab() {
   const contractors = useMemo(() => {
     const set = new Set<string>();
     people.forEach(p => {
-      if (p.contractor) set.add(p.contractor);
+      if (p.contractor) {
+        // Normalize to uppercase and trim to avoid duplicates like "Empresa X" and "empresa x"
+        set.add(p.contractor.trim().toUpperCase());
+      }
     });
     return Array.from(set).sort();
   }, [people]);
@@ -72,7 +75,7 @@ export default function ReportsTab() {
     } else if (filterType === 'visitor') {
       return people.filter(p => p.type === 'visitor');
     } else if (filterType === 'contractor' && selectedContractor) {
-      return people.filter(p => p.contractor === selectedContractor);
+      return people.filter(p => (p.contractor || '').trim().toUpperCase() === selectedContractor.toUpperCase());
     }
     return people;
   }, [people, filterType, selectedContractor]);
@@ -117,7 +120,7 @@ export default function ReportsTab() {
 
     // Apply filters
     if (filterType === 'contractor' && selectedContractor) {
-      query = query.eq('contractor_snapshot', selectedContractor);
+      query = query.ilike('contractor_snapshot', selectedContractor);
     } else if (filterType === 'worker') {
       query = query.eq('type_snapshot', 'worker');
     } else if (filterType === 'visitor') {
@@ -286,15 +289,19 @@ export default function ReportsTab() {
               gap: 16px; 
               margin-bottom: 32px; 
             }
+            @media (max-width: 768px) {
+              .stats { grid-template-columns: repeat(2, 1fr); }
+            }
             .stat { 
               background: white; 
               padding: 20px; 
               border-radius: 16px; 
               border: 1px solid #e5e7eb;
               text-align: center;
+              box-shadow: 0 1px 2px rgba(0,0,0,0.05);
             }
             .stat-value { 
-              font-size: 32px; 
+              font-size: 28px; 
               font-weight: 700; 
               color: #7c3aed;
             }
@@ -314,7 +321,7 @@ export default function ReportsTab() {
             table { 
               width: 100%; 
               border-collapse: collapse; 
-              font-size: 12px; 
+              font-size: 13px; 
               background: white;
               border-radius: 12px;
               overflow: hidden;
@@ -324,22 +331,24 @@ export default function ReportsTab() {
               background: #7c3aed; 
               color: white; 
               font-weight: 600;
-              padding: 12px;
+              padding: 14px;
               text-align: left;
+              white-space: nowrap;
             }
             td { 
-              padding: 10px 12px; 
+              padding: 12px 14px; 
               border-bottom: 1px solid #f3f4f6; 
+              color: #374151;
             }
             tr:last-child td { border-bottom: none; }
-            tr:nth-child(even) { background: #fafafb; }
+            tr:nth-child(even) { background: #f9fafb; }
             .footer { 
               margin-top: 48px; 
               padding-top: 24px;
               border-top: 1px solid #e5e7eb;
               display: flex;
               justify-content: space-between;
-              font-size: 11px; 
+              font-size: 12px; 
               color: #9ca3af;
             }
             .footer .brand {
@@ -349,36 +358,37 @@ export default function ReportsTab() {
             .back-button {
               display: inline-flex;
               align-items: center;
-              gap: 6px;
+              gap: 8px;
               padding: 10px 20px;
-              background: rgba(255,255,255,0.15);
+              background: rgba(255,255,255,0.2);
               border: 1px solid rgba(255,255,255,0.3);
-              border-radius: 10px;
+              border-radius: 8px;
               color: white;
               text-decoration: none;
               font-size: 14px;
+              font-weight: 500;
               cursor: pointer;
-              transition: background 0.2s;
+              transition: all 0.2s;
             }
-            .back-button:hover { background: rgba(255,255,255,0.25); }
-            .table-wrapper {
-              overflow-x: auto;
-              -webkit-overflow-scrolling: touch;
-            }
+            .back-button:hover { background: rgba(255,255,255,0.3); }
+            
+            /* Print styles */
             @media print {
-              body { background: white; }
-              .header { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-              .stat { border: 1px solid #e5e7eb; }
-              th { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+              body { background: white; -webkit-print-color-adjust: exact; }
+              .header { -webkit-print-color-adjust: exact; print-color-adjust: exact; padding: 20px; }
+              .stat { border: 1px solid #e5e7eb; break-inside: avoid; }
+              th { -webkit-print-color-adjust: exact; print-color-adjust: exact; background-color: #7c3aed !important; color: white !important; }
               .back-button { display: none; }
+              .stats { gap: 10px; }
+              .content { padding: 0 20px 20px; }
             }
           </style>
         </head>
         <body>
           <div class="header">
-            <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 16px;">
-              <img src="/brik-logo-white.png" alt="BRIK" style="height: 36px;" onerror="this.outerHTML='<span style=font-size:24px;font-weight:700>BRIK</span>'" />
-              <button class="back-button" onclick="window.close()">← Volver</button>
+            <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 24px;">
+              <div style="font-size: 32px; font-weight: 800; opacity: 1;">BRIK<span style="opacity:0.8; font-weight: 400;">PRO</span></div>
+              <button class="back-button" onclick="window.history.back()">← Volver</button>
             </div>
             <h1>Reporte de Accesos</h1>
             <p class="subtitle">${data.site} • ${data.period.from} al ${data.period.to}</p>
@@ -406,7 +416,7 @@ export default function ReportsTab() {
             </div>
 
             <h2>Detalle de Accesos</h2>
-            <div class="table-wrapper">
+            <div style="overflow-x: auto; border: 1px solid #e5e7eb; border-radius: 12px;">
             <table>
               <thead>
                 <tr>
@@ -431,7 +441,7 @@ export default function ReportsTab() {
               '<td>' + entry.toLocaleTimeString('es-BO', { hour: '2-digit', minute: '2-digit' }) + '</td>' +
               '<td>' + (exit?.toLocaleTimeString('es-BO', { hour: '2-digit', minute: '2-digit' }) || '-') + '</td>' +
               '<td>' + hours + '</td>' +
-              '<td><strong>' + (log.name_snapshot || '-') + '</strong></td>' +
+              '<td><span style="font-weight: 600; color: #1f2937;">' + (log.name_snapshot || '-') + '</span></td>' +
               '<td>' + (log.ci_snapshot || '-') + '</td>' +
               '<td>' + (log.contractor_snapshot || '-') + '</td>' +
               '</tr>';
@@ -446,6 +456,12 @@ export default function ReportsTab() {
               <span class="brand">BRIK Pro • Control de Accesos</span>
             </div>
           </div>
+          <script>
+            // Auto open print dialog when loaded
+            window.onload = function() {
+              setTimeout(function() { window.print(); }, 500);
+            }
+          </script>
         </body>
         </html>
       `;
@@ -455,13 +471,14 @@ export default function ReportsTab() {
       if (printWindow) {
         printWindow.document.write(html);
         printWindow.document.close();
-        printWindow.print();
+      } else {
+        toast({ title: 'Pop-up bloqueado', description: 'Por favor permite ventanas emergentes para ver el reporte.', variant: 'destructive' });
       }
 
-      toast({ title: 'PDF generado', description: 'Usa la ventana de impresión para guardar como PDF.' });
+      setGenerating(false);
     } catch (err: any) {
+      console.error(err);
       toast({ title: 'Error', description: err.message, variant: 'destructive' });
-    } finally {
       setGenerating(false);
     }
   };
@@ -471,7 +488,7 @@ export default function ReportsTab() {
     try {
       const data = await generateReportData();
       if (!data) {
-        toast({ title: 'Error', description: 'No se pudo generar el reporte', variant: 'destructive' });
+        setGenerating(false);
         return;
       }
 
@@ -481,53 +498,27 @@ export default function ReportsTab() {
         .map(([contractor, count]) => `• ${contractor}: ${count} accesos`)
         .join('\n');
 
-      // Format summary by day (last 5 days)
-      const dayLines = Object.entries(data.byDay)
-        .slice(-5)
-        .map(([day, stats]) => `• ${day}: ${stats.entries} entradas, ${stats.exits} salidas`)
-        .join('\n');
-
       // Create comprehensive text report
-      const text = `━━━━━━━━━━━━━━━━━━━━━
-📊 *REPORTE BRIK*
-━━━━━━━━━━━━━━━━━━━━━
+      const text = `*REPORTE BRIK PRO* 📊
+*Obra:* ${data.site}
+*Período:* ${data.period.from} al ${data.period.to}
+${data.filter !== 'Todos' ? `*Filtro:* ${data.filter}\n` : ''}
+*RESUMEN*
+✅ Entradas: ${data.totalEntries}
+🚪 Salidas: ${data.totalExits}
+⏱️ Horas Total: ${data.totalHours}h
+🏢 Contratistas: ${Object.keys(data.byContractor).length}
 
-🏗️ *Obra:* ${data.site}
-📅 *Período:* ${data.period.from} al ${data.period.to}
-🔎 *Filtro:* ${data.filter}
+*POR CONTRATISTA*
+${contractorLines || 'Sin datos'}
 
-━━━━━━━━━━━━━━━━━━━━━
-📈 *RESUMEN GENERAL*
-━━━━━━━━━━━━━━━━━━━━━
-✅ Total Entradas: *${data.totalEntries}*
-🚪 Total Salidas: *${data.totalExits}*
-⏱️ Horas Acumuladas: *${data.totalHours}h*
-🏢 Contratistas: *${Object.keys(data.byContractor).length}*
-
-${contractorLines ? `━━━━━━━━━━━━━━━━━━━━━
-👷 *POR CONTRATISTA*
-━━━━━━━━━━━━━━━━━━━━━
-${contractorLines}` : ''}
-
-${dayLines ? `━━━━━━━━━━━━━━━━━━━━━
-📆 *ÚLTIMAS FECHAS*
-━━━━━━━━━━━━━━━━━━━━━
-${dayLines}` : ''}
-
-━━━━━━━━━━━━━━━━━━━━━
-_Generado por BRIK Pro_
-_${new Date().toLocaleString('es-BO')}_`;
+_Generado el ${new Date().toLocaleString('es-BO')}_`;
 
       const encoded = encodeURIComponent(text);
       window.open(`https://wa.me/?text=${encoded}`, '_blank');
-
-      toast({
-        title: 'Reporte listo para enviar',
-        description: 'Selecciona el contacto en WhatsApp.'
-      });
+      setGenerating(false);
     } catch (err: any) {
       toast({ title: 'Error', description: err.message, variant: 'destructive' });
-    } finally {
       setGenerating(false);
     }
   };
@@ -599,54 +590,53 @@ _${new Date().toLocaleString('es-BO')}_`;
           </Button>
           <Button
             variant={filterType === 'worker' ? 'default' : 'outline'}
-            onClick={() => { setFilterType('worker'); setSelectedContractor(''); setSelectedPersonId('all'); }}
+            onClick={() => { setFilterType('worker'); setSelectedContractor(''); setSelectedPersonId(''); }}
             className={filterType === 'worker'
               ? 'bg-gradient-to-r from-purple-500 to-blue-500'
               : 'bg-white/10 border-white/20 text-white/80 hover:bg-white/20'}
           >
             <User className="w-4 h-4 mr-2" />
-            Trabajadores
+            Trabajador
           </Button>
           <Button
             variant={filterType === 'visitor' ? 'default' : 'outline'}
-            onClick={() => { setFilterType('visitor'); setSelectedContractor(''); setSelectedPersonId('all'); }}
+            onClick={() => { setFilterType('visitor'); setSelectedContractor(''); setSelectedPersonId(''); }}
             className={filterType === 'visitor'
               ? 'bg-gradient-to-r from-purple-500 to-blue-500'
               : 'bg-white/10 border-white/20 text-white/80 hover:bg-white/20'}
           >
             <User className="w-4 h-4 mr-2" />
-            Visitas
+            Visita
           </Button>
         </div>
 
-        {/* Contractor selector */}
         {filterType === 'contractor' && (
-          <Select value={selectedContractor} onValueChange={setSelectedContractor}>
-            <SelectTrigger className="bg-white/10 border-white/20 text-white/80">
-              <SelectValue placeholder="Seleccionar contratista" />
-            </SelectTrigger>
-            <SelectContent className="bg-slate-800/95 backdrop-blur-xl border-white/10">
-              {contractors.map(c => (
-                <SelectItem key={c} value={c} className="text-white/80 focus:bg-white/10">{c}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+          <div className="pt-2 animate-in fade-in slide-in-from-top-2">
+            <Label className="text-white/70 mb-2 block">Seleccionar Contratista</Label>
+            <Select value={selectedContractor} onValueChange={setSelectedContractor}>
+              <SelectTrigger className="bg-white/10 border-white/20 text-white">
+                <SelectValue placeholder="Seleccionar..." />
+              </SelectTrigger>
+              <SelectContent className="bg-slate-800/95 backdrop-blur-xl border-white/10">
+                {contractors.map(c => (
+                  <SelectItem key={c} value={c} className="text-white/80 focus:bg-white/10">{c}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
         )}
 
-        {/* Person selector */}
         {(filterType === 'worker' || filterType === 'visitor' || (filterType === 'contractor' && selectedContractor)) && (
-          <div className="space-y-2">
-            <Label className="text-white/60 text-sm">Persona específica (opcional)</Label>
+          <div className="pt-2 animate-in fade-in slide-in-from-top-2">
+            <Label className="text-white/70 mb-2 block">Persona Específica (Opcional)</Label>
             <Select value={selectedPersonId} onValueChange={setSelectedPersonId}>
-              <SelectTrigger className="bg-white/10 border-white/20 text-white/80">
-                <SelectValue placeholder="Todos" />
+              <SelectTrigger className="bg-white/10 border-white/20 text-white">
+                <SelectValue placeholder="Todas" />
               </SelectTrigger>
-              <SelectContent className="bg-slate-800/95 backdrop-blur-xl border-white/10 max-h-60">
-                <SelectItem value="all" className="text-white/80 focus:bg-white/10">Todos</SelectItem>
+              <SelectContent className="bg-slate-800/95 backdrop-blur-xl border-white/10 max-h-[200px]">
+                <SelectItem value="all" className="text-white/80 focus:bg-white/10">Todas</SelectItem>
                 {filteredPeople.map(p => (
-                  <SelectItem key={p.id} value={p.id} className="text-white/80 focus:bg-white/10">
-                    {p.full_name} ({p.ci})
-                  </SelectItem>
+                  <SelectItem key={p.id} value={p.id} className="text-white/80 focus:bg-white/10">{p.full_name}</SelectItem>
                 ))}
               </SelectContent>
             </Select>
@@ -654,41 +644,42 @@ _${new Date().toLocaleString('es-BO')}_`;
         )}
       </div>
 
-      {/* Download & Share */}
-      <div className="card-cosmos p-6 space-y-4">
-        <h4 className="font-medium text-white">Descargar / Compartir</h4>
+      {/* Actions */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 pt-4">
+        <Button
+          onClick={generatePDF}
+          disabled={!isReady || generating}
+          className="bg-red-500 hover:bg-red-600 text-white h-12"
+        >
+          {generating ? <Spinner className="mr-2" /> : <FileText className="w-5 h-5 mr-2" />}
+          Generar PDF
+        </Button>
 
-        {!isReady && (
-          <AlertCosmos type="info">Selecciona las fechas para generar el reporte.</AlertCosmos>
-        )}
+        <Button
+          onClick={downloadCSV}
+          disabled={!isReady || generating}
+          variant="outline"
+          className="bg-white/10 border-white/20 text-white hover:bg-white/20 h-12"
+        >
+          {generating ? <Spinner className="mr-2" /> : <Download className="w-5 h-5 mr-2" />}
+          Descargar CSV
+        </Button>
 
-        <div className="flex flex-wrap gap-3">
-          <Button
-            onClick={downloadCSV}
-            disabled={generating || !isReady}
-            className="bg-white/10 border border-white/20 text-white/80 hover:bg-white/20"
-          >
-            {generating ? <Spinner size="sm" className="mr-2" /> : <Download className="w-4 h-4 mr-2" />}
-            Descargar CSV
-          </Button>
-          <Button
-            onClick={generatePDF}
-            disabled={generating || !isReady}
-            className="bg-gradient-to-r from-purple-500 to-blue-500 hover:from-purple-600 hover:to-blue-600"
-          >
-            {generating ? <Spinner size="sm" className="mr-2" /> : <FileText className="w-4 h-4 mr-2" />}
-            Generar PDF
-          </Button>
-          <Button
-            onClick={shareWhatsApp}
-            disabled={generating || !isReady}
-            className="bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600"
-          >
-            {generating ? <Spinner size="sm" className="mr-2" /> : <MessageSquare className="w-4 h-4 mr-2" />}
-            Compartir WhatsApp
-          </Button>
-        </div>
+        <Button
+          onClick={shareWhatsApp}
+          disabled={!isReady || generating}
+          className="bg-green-500 hover:bg-green-600 text-white h-12"
+        >
+          {generating ? <Spinner className="mr-2" /> : <MessageSquare className="w-5 h-5 mr-2" />}
+          Enviar a WhatsApp
+        </Button>
       </div>
+
+      {!isReady && (
+        <AlertCosmos type="info" title="Selecciona un período">
+          Para generar reportes, primero selecciona la fecha de inicio y fin.
+        </AlertCosmos>
+      )}
     </div>
   );
 }

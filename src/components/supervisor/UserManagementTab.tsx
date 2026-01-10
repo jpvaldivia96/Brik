@@ -9,7 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { AlertCosmos } from '@/components/ui/alert-cosmos';
 import { Spinner } from '@/components/ui/spinner';
 import { useToast } from '@/hooks/use-toast';
-import { UserCog, UserPlus, Mail, Shield, Clock, Trash2, Copy, Check, Users } from 'lucide-react';
+import { UserCog, UserPlus, Mail, Shield, Clock, Trash2, Copy, Check, Users, Bell } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import type { RoleEnum } from '@/lib/types';
 
@@ -18,6 +18,7 @@ interface SiteUser {
     role: RoleEnum;
     created_at: string;
     email?: string;
+    receive_notifications: boolean;
 }
 
 interface Invitation {
@@ -58,15 +59,16 @@ export default function UserManagementTab() {
 
         try {
             // Load current site users with email from auth
-            const { data: memberships } = await supabase
+            const { data: memberships } = await (supabase as any)
                 .from('site_memberships')
-                .select('user_id, role, created_at')
+                .select('user_id, role, created_at, receive_notifications')
                 .eq('site_id', currentSite.id);
 
             // Get emails from auth.users (via the current user's email if they match)
-            const usersWithEmail = (memberships || []).map(m => ({
+            const usersWithEmail = (memberships || []).map((m: any) => ({
                 ...m,
-                email: m.user_id === user?.id ? user?.email : undefined
+                email: m.user_id === user?.id ? user?.email : undefined,
+                receive_notifications: m.receive_notifications ?? true
             })) as SiteUser[];
 
             setUsers(usersWithEmail);
@@ -148,6 +150,34 @@ export default function UserManagementTab() {
 
             toast({ title: 'Invitación eliminada' });
             loadData();
+        } catch (error: any) {
+            toast({
+                title: 'Error',
+                description: error.message,
+                variant: 'destructive',
+            });
+        }
+    };
+
+    const toggleNotifications = async (userId: string, currentValue: boolean) => {
+        if (!currentSite) return;
+        try {
+            await (supabase as any)
+                .from('site_memberships')
+                .update({ receive_notifications: !currentValue })
+                .eq('site_id', currentSite.id)
+                .eq('user_id', userId);
+
+            // Update local state
+            setUsers(prev => prev.map(u =>
+                u.user_id === userId
+                    ? { ...u, receive_notifications: !currentValue }
+                    : u
+            ));
+
+            toast({
+                title: !currentValue ? 'Notificaciones activadas' : 'Notificaciones desactivadas',
+            });
         } catch (error: any) {
             toast({
                 title: 'Error',
@@ -292,7 +322,21 @@ export default function UserManagementTab() {
                                         </p>
                                     </div>
                                 </div>
-                                {getRoleBadge(u.role)}
+                                <div className="flex items-center gap-2">
+                                    <button
+                                        onClick={() => toggleNotifications(u.user_id, u.receive_notifications)}
+                                        className={cn(
+                                            "p-1.5 rounded-lg transition-colors",
+                                            u.receive_notifications
+                                                ? "text-emerald-400 hover:bg-emerald-500/20"
+                                                : "text-white/30 hover:bg-white/10"
+                                        )}
+                                        title={u.receive_notifications ? 'Notificaciones activadas' : 'Notificaciones desactivadas'}
+                                    >
+                                        <Bell className="w-4 h-4" />
+                                    </button>
+                                    {getRoleBadge(u.role)}
+                                </div>
                             </div>
                         ))}
                     </div>

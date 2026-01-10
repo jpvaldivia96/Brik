@@ -160,7 +160,7 @@ export function PersonRow({ name, role, contractor, status, checkedIn, hours, to
 
             {/* Name, role and contractor */}
             <div className="flex-1 min-w-0">
-                <div className="font-medium text-foreground truncate">{name}</div>
+                <div className="font-medium text-white truncate">{name}</div>
                 <div className="text-xs text-yellow-300 truncate">
                     {role && <span className="text-yellow-300">{role}</span>}
                     {role && contractor && <span className="mx-1 text-white/60">·</span>}
@@ -212,7 +212,7 @@ export function PersonCard({ name, role, contractor, status, checkedIn, hours, t
             {/* Content */}
             <div className="flex-1 min-w-0">
                 <div className="flex items-start justify-between gap-2">
-                    <div className="font-medium text-foreground truncate">{name}</div>
+                    <div className="font-medium text-white truncate">{name}</div>
                     <div className={cn(
                         "px-2 py-0.5 rounded-full text-[10px] font-medium whitespace-nowrap flex-shrink-0",
                         statusConfig.className

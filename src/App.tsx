@@ -8,6 +8,7 @@ import { AuthProvider } from "@/contexts/AuthContext";
 import { SiteProvider } from "@/contexts/SiteContext";
 import { OfflineIndicator } from "@/components/ui/OfflineIndicator";
 import { startAutoSync } from "@/lib/offline";
+import { faceService } from "@/services/FaceService";
 import Index from "./pages/Index";
 import AuthPage from "./pages/AuthPage";
 import InvitePage from "./pages/InvitePage";
@@ -16,9 +17,15 @@ import NotFound from "./pages/NotFound";
 const queryClient = new QueryClient();
 
 const App = () => {
-  // Start auto-sync when app loads
+  // Start auto-sync and preload face models when app loads
   useEffect(() => {
     startAutoSync();
+
+    // Preload face models in background
+    console.log('App: Preloading face recognition models...');
+    faceService.loadModels()
+      .then(() => console.log('App: Face models preloaded successfully'))
+      .catch((err) => console.warn('App: Face models preload failed (will retry on use):', err?.message));
   }, []);
 
   return (

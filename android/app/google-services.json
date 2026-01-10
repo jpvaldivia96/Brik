@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "956233816742",
+    "project_id": "brik-pro",
+    "storage_bucket": "brik-pro.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:956233816742:android:50033af2e9663de58e7267",
+        "android_client_info": {
+          "package_name": "com.porteriapro.app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDzn-T3TV-DBFSxeWlKmX0D1sC0e_jw__Q"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
