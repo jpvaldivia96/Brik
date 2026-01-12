@@ -148,13 +148,6 @@ export default function MainLayout() {
                       {site.name}
                     </DropdownMenuItem>
                   ))}
-                  {sites.length > 0 && <DropdownMenuSeparator className="bg-white/20" />}
-                  <DropdownMenuItem
-                    onClick={() => { localStorage.removeItem('brik_current_site'); selectSite(''); window.location.reload(); }}
-                    className="cursor-pointer text-white/70 hover:text-white hover:!bg-white/20 focus:!bg-white/20"
-                  >
-                    + Crear nueva obra
-                  </DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>
               {/* Date/Time */}
