@@ -68,7 +68,7 @@ export default function SettingsTab() {
 
   const handleChangeSite = () => {
     localStorage.removeItem('brik_current_site');
-    localStorage.setItem('brik_force_site_selector', 'true');
+    sessionStorage.setItem('brik_force_site_selector', 'true');
     // Force full page reload to reset all React state
     window.location.replace('/');
   };

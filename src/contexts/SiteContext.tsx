@@ -59,31 +59,32 @@ export function SiteProvider({ children }: { children: React.ReactNode }) {
       setMemberships(typedMemberships);
       setSites(typedMemberships.map(m => m.sites).filter(Boolean) as Site[]);
 
-      // Check if user explicitly wants to see site selector
-      const forceSiteSelector = localStorage.getItem('brik_force_site_selector');
+      // Check if user explicitly wants to see site selector (persists through reload)
+      const forceSiteSelector = sessionStorage.getItem('brik_force_site_selector');
       if (forceSiteSelector === 'true') {
-        // Clear the flag and DON'T auto-select - user will see site selector
-        localStorage.removeItem('brik_force_site_selector');
+        // Keep the flag active - user wanted to see site selector
+        // DON'T auto-select - user will see site selector
         setCurrentSite(null);
         setCurrentRole(null);
-        // Skip auto-selection
+        setLoading(false);
+        return; // Exit early, don't auto-select
+      }
+
+      // Auto-select site if only one
+      if (typedMemberships.length === 1) {
+        const membership = typedMemberships[0];
+        setCurrentSite(membership.sites as Site);
+        setCurrentRole(membership.role);
+        await fetchSettings(membership.site_id);
       } else {
-        // Auto-select site if only one
-        if (typedMemberships.length === 1) {
-          const membership = typedMemberships[0];
-          setCurrentSite(membership.sites as Site);
-          setCurrentRole(membership.role);
-          await fetchSettings(membership.site_id);
-        } else {
-          // Check localStorage for previously selected site
-          const savedSiteId = localStorage.getItem('brik_current_site');
-          if (savedSiteId) {
-            const membership = typedMemberships.find(m => m.site_id === savedSiteId);
-            if (membership) {
-              setCurrentSite(membership.sites as Site);
-              setCurrentRole(membership.role);
-              await fetchSettings(membership.site_id);
-            }
+        // Check localStorage for previously selected site
+        const savedSiteId = localStorage.getItem('brik_current_site');
+        if (savedSiteId) {
+          const membership = typedMemberships.find(m => m.site_id === savedSiteId);
+          if (membership) {
+            setCurrentSite(membership.sites as Site);
+            setCurrentRole(membership.role);
+            await fetchSettings(membership.site_id);
           }
         }
       }
@@ -110,6 +111,9 @@ export function SiteProvider({ children }: { children: React.ReactNode }) {
   };
 
   const selectSite = (siteId: string | null) => {
+    // Clear the force flag when user explicitly selects
+    sessionStorage.removeItem('brik_force_site_selector');
+
     if (!siteId) {
       setCurrentSite(null);
       setCurrentRole(null);
