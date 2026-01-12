@@ -9,7 +9,7 @@ import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/contexts/AuthContext';
 import { useSite } from '@/contexts/SiteContext';
 import { logAuditEvent } from '@/lib/auditLog';
-import { Save, X, Pencil, User } from 'lucide-react';
+import { Save, X, Pencil, User, Moon, Calendar } from 'lucide-react';
 import { ContractorAutocomplete } from '@/components/ui/contractor-autocomplete';
 
 interface EditWorkerModalProps {
@@ -33,74 +33,87 @@ interface WorkerData {
         phone: string | null;
         emergency_contact: string | null;
         blood_type: string | null;
+        night_permit_permanent?: boolean;
+        night_permit_until?: string | null;
     };
 }
 
 // Extracted View Mode Component
-const ViewForm = ({ workerData, form, handleClose, setEditing }: any) => (
-    <div className="space-y-4">
-        {/* Photo and basic info */}
-        <div className="flex gap-4 items-start">
-            <div className="w-24 h-24 rounded-xl overflow-hidden bg-muted flex-shrink-0">
-                {workerData?.photo_url ? (
-                    <img
-                        src={workerData.photo_url}
-                        alt={workerData.full_name}
-                        className="w-full h-full object-cover"
-                    />
-                ) : (
-                    <div className="w-full h-full flex items-center justify-center bg-primary/10">
-                        <User className="w-10 h-10 text-muted-foreground" />
-                    </div>
-                )}
-            </div>
-            <div className="flex-1 min-w-0">
-                <h3 className="text-lg font-semibold truncate">{workerData?.full_name}</h3>
-                <p className="text-muted-foreground">CI: {workerData?.ci}</p>
-                <p className="text-sm text-muted-foreground">{workerData?.contractor || 'Sin contratista'}</p>
-            </div>
-        </div>
+const ViewForm = ({ workerData, form, handleClose, setEditing }: any) => {
+    const hasPermit = form.nightPermitPermanent || (form.nightPermitUntil && new Date(form.nightPermitUntil) > new Date());
 
-        {/* Data fields in a simple grid */}
-        <div className="grid grid-cols-2 gap-3 text-sm">
-            <div className="p-3 bg-card/50 rounded-lg">
-                <p className="text-muted-foreground text-xs">Cargo</p>
-                <p className="font-medium">{form.role || '-'}</p>
-            </div>
-            <div className="p-3 bg-card/50 rounded-lg">
-                <p className="text-muted-foreground text-xs">Teléfono</p>
-                <p className="font-medium">{form.phone || '-'}</p>
-            </div>
-            <div className="p-3 bg-card/50 rounded-lg">
-                <p className="text-muted-foreground text-xs">Nº Seguro</p>
-                <p className="font-medium">{form.insuranceNumber || '-'}</p>
-            </div>
-            <div className="p-3 bg-card/50 rounded-lg">
-                <p className="text-muted-foreground text-xs">Venc. Seguro</p>
-                <p className="font-medium">{form.insuranceExpiry || '-'}</p>
-            </div>
-            <div className="p-3 bg-card/50 rounded-lg">
-                <p className="text-muted-foreground text-xs">Tipo de Sangre</p>
-                <p className="font-medium">{form.bloodType || '-'}</p>
-            </div>
-            <div className="p-3 bg-card/50 rounded-lg">
-                <p className="text-muted-foreground text-xs">Contacto Emergencia</p>
-                <p className="font-medium truncate">{form.emergencyContact || '-'}</p>
-            </div>
-        </div>
+    return (
+        <div className="space-y-4">
+            {/* Photo and basic info */}
+            <div className="flex gap-4 items-start">
+                <div className="w-24 h-24 rounded-xl overflow-hidden bg-muted flex-shrink-0">
+                    {workerData?.photo_url ? (
+                        <img
+                            src={workerData.photo_url}
+                            alt={workerData.full_name}
+                            className="w-full h-full object-cover"
+                        />
+                    ) : (
+                        <div className="w-full h-full flex items-center justify-center bg-primary/10">
+                            <User className="w-10 h-10 text-muted-foreground" />
+                        </div>
+                    )}
+                </div>
+                <div className="flex-1 min-w-0">
+                    <h3 className="text-lg font-semibold truncate">{workerData?.full_name}</h3>
+                    <p className="text-muted-foreground">CI: {workerData?.ci}</p>
+                    <p className="text-sm text-muted-foreground">{workerData?.contractor || 'Sin contratista'}</p>
 
-        <div className="p-3 bg-card/50 rounded-lg flex items-center gap-2">
-            <div className={`w-3 h-3 rounded-full ${form.inductionCompleted ? 'bg-green-500' : 'bg-red-500'}`} />
-            <span className="text-sm">{form.inductionCompleted ? 'Inducción completada' : 'Inducción pendiente'}</span>
-        </div>
+                    {hasPermit && (
+                        <div className="mt-2 inline-flex items-center gap-1.5 px-2 py-1 rounded-md bg-indigo-500/10 text-indigo-400 text-xs font-medium border border-indigo-500/20">
+                            <Moon className="w-3 h-3" />
+                            {form.nightPermitPermanent ? 'Pase nocturno permanente' : `Pase hasta ${new Date(form.nightPermitUntil).toLocaleDateString()}`}
+                        </div>
+                    )}
+                </div>
+            </div>
 
-        <div className="flex justify-end pt-2">
-            <Button variant="outline" onClick={handleClose}>
-                Cerrar
-            </Button>
+            {/* Data fields in a simple grid */}
+            <div className="grid grid-cols-2 gap-3 text-sm">
+                <div className="p-3 bg-card/50 rounded-lg">
+                    <p className="text-muted-foreground text-xs">Cargo</p>
+                    <p className="font-medium">{form.role || '-'}</p>
+                </div>
+                <div className="p-3 bg-card/50 rounded-lg">
+                    <p className="text-muted-foreground text-xs">Teléfono</p>
+                    <p className="font-medium">{form.phone || '-'}</p>
+                </div>
+                <div className="p-3 bg-card/50 rounded-lg">
+                    <p className="text-muted-foreground text-xs">Nº Seguro</p>
+                    <p className="font-medium">{form.insuranceNumber || '-'}</p>
+                </div>
+                <div className="p-3 bg-card/50 rounded-lg">
+                    <p className="text-muted-foreground text-xs">Venc. Seguro</p>
+                    <p className="font-medium">{form.insuranceExpiry || '-'}</p>
+                </div>
+                <div className="p-3 bg-card/50 rounded-lg">
+                    <p className="text-muted-foreground text-xs">Tipo de Sangre</p>
+                    <p className="font-medium">{form.bloodType || '-'}</p>
+                </div>
+                <div className="p-3 bg-card/50 rounded-lg">
+                    <p className="text-muted-foreground text-xs">Contacto Emergencia</p>
+                    <p className="font-medium truncate">{form.emergencyContact || '-'}</p>
+                </div>
+            </div>
+
+            <div className="p-3 bg-card/50 rounded-lg flex items-center gap-2">
+                <div className={`w-3 h-3 rounded-full ${form.inductionCompleted ? 'bg-green-500' : 'bg-red-500'}`} />
+                <span className="text-sm">{form.inductionCompleted ? 'Inducción completada' : 'Inducción pendiente'}</span>
+            </div>
+
+            <div className="flex justify-end pt-2">
+                <Button variant="outline" onClick={handleClose}>
+                    Cerrar
+                </Button>
+            </div>
         </div>
-    </div>
-);
+    );
+};
 
 // Extracted Edit Mode Component
 const EditForm = ({ form, setForm, saving, handleSave, setEditing }: any) => (
@@ -182,6 +195,49 @@ const EditForm = ({ form, setForm, saving, handleSave, setEditing }: any) => (
             </div>
         </div>
 
+        {/* Permissions Section */}
+        <div className="space-y-3 pt-2">
+            <Label className="text-xs font-semibold uppercase text-muted-foreground tracking-wider">Permisos especiales</Label>
+
+            <div className="p-3 bg-card/50 rounded-xl border border-border space-y-4">
+                {/* Permanent Permit */}
+                <div className="flex items-center gap-3">
+                    <input
+                        type="checkbox"
+                        id="permanentPermit"
+                        checked={form.nightPermitPermanent}
+                        onChange={(e) => setForm({
+                            ...form,
+                            nightPermitPermanent: e.target.checked,
+                            // If permanent is checked, clear date
+                            nightPermitUntil: e.target.checked ? '' : form.nightPermitUntil
+                        })}
+                        className="w-4 h-4 rounded border-gray-400 bg-transparent"
+                    />
+                    <Label htmlFor="permanentPermit" className="cursor-pointer flex items-center gap-2">
+                        <Moon className="w-4 h-4 text-indigo-400" />
+                        <span>Permiso nocturno permanente</span>
+                    </Label>
+                </div>
+
+                {/* Temporary Permit Date - Only show if not permanent */}
+                {!form.nightPermitPermanent && (
+                    <div className="space-y-1.5 pl-7">
+                        <Label className="text-xs text-muted-foreground">O permiso temporal hasta:</Label>
+                        <div className="flex items-center gap-2">
+                            <Calendar className="w-4 h-4 text-muted-foreground" />
+                            <Input
+                                type="date"
+                                className="h-9"
+                                value={form.nightPermitUntil ? form.nightPermitUntil.split('T')[0] : ''}
+                                onChange={(e) => setForm({ ...form, nightPermitUntil: e.target.value })}
+                            />
+                        </div>
+                    </div>
+                )}
+            </div>
+        </div>
+
         <div className="flex items-center gap-3 p-3 bg-card/50 rounded-xl border border-border">
             <input
                 type="checkbox"
@@ -226,6 +282,8 @@ export function EditWorkerModal({ open, onClose, personId, onSaved }: EditWorker
         emergencyContact: '',
         bloodType: '',
         inductionCompleted: false,
+        nightPermitPermanent: false,
+        nightPermitUntil: '',
     });
     const { toast } = useToast();
 
@@ -265,6 +323,9 @@ export function EditWorkerModal({ open, onClose, personId, onSaved }: EditWorker
             emergencyContact: wp?.emergency_contact || '',
             bloodType: wp?.blood_type || '',
             inductionCompleted: !!wp?.induction_date,
+            nightPermitPermanent: wp?.night_permit_permanent || false,
+            // Handle null or date string
+            nightPermitUntil: wp?.night_permit_until ? wp.night_permit_until.split('T')[0] : '',
         });
         setLoading(false);
     };
@@ -294,6 +355,8 @@ export function EditWorkerModal({ open, onClose, personId, onSaved }: EditWorker
                     emergency_contact: form.emergencyContact.trim() || null,
                     blood_type: form.bloodType.trim() || null,
                     induction_date: form.inductionCompleted ? new Date().toISOString().split('T')[0] : null,
+                    night_permit_permanent: form.nightPermitPermanent,
+                    night_permit_until: form.nightPermitUntil || null,
                 }, { onConflict: 'person_id' });
 
             if (profileError) throw profileError;

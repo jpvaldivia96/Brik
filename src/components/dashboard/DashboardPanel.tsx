@@ -82,20 +82,21 @@ export default function DashboardPanel() {
 
     if (isViewingToday) {
       // Show currently open (inside) logs for today
+      // Include night permit fields in selection
       const { data: openLogs } = await supabase
         .from('access_logs')
-        .select('*, people(full_name, ci, photo_url, workers_profile(insurance_expiry, induction_date, role))')
+        .select('*, people(full_name, ci, photo_url, workers_profile(insurance_expiry, induction_date, role, night_permit_permanent, night_permit_until))')
         .eq('site_id', currentSite.id)
         .is('exit_at', null)
         .is('voided_at', null);
       logs = openLogs || [];
     } else {
-      // Show historical logs for selected date (all entries that day)
+      // Show historical logs
       const startOfDay = `${selectedDate}T00:00:00`;
       const endOfDay = `${selectedDate}T23:59:59`;
       const { data: historicalLogs } = await supabase
         .from('access_logs')
-        .select('*, people(full_name, ci, photo_url, workers_profile(insurance_expiry, induction_date, role))')
+        .select('*, people(full_name, ci, photo_url, workers_profile(insurance_expiry, induction_date, role, night_permit_permanent, night_permit_until))')
         .eq('site_id', currentSite.id)
         .is('voided_at', null)
         .gte('entry_at', startOfDay)
@@ -130,12 +131,30 @@ export default function DashboardPanel() {
       const exitTime = log.exit_at ? new Date(log.exit_at).getTime() : now;
       const hours = (exitTime - entryTime) / 3600000;
       const totalHoursToday = personTotalHours.get(log.person_id) || hours;
-      const status: 'ok' | 'warn' | 'crit' = isViewingToday
-        ? (hours >= critH ? 'crit' : hours >= warnH ? 'warn' : 'ok')
-        : 'ok'; // Historical logs always show as 'ok'
-
-      // Get workers_profile data (it's related to people, which is related to access_logs)
+      
+      // Get workers_profile data
       const wp = log.people?.workers_profile;
+      
+      // Determine effective status considering night permits
+      let status: 'ok' | 'warn' | 'crit' = 'ok';
+      
+      if (isViewingToday) {
+        // First check raw hours threshold
+        if (hours >= critH) status = 'crit';
+        else if (hours >= warnH) status = 'warn';
+        
+        // If critical/warn, check for permits to override to 'ok'
+        if (status !== 'ok' && wp) {
+          const hasPermanentPermit = wp.night_permit_permanent === true;
+          const hasTempPermit = wp.night_permit_until && new Date(wp.night_permit_until) > new Date();
+          
+          if (hasPermanentPermit || hasTempPermit) {
+            status = 'ok'; // Permit overrides the alert
+          }
+        }
+      } else {
+        status = 'ok'; // Historical logs always ok
+      }
 
       return {
         id: log.id,
@@ -159,7 +178,6 @@ export default function DashboardPanel() {
     // Contractor stats
     const contractorMap = new Map<string, { inside: number; entriesToday: number }>();
     inside.forEach(log => {
-      // Normalize to uppercase to avoid duplicates from different cases
       const c = (log.contractor_snapshot || 'Sin contratista').trim().toUpperCase();
       const stat = contractorMap.get(c) || { inside: 0, entriesToday: 0 };
       stat.inside++;
@@ -177,7 +195,6 @@ export default function DashboardPanel() {
       .gte('entry_at', todayStart.toISOString());
 
     (todayLogs || []).forEach(log => {
-      // Normalize to uppercase to avoid duplicates from different cases
       const c = (log.contractor_snapshot || 'Sin contratista').trim().toUpperCase();
       const stat = contractorMap.get(c) || { inside: 0, entriesToday: 0 };
       stat.entriesToday++;
@@ -220,7 +237,6 @@ export default function DashboardPanel() {
     };
   }, [currentSite, currentSettings, fetchData]);
 
-  // Listen for refresh events from entry/exit components
   useEffect(() => {
     const handleRefresh = () => fetchData();
     window.addEventListener('dashboard-refresh', handleRefresh);
@@ -231,7 +247,6 @@ export default function DashboardPanel() {
   const filteredList = useMemo(() => {
     let result = insideList;
 
-    // Search filter
     if (searchQuery) {
       const q = searchQuery.toLowerCase();
       result = result.filter(l =>
@@ -241,12 +256,10 @@ export default function DashboardPanel() {
       );
     }
 
-    // Status filter from clickable badges
     if (statusFilter !== 'all') {
       result = result.filter(l => l.status === statusFilter);
     }
 
-    // Apply sorting
     result = [...result].sort((a, b) => {
       let cmp = 0;
       if (sortBy === 'name') {
@@ -254,7 +267,7 @@ export default function DashboardPanel() {
       } else if (sortBy === 'status') {
         const order = { crit: 0, warn: 1, ok: 2 };
         cmp = order[a.status] - order[b.status];
-      } else { // entry
+      } else { 
         cmp = new Date(b.entry_at).getTime() - new Date(a.entry_at).getTime();
       }
       return sortDir === 'asc' ? cmp : -cmp;
@@ -280,7 +293,7 @@ export default function DashboardPanel() {
   };
 
   const filterBadges = [
-    { label: 'En sitio', count: stats.onSite, active: activeFilters.has('En sitio'), icon: <Users className="w-3 h-3" /> },
+    { label: 'En obra', count: stats.onSite, active: activeFilters.has('En obra'), icon: <Users className="w-3 h-3" /> },
     { label: 'En riesgo', count: stats.atRisk, active: activeFilters.has('En riesgo'), variant: 'warn' as const, icon: <Clock className="w-3 h-3" /> },
     { label: 'Alerta', count: stats.alert, active: activeFilters.has('Alerta'), variant: 'crit' as const, icon: <AlertTriangle className="w-3 h-3" /> },
   ];
@@ -289,9 +302,8 @@ export default function DashboardPanel() {
     <div className="space-y-4 animate-fade-in">
       {/* Header */}
       <div className="flex items-center justify-between">
-        <h2 className="text-xl font-semibold text-white">Dashboard</h2>
+        <h2 className="text-xl font-semibold text-white">Panel de control</h2>
         <div className="flex items-center gap-3">
-          {/* Emergency Button - only show when people on site */}
           {stats.onSite > 0 && (
             <Button
               variant="destructive"
@@ -342,18 +354,19 @@ export default function DashboardPanel() {
           <span className="text-xl font-bold">{stats.atRisk}</span>
           <span className="text-xs hidden sm:inline">Riesgo</span>
         </button>
+        {/* En obra button now resets filter to 'all', showing everyone */}
         <button
-          onClick={() => setStatusFilter(statusFilter === 'ok' ? 'all' : 'ok')}
+          onClick={() => setStatusFilter('all')}
           className={cn(
             "flex items-center gap-1.5 px-2 py-2 rounded-xl border justify-center transition-all",
-            statusFilter === 'ok'
+            statusFilter === 'all'
               ? "bg-emerald-500/30 border-emerald-400 text-emerald-300 ring-2 ring-emerald-400/50"
               : "bg-card/30 border-border text-white/70 hover:bg-card/50"
           )}
         >
           <UserCheck className="w-3.5 h-3.5" />
           <span className="text-xl font-bold">{stats.onSite}</span>
-          <span className="text-xs hidden sm:inline">En sitio</span>
+          <span className="text-xs hidden sm:inline">En obra</span>
         </button>
       </div>
 
@@ -361,9 +374,7 @@ export default function DashboardPanel() {
         <div className="flex justify-center py-12"><Spinner size="lg" /></div>
       ) : (
         <>
-          {/* Attendance Section */}
           <div className="card-cosmos overflow-hidden">
-            {/* Tabs */}
             <div className="flex items-center gap-1 p-2 border-b border-border bg-card/30">
               <button
                 onClick={() => setActiveTab('people')}
@@ -392,7 +403,6 @@ export default function DashboardPanel() {
             </div>
 
             <div className="p-4">
-              {/* Filters */}
               <AttendanceFilters
                 searchQuery={searchQuery}
                 onSearchChange={setSearchQuery}
@@ -402,7 +412,6 @@ export default function DashboardPanel() {
                 onFilterClick={toggleFilter}
               />
 
-              {/* Action Buttons - Same row as filters */}
               <div className="flex items-center gap-2 -mt-1 mb-4">
                 <div className="flex-1" />
                 {selectedDate === today && filteredList.length > 0 && (
@@ -425,7 +434,6 @@ export default function DashboardPanel() {
 
               {activeTab === 'people' ? (
                 <>
-                  {/* Desktop Table Header - Sortable */}
                   <div className="hidden md:grid grid-cols-[auto_1fr_120px_100px] gap-4 items-center px-4 py-2 text-xs text-white/60 uppercase tracking-wider border-b border-border">
                     <div className="w-10"></div>
                     <button
@@ -448,7 +456,6 @@ export default function DashboardPanel() {
                     </button>
                   </div>
 
-                  {/* Desktop Rows */}
                   <div className="hidden md:block">
                     {filteredList.map((log) => (
                       <PersonRow
@@ -473,7 +480,6 @@ export default function DashboardPanel() {
                     )}
                   </div>
 
-                  {/* Mobile Cards */}
                   <div className="md:hidden space-y-3">
                     {filteredList.map((log) => (
                       <PersonCard
@@ -499,7 +505,6 @@ export default function DashboardPanel() {
                   </div>
                 </>
               ) : (
-                /* Companies Tab */
                 <div className="space-y-2">
                   {contractors.map((c) => {
                     const isExpanded = expandedContractors.has(c.contractor);
@@ -537,7 +542,6 @@ export default function DashboardPanel() {
                           </div>
                         </button>
 
-                        {/* Expanded workers list */}
                         {isExpanded && contractorWorkers.length > 0 && (
                           <div className="ml-4 space-y-1 border-l-2 border-primary/30 pl-3">
                             {contractorWorkers.map((worker) => (
@@ -579,7 +583,6 @@ export default function DashboardPanel() {
         </>
       )}
 
-      {/* Edit Worker Modal */}
       {editingPersonId && (
         <EditWorkerModal
           open={!!editingPersonId}
@@ -589,7 +592,6 @@ export default function DashboardPanel() {
         />
       )}
 
-      {/* Exit Queue Modal */}
       <ExitQueueModal
         open={showExitQueue}
         onClose={() => setShowExitQueue(false)}
@@ -602,11 +604,9 @@ export default function DashboardPanel() {
         }))}
         onStartQueue={(queue) => {
           console.log('Starting exit queue with:', queue);
-          // TODO: Navigate to Exit tab with queue
         }}
       />
 
-      {/* Emergency Roll Call Modal */}
       <EmergencyRollCall
         open={showEmergency}
         onClose={() => setShowEmergency(false)}
