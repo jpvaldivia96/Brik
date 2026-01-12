@@ -123,7 +123,7 @@ export default function MainLayout() {
           <div className="flex items-center">
             {/* BRIK Brand - Home Button */}
             <Button variant="ghost" className="p-0 hover:bg-transparent" onClick={goHome}>
-              <img src="/brik-logo-white.png" alt="BRIK" className="h-32 w-auto object-contain" />
+              <img src="/brik-logo-white.png" alt="BRIK" className="h-36 w-auto object-contain" />
             </Button>
           </div>
 
