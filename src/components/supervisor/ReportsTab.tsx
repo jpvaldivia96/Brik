@@ -388,7 +388,7 @@ export default function ReportsTab() {
           <div class="header">
             <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 24px;">
               <div style="font-size: 32px; font-weight: 800; opacity: 1;">BRIK<span style="opacity:0.8; font-weight: 400;">PRO</span></div>
-              <button class="back-button" onclick="window.history.back()">← Volver</button>
+              <button class="back-button" onclick="window.close()">✕ Cerrar</button>
             </div>
             <h1>Reporte de Accesos</h1>
             <p class="subtitle">${data.site} • ${data.period.from} al ${data.period.to}</p>

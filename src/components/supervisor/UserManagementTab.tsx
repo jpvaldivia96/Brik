@@ -58,22 +58,38 @@ export default function UserManagementTab() {
         setLoading(true);
 
         try {
-            // Load current site users with email from auth
+            // Load current site users
             const { data: memberships } = await (supabase as any)
                 .from('site_memberships')
                 .select('user_id, role, created_at, receive_notifications')
                 .eq('site_id', currentSite.id);
 
-            // Get emails from auth.users (via the current user's email if they match)
+            // Load accepted invitations to get emails
+            const { data: acceptedInvites } = await (supabase as any)
+                .from('user_invitations')
+                .select('email, accepted_by')
+                .eq('site_id', currentSite.id)
+                .not('accepted_at', 'is', null);
+
+            // Create a map of user_id -> email from accepted invitations
+            const emailMap: Record<string, string> = {};
+            (acceptedInvites || []).forEach((inv: any) => {
+                if (inv.accepted_by && inv.email) {
+                    emailMap[inv.accepted_by] = inv.email;
+                }
+            });
+
+            // Merge memberships with emails
             const usersWithEmail = (memberships || []).map((m: any) => ({
                 ...m,
-                email: m.user_id === user?.id ? user?.email : undefined,
+                // Priority: 1) Email from invitation, 2) Current user's email if it matches, 3) undefined
+                email: emailMap[m.user_id] || (m.user_id === user?.id ? user?.email : undefined),
                 receive_notifications: m.receive_notifications ?? true
             })) as SiteUser[];
 
             setUsers(usersWithEmail);
 
-            // Load pending invitations (table may not exist yet)
+            // Load pending invitations
             try {
                 const { data: invites } = await (supabase as any)
                     .from('user_invitations')
@@ -83,7 +99,6 @@ export default function UserManagementTab() {
 
                 setInvitations((invites || []) as Invitation[]);
             } catch {
-                // Table doesn't exist yet
                 setInvitations([]);
             }
         } catch (error) {

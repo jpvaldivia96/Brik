@@ -152,7 +152,11 @@ export default function SettingsTab() {
         <div className="flex flex-col sm:flex-row gap-3">
           <Button
             variant="outline"
-            onClick={handleChangeSite}
+            onClick={(e) => {
+              e.stopPropagation();
+              e.preventDefault();
+              handleChangeSite();
+            }}
             className="bg-white/10 border-white/20 text-white/80 hover:bg-white/20 hover:text-white"
           >
             <Building2 className="w-4 h-4 mr-2" />
@@ -160,9 +164,14 @@ export default function SettingsTab() {
           </Button>
           <Button
             variant="outline"
-            onClick={async () => {
-              await signOut();
-              window.location.href = '/auth';
+            onClick={async (e) => {
+              e.stopPropagation();
+              e.preventDefault();
+              try {
+                await signOut();
+              } finally {
+                window.location.href = '/auth';
+              }
             }}
             className="bg-red-500/10 border-red-500/30 text-red-400 hover:bg-red-500/20 hover:text-red-300"
           >
