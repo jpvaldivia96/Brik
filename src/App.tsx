@@ -13,6 +13,8 @@ import Index from "./pages/Index";
 import AuthPage from "./pages/AuthPage";
 import InvitePage from "./pages/InvitePage";
 import NotFound from "./pages/NotFound";
+import AdminPanelPage from "./pages/admin/AdminPanelPage";
+import AdminSiteDetailPage from "./pages/admin/AdminSiteDetailPage";
 
 const queryClient = new QueryClient();
 
@@ -41,6 +43,9 @@ const App = () => {
                 <Route path="/" element={<Index />} />
                 <Route path="/auth" element={<AuthPage />} />
                 <Route path="/invite/:token" element={<InvitePage />} />
+                {/* Admin Panel Routes */}
+                <Route path="/brik-control" element={<AdminPanelPage />} />
+                <Route path="/brik-control/sites/:siteId" element={<AdminSiteDetailPage />} />
                 <Route path="*" element={<NotFound />} />
               </Routes>
             </BrowserRouter>

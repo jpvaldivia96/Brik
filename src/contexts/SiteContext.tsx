@@ -1,8 +1,11 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { useAuth } from './AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import { isNetworkError } from '@/lib/offline/errorHandler';
 import type { Site, SiteMembership, SiteSettings, RoleEnum } from '@/lib/types';
+
+// Platform admin emails
+const PLATFORM_ADMIN_EMAILS = ['juanpablovaldc@gmail.com'];
 
 interface SiteContextType {
   sites: Site[];
@@ -14,6 +17,12 @@ interface SiteContextType {
   selectSite: (siteId: string | null) => void;
   refreshSites: () => Promise<void>;
   isSupervisor: boolean;
+  // Super Admin features
+  isPlatformAdmin: boolean;
+  isInAdminMode: boolean;
+  allSites: Site[];
+  enterSiteAsAdmin: (siteId: string) => Promise<void>;
+  exitAdminMode: () => void;
 }
 
 const SiteContext = createContext<SiteContextType | undefined>(undefined);
@@ -21,15 +30,33 @@ const SiteContext = createContext<SiteContextType | undefined>(undefined);
 export function SiteProvider({ children }: { children: React.ReactNode }) {
   const { user } = useAuth();
   const [sites, setSites] = useState<Site[]>([]);
+  const [allSites, setAllSites] = useState<Site[]>([]);
   const [memberships, setMemberships] = useState<SiteMembership[]>([]);
   const [currentSite, setCurrentSite] = useState<Site | null>(null);
   const [currentRole, setCurrentRole] = useState<RoleEnum | null>(null);
   const [currentSettings, setCurrentSettings] = useState<SiteSettings | null>(null);
   const [loading, setLoading] = useState(true);
+  const [isInAdminMode, setIsInAdminMode] = useState(false);
+
+  // Check if user is platform admin
+  const isPlatformAdmin = user?.email ? PLATFORM_ADMIN_EMAILS.includes(user.email) : false;
+
+  const fetchSettings = async (siteId: string) => {
+    const { data, error } = await supabase
+      .from('site_settings')
+      .select('*')
+      .eq('site_id', siteId)
+      .maybeSingle();
+
+    if (!error && data) {
+      setCurrentSettings(data as SiteSettings);
+    }
+  };
 
   const fetchSites = async () => {
     if (!user) {
       setSites([]);
+      setAllSites([]);
       setMemberships([]);
       setCurrentSite(null);
       setCurrentRole(null);
@@ -58,6 +85,35 @@ export function SiteProvider({ children }: { children: React.ReactNode }) {
 
       setMemberships(typedMemberships);
       setSites(typedMemberships.map(m => m.sites).filter(Boolean) as Site[]);
+
+      // If platform admin, also fetch ALL sites
+      if (isPlatformAdmin) {
+        const { data: allSitesData } = await (supabase as any)
+          .from('sites')
+          .select('*')
+          .order('created_at', { ascending: false });
+        setAllSites(allSitesData || []);
+      }
+
+      // Check if in admin mode (persists through reload)
+      const adminModeSiteId = sessionStorage.getItem('brik_admin_mode_site');
+      if (adminModeSiteId && isPlatformAdmin) {
+        // Restore admin mode
+        const { data: siteData } = await (supabase as any)
+          .from('sites')
+          .select('*')
+          .eq('id', adminModeSiteId)
+          .single();
+
+        if (siteData) {
+          setCurrentSite(siteData as Site);
+          setCurrentRole('supervisor');
+          setIsInAdminMode(true);
+          await fetchSettings(adminModeSiteId);
+          setLoading(false);
+          return;
+        }
+      }
 
       // Check if user explicitly wants to see site selector (persists through reload)
       const forceSiteSelector = sessionStorage.getItem('brik_force_site_selector');
@@ -98,18 +154,6 @@ export function SiteProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
-  const fetchSettings = async (siteId: string) => {
-    const { data, error } = await supabase
-      .from('site_settings')
-      .select('*')
-      .eq('site_id', siteId)
-      .maybeSingle();
-
-    if (!error && data) {
-      setCurrentSettings(data as SiteSettings);
-    }
-  };
-
   const selectSite = (siteId: string | null) => {
     // Clear the force flag when user explicitly selects
     sessionStorage.removeItem('brik_force_site_selector');
@@ -131,6 +175,38 @@ export function SiteProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
+  // Enter a site as platform admin (full access)
+  const enterSiteAsAdmin = useCallback(async (siteId: string) => {
+    if (!isPlatformAdmin) return;
+
+    try {
+      const { data: siteData } = await (supabase as any)
+        .from('sites')
+        .select('*')
+        .eq('id', siteId)
+        .single();
+
+      if (siteData) {
+        sessionStorage.setItem('brik_admin_mode_site', siteId);
+        setCurrentSite(siteData as Site);
+        setCurrentRole('supervisor');
+        setIsInAdminMode(true);
+        await fetchSettings(siteId);
+      }
+    } catch (error) {
+      console.error('Error entering site as admin:', error);
+    }
+  }, [isPlatformAdmin]);
+
+  // Exit admin mode and return to admin panel
+  const exitAdminMode = useCallback(() => {
+    sessionStorage.removeItem('brik_admin_mode_site');
+    setIsInAdminMode(false);
+    setCurrentSite(null);
+    setCurrentRole(null);
+    setCurrentSettings(null);
+  }, []);
+
   const refreshSites = async () => {
     await fetchSites();
   };
@@ -139,7 +215,8 @@ export function SiteProvider({ children }: { children: React.ReactNode }) {
     fetchSites();
   }, [user]);
 
-  const isSupervisor = currentRole === 'supervisor';
+  // Supervisor is true when role is supervisor OR when in admin mode
+  const isSupervisor = currentRole === 'supervisor' || isInAdminMode;
 
   return (
     <SiteContext.Provider
@@ -153,6 +230,12 @@ export function SiteProvider({ children }: { children: React.ReactNode }) {
         selectSite,
         refreshSites,
         isSupervisor,
+        // Super Admin features
+        isPlatformAdmin,
+        isInAdminMode,
+        allSites,
+        enterSiteAsAdmin,
+        exitAdminMode,
       }}
     >
       {children}

@@ -1,8 +1,9 @@
 import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useSite } from '@/contexts/SiteContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
-import { Building2, LogOut, ChevronDown, Briefcase } from 'lucide-react';
+import { Building2, LogOut, ChevronDown, Briefcase, Crown, X } from 'lucide-react';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -21,6 +22,9 @@ import ReportsTab from '@/components/supervisor/ReportsTab';
 import ImportTab from '@/components/supervisor/ImportTab';
 import PeopleTab from '@/components/supervisor/PeopleTab';
 import UserManagementTab from '@/components/supervisor/UserManagementTab';
+import { UsageBanner } from '@/components/subscription/UsageBanner';
+import { LimitBlockModal } from '@/components/subscription/LimitBlockModal';
+import { useSubscription } from '@/hooks/useSubscription';
 
 // Live Date/Time Display Component
 function DateTimeDisplay() {
@@ -42,11 +46,19 @@ function DateTimeDisplay() {
 }
 
 export default function MainLayout() {
-  const { currentSite, sites, selectSite, isSupervisor } = useSite();
-  const { signOut } = useAuth();
+  const navigate = useNavigate();
+  const { currentSite, sites, selectSite, isSupervisor, isInAdminMode, exitAdminMode, isPlatformAdmin } = useSite();
+  const { signOut, user } = useAuth();
   const [activeAction, setActiveAction] = useState('');
   const [activeAdminPanel, setActiveAdminPanel] = useState('dashboard');
   const [adminDrawerOpen, setAdminDrawerOpen] = useState(false);
+  const [showLimitModal, setShowLimitModal] = useState(false);
+  const { subscription } = useSubscription();
+
+  const handleExitAdminMode = () => {
+    exitAdminMode();
+    navigate('/brik-control');
+  };
 
   const handleChangeSite = () => {
     localStorage.removeItem('brik_current_site');
@@ -119,6 +131,25 @@ export default function MainLayout() {
 
       {/* Header */}
       <header className="backdrop-blur-xl bg-white/5 border-b border-white/10 sticky top-0 z-40">
+        {/* Admin Mode Banner */}
+        {isInAdminMode && (
+          <div className="bg-purple-600/90 px-4 py-2 flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <Crown className="w-4 h-4 text-white" />
+              <span className="text-sm font-medium text-white">Modo Admin</span>
+              <span className="text-xs text-white/70">— Viendo como supervisor</span>
+            </div>
+            <Button
+              size="sm"
+              variant="ghost"
+              onClick={handleExitAdminMode}
+              className="h-7 text-white hover:bg-white/20 gap-1"
+            >
+              <X className="w-4 h-4" />
+              Salir
+            </Button>
+          </div>
+        )}
         <div className="max-w-2xl mx-auto px-4 h-40 flex items-center justify-between">
           <div className="flex items-center">
             {/* BRIK Brand - Home Button */}
@@ -128,7 +159,7 @@ export default function MainLayout() {
           </div>
 
           <div className="flex items-start gap-3">
-            {/* Site Dropdown + Date/Time */}
+            {/* Site Dropdown + Plan + Date/Time */}
             <div className="flex flex-col items-end">
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
@@ -150,11 +181,30 @@ export default function MainLayout() {
                   ))}
                 </DropdownMenuContent>
               </DropdownMenu>
+              {/* Plan Badge */}
+              <span className="text-xs text-white/50 mt-0.5">
+                {subscription.plan === 'enterprise' ? 'Enterprise' :
+                  subscription.plan === 'pro' ? 'Pro' :
+                    subscription.status === 'trial' ? 'Trial' : 'Free'}
+              </span>
               {/* Date/Time */}
               <DateTimeDisplay />
             </div>
 
-            {/* Admin Button - aligned with site name */}
+            {/* Platform Admin Button - only for juanpablovaldc@gmail.com */}
+            {isPlatformAdmin && (
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => navigate('/brik-control')}
+                className="w-10 h-10 rounded-xl transition-all duration-300 hover:bg-purple-500/20 hover:scale-105 -mt-1"
+                title="Panel de Control"
+              >
+                <Crown className="w-5 h-5 text-purple-400" />
+              </Button>
+            )}
+
+            {/* Admin Button - only for supervisors */}
             {isSupervisor && (
               <Button
                 variant="ghost"
@@ -165,14 +215,35 @@ export default function MainLayout() {
                 <Briefcase className="w-7 h-7 text-white/80" />
               </Button>
             )}
+
+            {/* Logout Button - only for guards (non-supervisors) */}
+            {!isSupervisor && (
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={signOut}
+                className="w-10 h-10 rounded-xl transition-all duration-300 hover:bg-white/10 hover:scale-105 -mt-1"
+                title="Cerrar sesión"
+              >
+                <LogOut className="w-6 h-6 text-white/60" />
+              </Button>
+            )}
           </div>
         </div>
       </header>
 
       {/* Content */}
       <main className="max-w-2xl mx-auto p-4 animate-fade-in">
+        {/* Usage Banner */}
+        <UsageBanner className="mb-4" />
+
         {renderContent()}
       </main>
+
+      {/* Limit Block Modal */}
+      {subscription.isOverLimit && showLimitModal && (
+        <LimitBlockModal onClose={() => setShowLimitModal(false)} />
+      )}
 
       {/* Bottom Action Bar */}
       <BottomActionBar
