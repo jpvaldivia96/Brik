@@ -183,9 +183,9 @@ export default function MainLayout() {
               </DropdownMenu>
               {/* Plan Badge */}
               <span className="text-xs text-white/50 mt-0.5">
-                {subscription.plan === 'enterprise' ? 'Enterprise' :
-                  subscription.plan === 'pro' ? 'Pro' :
-                    subscription.status === 'trial' ? 'Trial' : 'Free'}
+                {subscription?.plan === 'enterprise' ? 'Enterprise' :
+                  subscription?.plan === 'pro' ? 'Pro' :
+                    subscription?.status === 'trial' ? 'Trial' : 'Free'}
               </span>
               {/* Date/Time */}
               <DateTimeDisplay />
