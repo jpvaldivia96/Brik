@@ -70,145 +70,161 @@ export default function DashboardPanel() {
   }, [insideList]);
 
   const fetchData = useCallback(async () => {
-    if (!currentSite) return;
+    if (!currentSite) {
+      setLoading(false);
+      return;
+    }
     setLoading(true);
 
-    const warnH = Number(currentSettings?.warn_hours) || 10;
-    const critH = Number(currentSettings?.crit_hours) || 12;
-    // 'today' variable is now defined at component level
-    const isViewingToday = selectedDate === today;
+    try {
+      const warnH = Number(currentSettings?.warn_hours) || 10;
+      const critH = Number(currentSettings?.crit_hours) || 12;
+      // 'today' variable is now defined at component level
+      const isViewingToday = selectedDate === today;
 
-    let logs: any[] = [];
+      let logs: any[] = [];
 
-    if (isViewingToday) {
-      // Show currently open (inside) logs for today
-      // Include night permit fields in selection
-      const { data: openLogs } = await supabase
-        .from('access_logs')
-        .select('*, people(full_name, ci, photo_url, workers_profile(insurance_expiry, induction_date, role, night_permit_permanent, night_permit_until))')
-        .eq('site_id', currentSite.id)
-        .is('exit_at', null)
-        .is('voided_at', null);
-      logs = openLogs || [];
-    } else {
-      // Show historical logs
-      const startOfDay = `${selectedDate}T00:00:00`;
-      const endOfDay = `${selectedDate}T23:59:59`;
-      const { data: historicalLogs } = await supabase
-        .from('access_logs')
-        .select('*, people(full_name, ci, photo_url, workers_profile(insurance_expiry, induction_date, role, night_permit_permanent, night_permit_until))')
-        .eq('site_id', currentSite.id)
-        .is('voided_at', null)
-        .gte('entry_at', startOfDay)
-        .lte('entry_at', endOfDay);
-      logs = historicalLogs || [];
-    }
-
-    const now = Date.now();
-
-    // Fetch ALL logs for today to calculate accumulated hours per person
-    const accStartOfDay = `${selectedDate}T00:00:00`;
-    const accEndOfDay = `${selectedDate}T23:59:59`;
-    const { data: allTodayLogs } = await supabase
-      .from('access_logs')
-      .select('person_id, entry_at, exit_at')
-      .eq('site_id', currentSite.id)
-      .is('voided_at', null)
-      .gte('entry_at', accStartOfDay)
-      .lte('entry_at', accEndOfDay);
-
-    // Calculate total hours per person for the day
-    const personTotalHours = new Map<string, number>();
-    (allTodayLogs || []).forEach(log => {
-      const entryTime = new Date(log.entry_at).getTime();
-      const exitTime = log.exit_at ? new Date(log.exit_at).getTime() : now;
-      const hrs = (exitTime - entryTime) / 3600000;
-      personTotalHours.set(log.person_id, (personTotalHours.get(log.person_id) || 0) + hrs);
-    });
-
-    const inside: InsideLog[] = logs.map(log => {
-      const entryTime = new Date(log.entry_at).getTime();
-      const exitTime = log.exit_at ? new Date(log.exit_at).getTime() : now;
-      const hours = (exitTime - entryTime) / 3600000;
-      const totalHoursToday = personTotalHours.get(log.person_id) || hours;
-      
-      // Get workers_profile data
-      const wp = log.people?.workers_profile;
-      
-      // Determine effective status considering night permits
-      let status: 'ok' | 'warn' | 'crit' = 'ok';
-      
       if (isViewingToday) {
-        // First check raw hours threshold
-        if (hours >= critH) status = 'crit';
-        else if (hours >= warnH) status = 'warn';
-        
-        // If critical/warn, check for permits to override to 'ok'
-        if (status !== 'ok' && wp) {
-          const hasPermanentPermit = wp.night_permit_permanent === true;
-          const hasTempPermit = wp.night_permit_until && new Date(wp.night_permit_until) > new Date();
-          
-          if (hasPermanentPermit || hasTempPermit) {
-            status = 'ok'; // Permit overrides the alert
-          }
-        }
+        // Show currently open (inside) logs for today
+        // Include night permit fields in selection
+        const { data: openLogs, error } = await supabase
+          .from('access_logs')
+          .select('*, people(full_name, ci, photo_url, workers_profile(insurance_expiry, induction_date, role, night_permit_permanent, night_permit_until))')
+          .eq('site_id', currentSite.id)
+          .is('exit_at', null)
+          .is('voided_at', null);
+        if (error) console.error('Error fetching open logs:', error);
+        logs = openLogs || [];
       } else {
-        status = 'ok'; // Historical logs always ok
+        // Show historical logs
+        const startOfDay = `${selectedDate}T00:00:00`;
+        const endOfDay = `${selectedDate}T23:59:59`;
+        const { data: historicalLogs, error } = await supabase
+          .from('access_logs')
+          .select('*, people(full_name, ci, photo_url, workers_profile(insurance_expiry, induction_date, role, night_permit_permanent, night_permit_until))')
+          .eq('site_id', currentSite.id)
+          .is('voided_at', null)
+          .gte('entry_at', startOfDay)
+          .lte('entry_at', endOfDay);
+        if (error) console.error('Error fetching historical logs:', error);
+        logs = historicalLogs || [];
       }
 
-      return {
-        id: log.id,
-        person_id: log.person_id,
-        name_snapshot: log.name_snapshot,
-        ci_snapshot: log.ci_snapshot,
-        contractor_snapshot: log.contractor_snapshot,
-        entry_at: log.entry_at,
-        hours,
-        totalHoursToday,
-        status,
-        full_name: log.name_snapshot || log.people?.full_name || 'Sin nombre',
-        ci: log.ci_snapshot || log.people?.ci || '',
-        photo_url: log.people?.photo_url || null,
-        role: wp?.role || null,
-        insurance_expiry: wp?.insurance_expiry || null,
-        induction_date: wp?.induction_date || null
-      };
-    }).sort((a, b) => b.hours - a.hours);
+      const now = Date.now();
 
-    // Contractor stats
-    const contractorMap = new Map<string, { inside: number; entriesToday: number }>();
-    inside.forEach(log => {
-      const c = (log.contractor_snapshot || 'Sin contratista').trim().toUpperCase();
-      const stat = contractorMap.get(c) || { inside: 0, entriesToday: 0 };
-      stat.inside++;
-      contractorMap.set(c, stat);
-    });
+      // Fetch ALL logs for today to calculate accumulated hours per person
+      const accStartOfDay = `${selectedDate}T00:00:00`;
+      const accEndOfDay = `${selectedDate}T23:59:59`;
+      const { data: allTodayLogs } = await supabase
+        .from('access_logs')
+        .select('person_id, entry_at, exit_at')
+        .eq('site_id', currentSite.id)
+        .is('voided_at', null)
+        .gte('entry_at', accStartOfDay)
+        .lte('entry_at', accEndOfDay);
 
-    // Today's entries per contractor
-    const todayStart = new Date();
-    todayStart.setHours(0, 0, 0, 0);
-    const { data: todayLogs } = await supabase
-      .from('access_logs')
-      .select('contractor_snapshot')
-      .eq('site_id', currentSite.id)
-      .is('voided_at', null)
-      .gte('entry_at', todayStart.toISOString());
+      // Calculate total hours per person for the day
+      const personTotalHours = new Map<string, number>();
+      (allTodayLogs || []).forEach(log => {
+        if (!log.person_id || !log.entry_at) return;
+        const entryTime = new Date(log.entry_at).getTime();
+        const exitTime = log.exit_at ? new Date(log.exit_at).getTime() : now;
+        const hrs = (exitTime - entryTime) / 3600000;
+        personTotalHours.set(log.person_id, (personTotalHours.get(log.person_id) || 0) + hrs);
+      });
 
-    (todayLogs || []).forEach(log => {
-      const c = (log.contractor_snapshot || 'Sin contratista').trim().toUpperCase();
-      const stat = contractorMap.get(c) || { inside: 0, entriesToday: 0 };
-      stat.entriesToday++;
-      contractorMap.set(c, stat);
-    });
+      const inside: InsideLog[] = logs.map(log => {
+        if (!log.entry_at) return null;
 
-    const contractorStats = Array.from(contractorMap.entries())
-      .map(([contractor, stat]) => ({ contractor, ...stat }))
-      .sort((a, b) => b.inside - a.inside);
+        const entryTime = new Date(log.entry_at).getTime();
+        const exitTime = log.exit_at ? new Date(log.exit_at).getTime() : now;
+        const hours = (exitTime - entryTime) / 3600000;
+        const totalHoursToday = personTotalHours.get(log.person_id) || hours;
 
-    setInsideList(inside);
-    setContractors(contractorStats);
-    setLoading(false);
-  }, [currentSite, currentSettings, selectedDate]);
+        // Get workers_profile data safely
+        const wp = log.people?.workers_profile;
+
+        // Determine effective status considering night permits
+        let status: 'ok' | 'warn' | 'crit' = 'ok';
+
+        if (isViewingToday) {
+          // First check raw hours threshold
+          if (hours >= critH) status = 'crit';
+          else if (hours >= warnH) status = 'warn';
+
+          // If critical/warn, check for permits to override to 'ok'
+          if (status !== 'ok' && wp) {
+            const hasPermanentPermit = wp.night_permit_permanent === true;
+            const hasTempPermit = wp.night_permit_until && new Date(wp.night_permit_until) > new Date();
+
+            if (hasPermanentPermit || hasTempPermit) {
+              status = 'ok'; // Permit overrides the alert
+            }
+          }
+        } else {
+          status = 'ok'; // Historical logs always ok
+        }
+
+        return {
+          id: log.id || '',
+          person_id: log.person_id || '',
+          name_snapshot: log.name_snapshot,
+          ci_snapshot: log.ci_snapshot,
+          contractor_snapshot: log.contractor_snapshot,
+          entry_at: log.entry_at,
+          hours,
+          totalHoursToday,
+          status,
+          full_name: log.name_snapshot || log.people?.full_name || 'Sin nombre',
+          ci: log.ci_snapshot || log.people?.ci || '',
+          photo_url: log.people?.photo_url || null,
+          role: wp?.role || null,
+          insurance_expiry: wp?.insurance_expiry || null,
+          induction_date: wp?.induction_date || null
+        };
+      }).filter(Boolean).sort((a, b) => (b?.hours || 0) - (a?.hours || 0)) as InsideLog[];
+
+      // Contractor stats
+      const contractorMap = new Map<string, { inside: number; entriesToday: number }>();
+      inside.forEach(log => {
+        const c = (log.contractor_snapshot || 'Sin contratista').trim().toUpperCase();
+        const stat = contractorMap.get(c) || { inside: 0, entriesToday: 0 };
+        stat.inside++;
+        contractorMap.set(c, stat);
+      });
+
+      // Today's entries per contractor
+      const todayStart = new Date();
+      todayStart.setHours(0, 0, 0, 0);
+      const { data: todayLogs } = await supabase
+        .from('access_logs')
+        .select('contractor_snapshot')
+        .eq('site_id', currentSite.id)
+        .is('voided_at', null)
+        .gte('entry_at', todayStart.toISOString());
+
+      (todayLogs || []).forEach(log => {
+        const c = (log.contractor_snapshot || 'Sin contratista').trim().toUpperCase();
+        const stat = contractorMap.get(c) || { inside: 0, entriesToday: 0 };
+        stat.entriesToday++;
+        contractorMap.set(c, stat);
+      });
+
+      const contractorStats = Array.from(contractorMap.entries())
+        .map(([contractor, stat]) => ({ contractor, ...stat }))
+        .sort((a, b) => b.inside - a.inside);
+
+      setInsideList(inside);
+      setContractors(contractorStats);
+    } catch (err) {
+      console.error('Dashboard fetchData error:', err);
+      // Set empty data on error to prevent infinite loading
+      setInsideList([]);
+      setContractors([]);
+    } finally {
+      setLoading(false);
+    }
+  }, [currentSite, currentSettings, selectedDate, today]);
 
   useEffect(() => {
     fetchData();
@@ -267,7 +283,7 @@ export default function DashboardPanel() {
       } else if (sortBy === 'status') {
         const order = { crit: 0, warn: 1, ok: 2 };
         cmp = order[a.status] - order[b.status];
-      } else { 
+      } else {
         cmp = new Date(b.entry_at).getTime() - new Date(a.entry_at).getTime();
       }
       return sortDir === 'asc' ? cmp : -cmp;
