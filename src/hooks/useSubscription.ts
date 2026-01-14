@@ -51,7 +51,13 @@ export function useSubscription() {
                 .eq('site_id', currentSite.id)
                 .maybeSingle();
 
-            if (fetchError) throw fetchError;
+            // If error (table doesn't exist, RLS, etc), silently use defaults
+            if (fetchError) {
+                console.warn('Subscription fetch warning:', fetchError.message);
+                setSubscription(defaultSubscription);
+                setLoading(false);
+                return;
+            }
 
             if (!data) {
                 // No subscription yet, use defaults
@@ -60,7 +66,9 @@ export function useSubscription() {
                 return;
             }
 
-            const usagePercentage = Math.round((data.current_month_usage / data.monthly_limit) * 100);
+            const monthlyLimit = data.monthly_limit || 100;
+            const currentUsage = data.current_month_usage || 0;
+            const usagePercentage = monthlyLimit > 0 ? Math.round((currentUsage / monthlyLimit) * 100) : 0;
             const isInTrial = data.status === 'trial' && data.trial_ends_at;
             let daysLeftInTrial = null;
 
@@ -71,21 +79,22 @@ export function useSubscription() {
             }
 
             setSubscription({
-                id: data.id,
-                plan: data.plan,
-                status: data.status,
-                monthlyLimit: data.monthly_limit,
-                currentUsage: data.current_month_usage,
+                id: data.id || '',
+                plan: data.plan || 'free',
+                status: data.status || 'active',
+                monthlyLimit,
+                currentUsage,
                 usagePercentage,
-                isOverLimit: data.current_month_usage >= data.monthly_limit,
+                isOverLimit: currentUsage >= monthlyLimit,
                 isNearLimit: usagePercentage >= 80 && usagePercentage < 100,
-                trialEndsAt: data.trial_ends_at,
-                isInTrial,
+                trialEndsAt: data.trial_ends_at || null,
+                isInTrial: !!isInTrial,
                 daysLeftInTrial,
             });
         } catch (err: any) {
-            console.error('Error fetching subscription:', err);
-            setError(err.message);
+            // Silently fail and use defaults - don't break the app
+            console.warn('Subscription error (using defaults):', err?.message || err);
+            setSubscription(defaultSubscription);
         } finally {
             setLoading(false);
         }

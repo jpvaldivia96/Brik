@@ -96,34 +96,43 @@ export function SiteProvider({ children }: { children: React.ReactNode }) {
       }
 
       // Check if in admin mode (persists through reload)
-      const adminModeSiteId = sessionStorage.getItem('brik_admin_mode_site');
-      if (adminModeSiteId && isPlatformAdmin) {
-        // Restore admin mode
-        const { data: siteData } = await (supabase as any)
-          .from('sites')
-          .select('*')
-          .eq('id', adminModeSiteId)
-          .single();
+      // Wrap in try/catch for Capacitor WebView compatibility
+      try {
+        const adminModeSiteId = sessionStorage.getItem('brik_admin_mode_site');
+        if (adminModeSiteId && isPlatformAdmin) {
+          // Restore admin mode
+          const { data: siteData } = await (supabase as any)
+            .from('sites')
+            .select('*')
+            .eq('id', adminModeSiteId)
+            .single();
 
-        if (siteData) {
-          setCurrentSite(siteData as Site);
-          setCurrentRole('supervisor');
-          setIsInAdminMode(true);
-          await fetchSettings(adminModeSiteId);
-          setLoading(false);
-          return;
+          if (siteData) {
+            setCurrentSite(siteData as Site);
+            setCurrentRole('supervisor');
+            setIsInAdminMode(true);
+            await fetchSettings(adminModeSiteId);
+            setLoading(false);
+            return;
+          }
         }
+      } catch (e) {
+        console.warn('SessionStorage access failed:', e);
       }
 
       // Check if user explicitly wants to see site selector (persists through reload)
-      const forceSiteSelector = sessionStorage.getItem('brik_force_site_selector');
-      if (forceSiteSelector === 'true') {
-        // Keep the flag active - user wanted to see site selector
-        // DON'T auto-select - user will see site selector
-        setCurrentSite(null);
-        setCurrentRole(null);
-        setLoading(false);
-        return; // Exit early, don't auto-select
+      try {
+        const forceSiteSelector = sessionStorage.getItem('brik_force_site_selector');
+        if (forceSiteSelector === 'true') {
+          // Keep the flag active - user wanted to see site selector
+          // DON'T auto-select - user will see site selector
+          setCurrentSite(null);
+          setCurrentRole(null);
+          setLoading(false);
+          return; // Exit early, don't auto-select
+        }
+      } catch (e) {
+        console.warn('SessionStorage access failed:', e);
       }
 
       // Auto-select site if only one
