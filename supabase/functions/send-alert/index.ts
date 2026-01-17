@@ -1,4 +1,4 @@
-// Supabase Edge Function to send push notifications via FCM
+// Supabase Edge Function to send push notifications via FCM V1 API
 // Deploy with: supabase functions deploy send-alert
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
@@ -7,6 +7,64 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 const corsHeaders = {
     'Access-Control-Allow-Origin': '*',
     'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+}
+
+// Helper to generate OAuth2 access token from service account
+async function getAccessToken(serviceAccount: any): Promise<string> {
+    const now = Math.floor(Date.now() / 1000)
+    const payload = {
+        iss: serviceAccount.client_email,
+        scope: 'https://www.googleapis.com/auth/firebase.messaging',
+        aud: 'https://oauth2.googleapis.com/token',
+        iat: now,
+        exp: now + 3600,
+    }
+
+    const header = { alg: 'RS256', typ: 'JWT' }
+
+    // Create JWT manually
+    const encodedHeader = btoa(JSON.stringify(header))
+    const encodedPayload = btoa(JSON.stringify(payload))
+    const unsignedToken = `${encodedHeader}.${encodedPayload}`
+
+    // Sign with private key
+    const privateKey = serviceAccount.private_key
+    const encoder = new TextEncoder()
+    const data = encoder.encode(unsignedToken)
+
+    // Import the private key
+    const pemHeader = '-----BEGIN PRIVATE KEY-----'
+    const pemFooter = '-----END PRIVATE KEY-----'
+    const pemContents = privateKey.substring(
+        pemHeader.length,
+        privateKey.length - pemFooter.length
+    ).replace(/\s/g, '')
+
+    const binaryDer = Uint8Array.from(atob(pemContents), c => c.charCodeAt(0))
+
+    const key = await crypto.subtle.importKey(
+        'pkcs8',
+        binaryDer,
+        { name: 'RSASSA-PKCS1-v1_5', hash: 'SHA-256' },
+        false,
+        ['sign']
+    )
+
+    const signature = await crypto.subtle.sign('RSASSA-PKCS1-v1_5', key, data)
+    const encodedSignature = btoa(String.fromCharCode(...new Uint8Array(signature)))
+        .replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '')
+
+    const jwt = `${unsignedToken}.${encodedSignature}`
+
+    // Exchange JWT for access token
+    const tokenResponse = await fetch('https://oauth2.googleapis.com/token', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: `grant_type=urn:ietf:params:oauth:grant-type:jwt-bearer&assertion=${jwt}`,
+    })
+
+    const tokenData = await tokenResponse.json()
+    return tokenData.access_token
 }
 
 interface AlertPayload {
@@ -24,11 +82,14 @@ serve(async (req) => {
     }
 
     try {
-        // Get FCM Server Key from environment
-        const FCM_SERVER_KEY = Deno.env.get('FCM_SERVER_KEY')
-        if (!FCM_SERVER_KEY) {
-            throw new Error('FCM_SERVER_KEY not configured')
+        // Get service account from environment
+        const serviceAccountStr = Deno.env.get('FIREBASE_SERVICE_ACCOUNT')
+        if (!serviceAccountStr) {
+            throw new Error('FIREBASE_SERVICE_ACCOUNT not configured')
         }
+
+        const serviceAccount = JSON.parse(serviceAccountStr)
+        const projectId = serviceAccount.project_id
 
         const supabaseUrl = Deno.env.get('SUPABASE_URL')!
         const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
@@ -80,7 +141,7 @@ serve(async (req) => {
             )
         }
 
-        const supervisorIds = memberships.map(m => m.user_id)
+        const supervisorIds = memberships.map((m: any) => m.user_id)
 
         // Get FCM tokens for supervisors
         const { data: tokens } = await supabase
@@ -95,33 +156,72 @@ serve(async (req) => {
             )
         }
 
-        // Send to FCM
-        const fcmTokens = tokens.map(t => t.token)
+        const fcmTokens = tokens.map((t: any) => t.token)
 
-        const fcmResponse = await fetch('https://fcm.googleapis.com/fcm/send', {
-            method: 'POST',
-            headers: {
-                'Authorization': `key=${FCM_SERVER_KEY}`,
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-                registration_ids: fcmTokens,
-                notification: {
-                    title,
-                    body,
-                    sound: 'default',
-                    click_action: 'FCM_PLUGIN_ACTIVITY',
-                },
-                data: {
-                    ...data,
-                    alert_type,
-                    site_id,
-                },
-                priority: 'high',
-            }),
-        })
+        // Get OAuth access token
+        const accessToken = await getAccessToken(serviceAccount)
 
-        const fcmResult = await fcmResponse.json()
+        // Send to each token using FCM V1 API
+        let successCount = 0
+        let failureCount = 0
+        const failedTokens: string[] = []
+
+        for (const token of fcmTokens) {
+            try {
+                const fcmResponse = await fetch(
+                    `https://fcm.googleapis.com/v1/projects/${projectId}/messages:send`,
+                    {
+                        method: 'POST',
+                        headers: {
+                            'Authorization': `Bearer ${accessToken}`,
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify({
+                            message: {
+                                token,
+                                notification: {
+                                    title,
+                                    body,
+                                },
+                                data: {
+                                    alert_type,
+                                    site_id,
+                                    timestamp: new Date().toISOString(),
+                                    ...Object.fromEntries(
+                                        Object.entries(data).map(([k, v]) => [k, String(v)])
+                                    ),
+                                },
+                                android: {
+                                    priority: 'high',
+                                    notification: {
+                                        sound: 'default',
+                                        click_action: 'FCM_PLUGIN_ACTIVITY',
+                                    },
+                                },
+                            },
+                        }),
+                    }
+                )
+
+                if (fcmResponse.ok) {
+                    successCount++
+                } else {
+                    failureCount++
+                    failedTokens.push(token)
+                }
+            } catch (err) {
+                failureCount++
+                failedTokens.push(token)
+            }
+        }
+
+        // Cleanup invalid tokens
+        if (failedTokens.length > 0) {
+            await supabase
+                .from('notification_tokens')
+                .delete()
+                .in('token', failedTokens)
+        }
 
         // Log to alert_history
         await supabase.from('alert_history').insert({
@@ -137,15 +237,16 @@ serve(async (req) => {
             JSON.stringify({
                 success: true,
                 recipients: fcmTokens.length,
-                fcm_result: fcmResult
+                success_count: successCount,
+                failure_count: failureCount
             }),
             { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         )
 
-    } catch (error) {
+    } catch (error: any) {
         console.error('Error sending alert:', error)
         return new Response(
-            JSON.stringify({ success: false, error: error.message }),
+            JSON.stringify({ success: false, error: error?.message || 'Unknown error' }),
             { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         )
     }
