@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
+import { initPushNotifications, removePushToken, setupPushListeners, removePushListeners } from '@/lib/pushNotifications';
 import type { SiteMembership, RoleEnum } from '@/lib/types';
 
 interface AuthContextType {
@@ -18,6 +19,32 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
+  const [pushInitialized, setPushInitialized] = useState(false);
+
+  // Initialize push notifications when user is set
+  useEffect(() => {
+    if (user && !pushInitialized) {
+      // Initialize push notifications
+      initPushNotifications(user.id).then((token) => {
+        if (token) {
+          console.log('Push notifications initialized');
+          setPushInitialized(true);
+        }
+      });
+
+      // Setup listeners for foreground notifications
+      setupPushListeners(
+        (notification) => {
+          console.log('Notification received:', notification);
+          // TODO: Show in-app notification toast
+        },
+        (action) => {
+          console.log('Notification tapped:', action);
+          // TODO: Navigate to relevant screen
+        }
+      );
+    }
+  }, [user, pushInitialized]);
 
   useEffect(() => {
     // Set up auth state listener FIRST
@@ -26,6 +53,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setSession(session);
         setUser(session?.user ?? null);
         setLoading(false);
+
+        // Reset push initialized flag on logout
+        if (!session?.user) {
+          setPushInitialized(false);
+        }
       }
     );
 
@@ -57,6 +89,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   const signOut = async () => {
+    // Remove push token before signing out
+    if (user) {
+      await removePushToken(user.id);
+      await removePushListeners();
+      setPushInitialized(false);
+    }
     await supabase.auth.signOut();
   };
 

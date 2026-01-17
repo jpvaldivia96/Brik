@@ -22,6 +22,7 @@ import ReportsTab from '@/components/supervisor/ReportsTab';
 import ImportTab from '@/components/supervisor/ImportTab';
 import PeopleTab from '@/components/supervisor/PeopleTab';
 import UserManagementTab from '@/components/supervisor/UserManagementTab';
+import { AlertSettingsTab } from '@/components/supervisor/AlertSettingsTab';
 import { UsageBanner } from '@/components/subscription/UsageBanner';
 import { LimitBlockModal } from '@/components/subscription/LimitBlockModal';
 import { useSubscription } from '@/hooks/useSubscription';
@@ -87,6 +88,9 @@ export default function MainLayout() {
         return <PeopleTab />;
       case 'users':
         return <UserManagementTab />;
+      case 'alerts':
+        return <AlertSettingsTab />;
+
       case 'settings':
         return <SettingsTab />;
       case 'audit':
