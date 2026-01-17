@@ -143,11 +143,30 @@ serve(async (req) => {
 
         const supervisorIds = memberships.map((m: any) => m.user_id)
 
-        // Get FCM tokens for supervisors
+        // Filter supervisors based on personal notification preferences
+        const { data: preferences } = await supabase
+            .from('user_notification_preferences')
+            .select('user_id, ' + alert_type)
+            .eq('site_id', site_id)
+            .in('user_id', supervisorIds)
+
+        // Keep only users who have this alert enabled
+        const filteredUserIds = preferences
+            ?.filter((pref: any) => pref[alert_type] === true)
+            .map((pref: any) => pref.user_id) || supervisorIds
+
+        if (filteredUserIds.length === 0) {
+            return new Response(
+                JSON.stringify({ success: false, message: 'No users have this alert enabled' }),
+                { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+            )
+        }
+
+        // Get FCM tokens for filtered supervisors
         const { data: tokens } = await supabase
             .from('notification_tokens')
             .select('token')
-            .in('user_id', supervisorIds)
+            .in('user_id', filteredUserIds)
 
         if (!tokens || tokens.length === 0) {
             return new Response(
