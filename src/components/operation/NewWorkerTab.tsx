@@ -7,7 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { AlertCosmos } from '@/components/ui/alert-cosmos';
 import { Spinner } from '@/components/ui/spinner';
-import { UserPlus, Camera, RefreshCw, LogIn, SwitchCamera } from 'lucide-react';
+import { Camera, User, Briefcase, Phone, Heart, Calendar, AlertCircle, CheckCircle2, UserCheck } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useFace } from '@/hooks/useFace';
 import { HCaptcha, HCaptchaRef } from '@/components/ui/hcaptcha';
