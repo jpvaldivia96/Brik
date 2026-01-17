@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useSite } from '@/contexts/SiteContext';
 import { useAuth } from '@/contexts/AuthContext';
+import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Building2, LogOut, ChevronDown, Briefcase, Crown, X } from 'lucide-react';
 import {
@@ -27,22 +28,55 @@ import { UsageBanner } from '@/components/subscription/UsageBanner';
 import { LimitBlockModal } from '@/components/subscription/LimitBlockModal';
 import { useSubscription } from '@/hooks/useSubscription';
 
-// Live Date/Time Display Component
+// Live Date/Time Display Component with Weather
 function DateTimeDisplay() {
   const [now, setNow] = useState(new Date());
+  const [weatherStatus, setWeatherStatus] = useState<string | null>(null);
+  const { currentSite } = useSite();
 
   useEffect(() => {
     const timer = setInterval(() => setNow(new Date()), 60000); // Update every minute
     return () => clearInterval(timer);
   }, []);
 
+  useEffect(() => {
+    if (currentSite) {
+      fetchWeatherStatus();
+      const interval = setInterval(fetchWeatherStatus, 5 * 60 * 1000); // Check every 5 min
+      return () => clearInterval(interval);
+    }
+  }, [currentSite]);
+
+  const fetchWeatherStatus = async () => {
+    if (!currentSite) return;
+
+    try {
+      const { data } = await (supabase as any)
+        .from('site_weather_status')
+        .select('status')
+        .eq('site_id', currentSite.id)
+        .single();
+
+      setWeatherStatus(data?.status || null);
+    } catch (err) {
+      setWeatherStatus(null);
+    }
+  };
+
   const formatDate = () => now.toLocaleDateString('es-BO', { weekday: 'short', day: 'numeric', month: 'short' });
   const formatTime = () => now.toLocaleTimeString('es-BO', { hour: '2-digit', minute: '2-digit' });
 
   return (
-    <span className="text-xs text-white/50 mt-0.5">
-      {formatDate()} · {formatTime()}
-    </span>
+    <div className="flex items-center gap-2">
+      <span className="text-xs text-white/50 mt-0.5">
+        {formatDate()} · {formatTime()}
+      </span>
+      {weatherStatus && (
+        <span className="text-xs bg-orange-500/20 text-orange-300 px-2 py-0.5 rounded-full border border-orange-500/30">
+          {weatherStatus}
+        </span>
+      )}
+    </div>
   );
 }
 
