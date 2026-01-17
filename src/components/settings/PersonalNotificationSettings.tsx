@@ -75,37 +75,7 @@ interface UserPreferences {
     birthday_alert_time?: string;
     meeting_reminder_minutes?: number;
 }
-// ... (Alert Categories remain same) ...
-// Default values update:
-unusual_rotation: true,
-    unusual_rotation_threshold: 3,
-        mass_entry: true,
-            mass_entry_threshold: 20,
-                mass_entry_minutes: 15,
-                    night_activity: true,
-                        night_activity_start: '22:00',
-                            night_activity_end: '06:00',
-                                first_entry: false,
-                                    exit_without_entry: true,
-                                        low_weekly_attendance: true,
-                                            low_weekly_attendance_threshold: 70,
-                                                attendance_record: false,
-                                                    contractor_inactive: true,
-                                                        contractor_inactive_days: 7,
-                                                            exponential_growth: true,
-                                                                exponential_growth_threshold: 30,
-                                                                    accident_reported: true,
-                                                                        safety_milestone: false,
-                                                                            safety_milestone_days: 30,
-                                                                                weather_alert: true,
-                                                                                    attendance_prediction: false,
-                                                                                        birthday: false,
-                                                                                            birthday_alert_time: '09:00',
-                                                                                                worker_of_month: false,
-                                                                                                    meeting_reminder: true,
-                                                                                                        meeting_reminder_minutes: 30,
-                                                                                                            announcement: true,
-                                                                                                                inspector_visit: true,
+
 
 const alertCategories = [
     {
@@ -217,6 +187,7 @@ export function PersonalNotificationSettings() {
         overtime: true,
         overtime_hours: 12,
         unusual_rotation: true,
+        unusual_rotation_threshold: 3,
         mass_entry: true,
         mass_entry_threshold: 20,
         mass_entry_minutes: 15,
@@ -234,11 +205,14 @@ export function PersonalNotificationSettings() {
         exponential_growth_threshold: 30,
         accident_reported: true,
         safety_milestone: false,
+        safety_milestone_days: 30,
         weather_alert: true,
         attendance_prediction: false,
         birthday: false,
+        birthday_alert_time: '09:00',
         worker_of_month: false,
         meeting_reminder: true,
+        meeting_reminder_minutes: 60,
         announcement: true,
         inspector_visit: true,
     });
@@ -504,27 +478,29 @@ export function PersonalNotificationSettings() {
                                                 </div>
                                             )}
                                         </div>
-                                    );
-                        })}
+                                    )}
                                 </div>
+                            );
+                        })}
+                    </div>
                 </div>
             ))}
 
-                    <div className="flex justify-end gap-2 pt-4">
-                        <Button onClick={handleSave} disabled={saving}>
-                            {saving ? (
-                                <>
-                                    <Spinner className="h-4 w-4 mr-2" />
-                                    Guardando...
-                                </>
-                            ) : (
-                                <>
-                                    <Save className="h-4 w-4 mr-2" />
-                                    Guardar Preferencias
-                                </>
-                            )}
-                        </Button>
-                    </div>
-                </div>
-            );
+            <div className="flex justify-end gap-2 pt-4">
+                <Button onClick={handleSave} disabled={saving}>
+                    {saving ? (
+                        <>
+                            <Spinner className="h-4 w-4 mr-2" />
+                            Guardando...
+                        </>
+                    ) : (
+                        <>
+                            <Save className="h-4 w-4 mr-2" />
+                            Guardar Preferencias
+                        </>
+                    )}
+                </Button>
+            </div>
+        </div>
+    );
 }
