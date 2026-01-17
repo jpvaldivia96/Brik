@@ -9,8 +9,9 @@ import { EditWorkerModal } from './EditWorkerModal';
 import { ExportButton } from './ExportButton';
 import { ExitQueueModal } from './ExitQueueModal';
 import { EmergencyRollCall } from './EmergencyRollCall';
-import { Users, AlertTriangle, Clock, Building2, UserCheck, UserMinus, Siren } from 'lucide-react';
+import { Users, AlertTriangle, Clock, Building2, UserCheck, UserMinus, Siren, BarChart } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import StatisticsPanel from '@/components/analytics/StatisticsPanel';
 
 interface InsideLog {
   id: string;
@@ -52,7 +53,7 @@ export default function DashboardPanel() {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedDate, setSelectedDate] = useState(today);
   const [activeFilters, setActiveFilters] = useState<Set<string>>(new Set());
-  const [activeTab, setActiveTab] = useState<'people' | 'companies'>('people');
+  const [activeTab, setActiveTab] = useState<'people' | 'companies' | 'stats'>('people');
   const [statusFilter, setStatusFilter] = useState<'all' | 'crit' | 'warn' | 'ok'>('all');
   const [sortBy, setSortBy] = useState<'name' | 'status' | 'entry'>('entry');
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc');
@@ -391,7 +392,7 @@ export default function DashboardPanel() {
       ) : (
         <>
           <div className="card-cosmos overflow-hidden">
-            <div className="flex items-center gap-1 p-2 border-b border-border bg-card/30">
+            <div className="flex items-center justify-center gap-1 p-2 border-b border-border bg-card/30">
               <button
                 onClick={() => setActiveTab('people')}
                 className={cn(
@@ -416,17 +417,31 @@ export default function DashboardPanel() {
                 <Building2 className="w-4 h-4 inline mr-2" />
                 Contratistas
               </button>
+              <button
+                onClick={() => setActiveTab('stats')}
+                className={cn(
+                  "px-4 py-2 rounded-lg text-sm font-medium transition-colors",
+                  activeTab === 'stats'
+                    ? "bg-primary text-primary-foreground"
+                    : "text-white/60 hover:text-white/90 hover:bg-white/10"
+                )}
+              >
+                <BarChart className="w-4 h-4 inline mr-2" />
+                Estadísticas
+              </button>
             </div>
 
             <div className="p-4">
-              <AttendanceFilters
-                searchQuery={searchQuery}
-                onSearchChange={setSearchQuery}
-                selectedDate={selectedDate}
-                onDateChange={setSelectedDate}
-                filters={filterBadges}
-                onFilterClick={toggleFilter}
-              />
+              {activeTab !== 'stats' && (
+                <AttendanceFilters
+                  searchQuery={searchQuery}
+                  onSearchChange={setSearchQuery}
+                  selectedDate={selectedDate}
+                  onDateChange={setSelectedDate}
+                  filters={filterBadges}
+                  onFilterClick={toggleFilter}
+                />
+              )}
 
               <div className="flex items-center gap-2 -mt-1 mb-4">
                 <div className="flex-1" />
@@ -448,7 +463,9 @@ export default function DashboardPanel() {
                 />
               </div>
 
-              {activeTab === 'people' ? (
+              {activeTab === 'stats' ? (
+                <StatisticsPanel />
+              ) : activeTab === 'people' ? (
                 <>
                   <div className="hidden md:grid grid-cols-[auto_1fr_120px_100px] gap-4 items-center px-4 py-2 text-xs text-white/60 uppercase tracking-wider border-b border-border">
                     <div className="w-10"></div>
