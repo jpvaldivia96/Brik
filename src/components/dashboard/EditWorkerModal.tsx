@@ -35,12 +35,14 @@ interface WorkerData {
         blood_type: string | null;
         night_permit_permanent?: boolean;
         night_permit_until?: string | null;
+        is_inspector?: boolean;
     };
 }
 
 // Extracted View Mode Component
 const ViewForm = ({ workerData, form, handleClose, setEditing }: any) => {
     const hasPermit = form.nightPermitPermanent || (form.nightPermitUntil && new Date(form.nightPermitUntil) > new Date());
+    const isInspector = form.isInspector;
 
     return (
         <div className="space-y-4">
@@ -64,12 +66,20 @@ const ViewForm = ({ workerData, form, handleClose, setEditing }: any) => {
                     <p className="text-muted-foreground">CI: {workerData?.ci}</p>
                     <p className="text-sm text-muted-foreground">{workerData?.contractor || 'Sin contratista'}</p>
 
-                    {hasPermit && (
-                        <div className="mt-2 inline-flex items-center gap-1.5 px-2 py-1 rounded-md bg-indigo-500/10 text-indigo-400 text-xs font-medium border border-indigo-500/20">
-                            <Moon className="w-3 h-3" />
-                            {form.nightPermitPermanent ? 'Pase nocturno permanente' : `Pase hasta ${new Date(form.nightPermitUntil).toLocaleDateString()}`}
-                        </div>
-                    )}
+                    <div className="flex flex-wrap gap-1 mt-2">
+                        {isInspector && (
+                            <div className="inline-flex items-center gap-1.5 px-2 py-1 rounded-md bg-purple-500/10 text-purple-400 text-xs font-medium border border-purple-500/20">
+                                <UserCheck className="w-3 h-3" />
+                                Inspector
+                            </div>
+                        )}
+                        {hasPermit && (
+                            <div className="inline-flex items-center gap-1.5 px-2 py-1 rounded-md bg-indigo-500/10 text-indigo-400 text-xs font-medium border border-indigo-500/20">
+                                <Moon className="w-3 h-3" />
+                                {form.nightPermitPermanent ? 'Nocturno Permanente' : `Nocturno hasta ${new Date(form.nightPermitUntil).toLocaleDateString()}`}
+                            </div>
+                        )}
+                    </div>
                 </div>
             </div>
 
@@ -116,6 +126,8 @@ const ViewForm = ({ workerData, form, handleClose, setEditing }: any) => {
 };
 
 // Extracted Edit Mode Component
+import { UserCheck } from 'lucide-react';
+
 const EditForm = ({ form, setForm, saving, handleSave, setEditing }: any) => (
     <div className="space-y-4">
         <div className="grid grid-cols-2 gap-3">
@@ -197,9 +209,26 @@ const EditForm = ({ form, setForm, saving, handleSave, setEditing }: any) => (
 
         {/* Permissions Section */}
         <div className="space-y-3 pt-2">
-            <Label className="text-xs font-semibold uppercase text-muted-foreground tracking-wider">Permisos especiales</Label>
+            <Label className="text-xs font-semibold uppercase text-muted-foreground tracking-wider">Permisos especiales & Roles</Label>
 
             <div className="p-3 bg-card/50 rounded-xl border border-border space-y-4">
+                {/* Inspector Flag */}
+                <div className="flex items-center gap-3">
+                    <input
+                        type="checkbox"
+                        id="isInspector"
+                        checked={form.isInspector}
+                        onChange={(e) => setForm({ ...form, isInspector: e.target.checked })}
+                        className="w-4 h-4 rounded border-gray-400 bg-transparent text-purple-500 focus:ring-purple-500"
+                    />
+                    <Label htmlFor="isInspector" className="cursor-pointer flex items-center gap-2">
+                        <UserCheck className="w-4 h-4 text-purple-400" />
+                        <span>Es Inspector / Fiscal de Obra</span>
+                    </Label>
+                </div>
+
+                <div className="h-px bg-border/50" />
+
                 {/* Permanent Permit */}
                 <div className="flex items-center gap-3">
                     <input
@@ -284,6 +313,7 @@ export function EditWorkerModal({ open, onClose, personId, onSaved }: EditWorker
         inductionCompleted: false,
         nightPermitPermanent: false,
         nightPermitUntil: '',
+        isInspector: false,
     });
     const { toast } = useToast();
 
@@ -326,6 +356,7 @@ export function EditWorkerModal({ open, onClose, personId, onSaved }: EditWorker
             nightPermitPermanent: wp?.night_permit_permanent || false,
             // Handle null or date string
             nightPermitUntil: wp?.night_permit_until ? wp.night_permit_until.split('T')[0] : '',
+            isInspector: wp?.is_inspector || false,
         });
         setLoading(false);
     };
@@ -357,6 +388,7 @@ export function EditWorkerModal({ open, onClose, personId, onSaved }: EditWorker
                     induction_date: form.inductionCompleted ? new Date().toISOString().split('T')[0] : null,
                     night_permit_permanent: form.nightPermitPermanent,
                     night_permit_until: form.nightPermitUntil || null,
+                    is_inspector: form.isInspector,
                 }, { onConflict: 'person_id' });
 
             if (profileError) throw profileError;
@@ -371,7 +403,7 @@ export function EditWorkerModal({ open, onClose, personId, onSaved }: EditWorker
                     entityId: personId,
                     before: { ci: workerData.ci, full_name: workerData.full_name, contractor: workerData.contractor },
                     after: { ci: form.ci.trim(), full_name: form.fullName.trim(), contractor: form.contractor.trim() },
-                    note: `Editado por guardia`,
+                    note: `Editado por guardia (Inspector: ${form.isInspector ? 'Sí' : 'No'})`,
                 });
             }
 

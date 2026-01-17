@@ -43,6 +43,7 @@ export default function NewWorkerTab() {
     emergencyContact: '',
     bloodType: '',
     inductionCompleted: false,
+    isInspector: false,
   });
 
   const captchaRef = useRef<HCaptchaRef>(null);
@@ -255,6 +256,7 @@ export default function NewWorkerTab() {
           phone: form.phone.trim() || null,
           emergency_contact: form.emergencyContact.trim() || null,
           blood_type: form.bloodType.trim() || null,
+          is_inspector: form.isInspector,
         });
 
       if (profileError) throw profileError;
@@ -299,7 +301,7 @@ export default function NewWorkerTab() {
         });
       }
 
-      setForm({ ci: '', fullName: '', contractor: '', role: '', insuranceNumber: '', insuranceExpiry: '', phone: '', emergencyContact: '', bloodType: '', inductionCompleted: false });
+      setForm({ ci: '', fullName: '', contractor: '', role: '', insuranceNumber: '', insuranceExpiry: '', phone: '', emergencyContact: '', bloodType: '', inductionCompleted: false, isInspector: false });
       setCapturedImage(null);
       setFaceDescriptor(null);
     } catch (err: any) {
@@ -446,8 +448,28 @@ export default function NewWorkerTab() {
           </div>
         </div>
 
-        {/* Induction Checkbox */}
+        {/* Inspector Checkbox */}
         <div className="flex items-center gap-3 p-4 bg-card/50 rounded-xl border border-border mt-4">
+          <input
+            type="checkbox"
+            id="isInspector"
+            checked={form.isInspector}
+            onChange={(e) => setForm({ ...form, isInspector: e.target.checked })}
+            className="w-5 h-5 rounded border-border text-purple-500 focus:ring-purple-500"
+          />
+          <Label htmlFor="isInspector" className="flex-1 cursor-pointer">
+            <span className="font-medium flex items-center gap-2">
+              <UserCheck className="w-4 h-4 text-purple-400" />
+              Es Inspector / Fiscal de Obra
+            </span>
+            <p className="text-xs text-muted-foreground mt-0.5">
+              Marcar si esta persona es un inspector (activará alerta de visita de inspector)
+            </p>
+          </Label>
+        </div>
+
+        {/* Induction Checkbox */}
+        <div className="flex items-center gap-3 p-4 bg-card/50 rounded-xl border border-border mt-2">
           <input
             type="checkbox"
             id="inductionCompleted"

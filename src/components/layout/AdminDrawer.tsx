@@ -1,6 +1,7 @@
+```
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { Button } from '@/components/ui/button';
-import { Settings, FileText, Wrench, Upload, History, LayoutDashboard, X, Users, UserCog, Bell } from 'lucide-react';
+import { Settings, FileText, Wrench, Upload, History, LayoutDashboard, X, Users, UserCog, Bell, BarChart } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useSite } from '@/contexts/SiteContext';
 
@@ -16,6 +17,7 @@ const adminOptions = [
   { id: 'people', icon: Users, label: 'Personal', description: 'Gestionar y eliminar', supervisorOnly: false },
   { id: 'users', icon: UserCog, label: 'Usuarios', description: 'Gestionar accesos', supervisorOnly: true },
   { id: 'alerts', icon: Bell, label: 'Mis Alertas', description: 'Preferencias personales', supervisorOnly: false },
+  { id: 'stats', icon: BarChart, label: 'Estadísticas', description: 'Análisis y reportes', supervisorOnly: true },
   { id: 'settings', icon: Settings, label: 'Configuración', description: 'Ajustes de la obra', supervisorOnly: true },
   { id: 'audit', icon: History, label: 'Auditoría', description: 'Historial de cambios', supervisorOnly: true },
   { id: 'tools', icon: Wrench, label: 'Herramientas', description: 'Correcciones y ajustes', supervisorOnly: true },

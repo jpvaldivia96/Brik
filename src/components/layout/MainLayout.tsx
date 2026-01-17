@@ -24,6 +24,7 @@ import ImportTab from '@/components/supervisor/ImportTab';
 import PeopleTab from '@/components/supervisor/PeopleTab';
 import UserManagementTab from '@/components/supervisor/UserManagementTab';
 import { PersonalNotificationSettings } from '@/components/settings/PersonalNotificationSettings';
+import StatisticsPanel from '@/components/analytics/StatisticsPanel';
 import { UsageBanner } from '@/components/subscription/UsageBanner';
 import { LimitBlockModal } from '@/components/subscription/LimitBlockModal';
 import { useSubscription } from '@/hooks/useSubscription';
@@ -122,6 +123,8 @@ export default function MainLayout() {
         return <PeopleTab />;
       case 'users':
         return <UserManagementTab />;
+      case 'stats':
+        return <StatisticsPanel />;
       case 'alerts':
         return <PersonalNotificationSettings />;
 
