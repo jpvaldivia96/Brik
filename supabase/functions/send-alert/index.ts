@@ -102,31 +102,6 @@ serve(async (req) => {
             throw new Error('Missing required fields: site_id, alert_type, title, body')
         }
 
-        // Check alert settings to see if this alert type is enabled
-        const { data: settings } = await supabase
-            .from('alert_settings')
-            .select('*')
-            .eq('site_id', site_id)
-            .single()
-
-        if (settings) {
-            const enabledMap: Record<string, boolean> = {
-                'contractor_attendance': settings.contractor_attendance_enabled,
-                'favorite_entry': settings.favorite_entry_enabled,
-                'blocked_entry': settings.blocked_entry_enabled,
-                'min_capacity': settings.min_capacity_enabled,
-                'max_capacity': settings.max_capacity_enabled,
-                'overtime': settings.overtime_enabled,
-            }
-
-            if (enabledMap[alert_type] === false) {
-                return new Response(
-                    JSON.stringify({ success: false, message: 'Alert type disabled for this site' }),
-                    { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-                )
-            }
-        }
-
         // Get supervisors of this site
         const { data: memberships } = await supabase
             .from('site_memberships')
@@ -143,21 +118,21 @@ serve(async (req) => {
 
         const supervisorIds = memberships.map((m: any) => m.user_id)
 
-        // Filter supervisors based on personal notification preferences
+        // Filter supervisors based on personal notification preferences ONLY
         const { data: preferences } = await supabase
             .from('user_notification_preferences')
             .select('user_id, ' + alert_type)
             .eq('site_id', site_id)
             .in('user_id', supervisorIds)
 
-        // Keep only users who have this alert enabled
+        // Keep only users who have this alert enabled personally
         const filteredUserIds = preferences
             ?.filter((pref: any) => pref[alert_type] === true)
-            .map((pref: any) => pref.user_id) || supervisorIds
+            .map((pref: any) => pref.user_id) || []
 
         if (filteredUserIds.length === 0) {
             return new Response(
-                JSON.stringify({ success: false, message: 'No users have this alert enabled' }),
+                JSON.stringify({ success: false, message: 'No users have this alert enabled in their personal preferences' }),
                 { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
             )
         }

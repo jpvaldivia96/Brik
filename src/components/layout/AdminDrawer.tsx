@@ -15,7 +15,7 @@ const adminOptions = [
   { id: 'dashboard', icon: LayoutDashboard, label: 'Dashboard', description: 'KPIs y resumen', supervisorOnly: false },
   { id: 'people', icon: Users, label: 'Personal', description: 'Gestionar y eliminar', supervisorOnly: false },
   { id: 'users', icon: UserCog, label: 'Usuarios', description: 'Gestionar accesos', supervisorOnly: true },
-  { id: 'alerts', icon: Bell, label: 'Alertas', description: 'Notificaciones push', supervisorOnly: true },
+  { id: 'alerts', icon: Bell, label: 'Mis Alertas', description: 'Preferencias personales', supervisorOnly: false },
   { id: 'settings', icon: Settings, label: 'Configuración', description: 'Ajustes de la obra', supervisorOnly: true },
   { id: 'audit', icon: History, label: 'Auditoría', description: 'Historial de cambios', supervisorOnly: true },
   { id: 'tools', icon: Wrench, label: 'Herramientas', description: 'Correcciones y ajustes', supervisorOnly: true },

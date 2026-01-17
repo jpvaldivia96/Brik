@@ -364,7 +364,7 @@ export function AlertSettingsTab() {
             {/* Info Note */}
             <div className="bg-blue-500/10 border border-blue-500/30 rounded-xl p-4">
                 <p className="text-sm text-blue-300">
-                    <strong>Nota:</strong> Las notificaciones se envían a todos los supervisores de esta obra que tengan la app instalada.
+                    <strong>Nota:</strong> Estas configuraciones aplican a nivel de <strong>obra</strong>. Cada supervisor puede personalizar sus preferencias individuales en Settings → Notificaciones. Solo recibirán alertas si están habilitadas en AMBOS niveles.
                 </p>
             </div>
         </div>
