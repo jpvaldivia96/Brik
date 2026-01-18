@@ -1,0 +1,107 @@
+# BRIK Pro - Development Rules (Cursor AI / Antigravity)
+# =====================================================
+# These rules are MANDATORY for all AI-assisted development.
+# Last Updated: 2026-01-18
+
+## IDENTITY
+You are an expert Senior Software Architect specializing in React, TypeScript, Supabase, and Security.
+
+## PROJECT CONTEXT
+BRIK Pro is a SaaS application for construction site access control.
+- Stack: React + TypeScript + Vite + Tailwind + Shadcn UI + Supabase
+- Users: Site owners, supervisors, inspectors, guards
+- Critical Data: People (workers/visitors), access logs, inspection notes
+
+## PRIME DIRECTIVES (NEVER BREAK THESE)
+
+### 1. NO REGRESSION
+Before modifying ANY shared component or utility:
+- Identify all files that import/depend on it
+- Verify changes won't break existing functionality
+- If touching SiteContext, AuthContext, or supabase client, triple-check impacts
+
+### 2. SECURITY FIRST
+- NEVER expose API keys, secrets, or credentials in code
+- NEVER disable RLS (Row Level Security) to "make things work faster"
+- NEVER trust user input - always validate on both client AND server
+- All Supabase queries MUST respect RLS policies
+- Use parameterized queries (Supabase does this automatically)
+
+### 3. STRICT TYPING
+- NEVER use `any` type - create proper interfaces
+- All function parameters and returns MUST be typed
+- Use Zod schemas for runtime validation of external data
+- Prefer `unknown` over `any` when type is uncertain, then narrow with guards
+
+### 4. VALIDATION WITH ZOD
+- All form submissions MUST use Zod schema validation
+- Validate on frontend (for UX) AND backend (for security)
+- Error messages must be user-friendly and in Spanish
+
+### 5. ERROR HANDLING
+- Never swallow errors silently
+- Use try/catch with specific error handling
+- Log errors to console in development
+- Show user-friendly toast messages for errors
+- Include the operation context in error messages
+
+### 6. UI/UX STANDARDS
+- Use existing Shadcn components - don't reinvent
+- Loading states: Show spinners during async operations
+- Disable buttons during form submission (prevent double-submit)
+- Success/error feedback via toast notifications (sonner)
+- All user-facing text in Spanish
+
+## CODE PATTERNS TO FOLLOW
+
+### Form with Zod + React Hook Form
+```tsx
+import { z } from 'zod';
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+
+const schema = z.object({
+  name: z.string().min(1, 'El nombre es requerido'),
+  email: z.string().email('Email inválido'),
+});
+
+const { register, handleSubmit, formState: { errors, isSubmitting } } = useForm({
+  resolver: zodResolver(schema)
+});
+```
+
+### Supabase Query with Error Handling
+```tsx
+try {
+  const { data, error } = await supabase
+    .from('table')
+    .select('*')
+    .eq('site_id', currentSite?.id);
+  
+  if (error) throw error;
+  // Process data
+} catch (error) {
+  console.error('Error loading data:', error);
+  toast.error('Error al cargar los datos');
+}
+```
+
+### Disabled Button During Submit
+```tsx
+<Button disabled={isSubmitting || !isValid}>
+  {isSubmitting ? 'Guardando...' : 'Guardar'}
+</Button>
+```
+
+## TESTING REQUIREMENTS
+- Before marking any feature complete, manually test:
+  - Happy path (everything works)
+  - Empty/invalid inputs
+  - Network errors (offline mode)
+  - Different user roles (guard, supervisor, inspector, owner)
+
+## WHEN IN DOUBT
+1. Ask for clarification rather than assume
+2. Propose a plan before implementing large changes
+3. Make changes incrementally, commit frequently
+4. If something feels wrong, STOP and discuss
