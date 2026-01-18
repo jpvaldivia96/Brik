@@ -72,13 +72,33 @@ export default function InspectionNotesPanel() {
     const fetchNotes = async () => {
         setLoading(true);
         try {
-            const { data, error } = await (supabase.rpc as any)('search_inspection_notes', {
-                target_site_id: currentSite?.id
-            });
+            // Direct query instead of RPC to avoid function issues
+            const { data, error } = await (supabase as any)
+                .from('inspection_notes')
+                .select('*')
+                .eq('site_id', currentSite?.id)
+                .order('date', { ascending: false });
 
             if (error) throw error;
-            setNotes(data || []);
-            setFilteredNotes(data || []);
+
+            // Get inspector emails for each note
+            const notesWithEmail: InspectionNote[] = [];
+            for (const note of (data || [])) {
+                // Try to get email from invitations
+                const { data: invitation } = await (supabase as any)
+                    .from('user_invitations')
+                    .select('email')
+                    .eq('accepted_by', note.inspector_user_id)
+                    .maybeSingle();
+
+                notesWithEmail.push({
+                    ...note,
+                    inspector_email: invitation?.email || 'Usuario del sistema'
+                });
+            }
+
+            setNotes(notesWithEmail);
+            setFilteredNotes(notesWithEmail);
         } catch (error) {
             console.error('Error fetching inspection notes:', error);
             toast.error('Error al cargar notas de control');
