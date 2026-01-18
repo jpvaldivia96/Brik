@@ -12,14 +12,18 @@ import { useToast } from '@/hooks/use-toast';
 
 export default function SettingsTab() {
   const { currentSite, currentSettings, refreshSites, selectSite } = useSite();
-  const { signOut } = useAuth();
+  const { signOut, user } = useAuth();
   const { toast } = useToast();
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [isOwner, setIsOwner] = useState(false);
   const [form, setForm] = useState({
     warn_hours: 10,
     crit_hours: 12,
     seguro_warn_days: 30,
+  });
+  const [siteForm, setSiteForm] = useState({
+    name: '',
   });
 
   useEffect(() => {
@@ -30,7 +34,29 @@ export default function SettingsTab() {
         seguro_warn_days: currentSettings.seguro_warn_days || 30,
       });
     }
-  }, [currentSettings]);
+    if (currentSite) {
+      setSiteForm({
+        name: currentSite.name || '',
+      });
+      checkIfOwner();
+    }
+  }, [currentSettings, currentSite]);
+
+  const checkIfOwner = async () => {
+    if (!currentSite || !user) return;
+    try {
+      const { data: membership } = await supabase
+        .from('site_memberships')
+        .select('role')
+        .eq('site_id', currentSite.id)
+        .eq('user_id', user.id)
+        .single();
+
+      setIsOwner(membership?.role === 'owner' || membership?.role === 'admin');
+    } catch (error) {
+      setIsOwner(false);
+    }
+  };
 
   const handleSave = async () => {
     if (!currentSite) return;
@@ -63,6 +89,79 @@ export default function SettingsTab() {
       toast({ title: 'Error', description: err.message, variant: 'destructive' });
     } finally {
       setSaving(false);
+    }
+  };
+
+  const handleSaveSiteInfo = async () => {
+    if (!currentSite || !isOwner) return;
+    setSaving(true);
+
+    try {
+      const { error } = await supabase
+        .from('sites')
+        .update({
+          name: siteForm.name,
+        })
+        .eq('id', currentSite.id);
+
+      if (error) throw error;
+
+      // Log audit event
+      await supabase.from('audit_events').insert({
+        site_id: currentSite.id,
+        action: 'SITE_INFO_UPDATED',
+        entity_type: 'sites',
+        entity_id: currentSite.id,
+        after: siteForm,
+      });
+
+      await refreshSites();
+      toast({ title: 'Información actualizada', description: 'Los datos de la obra se guardaron correctamente.' });
+    } catch (err: any) {
+      toast({ title: 'Error', description: err.message, variant: 'destructive' });
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleExportData = async () => {
+    if (!currentSite || !isOwner) return;
+    setLoading(true);
+
+    try {
+      // Fetch all site data for export
+      const [accessLogs, people, settings, memberships, invitations] = await Promise.all([
+        supabase.from('access_logs').select('*').eq('site_id', currentSite.id),
+        supabase.from('people').select('*').eq('site_id', currentSite.id),
+        supabase.from('site_settings').select('*').eq('site_id', currentSite.id),
+        supabase.from('site_memberships').select('*').eq('site_id', currentSite.id),
+        supabase.from('user_invitations').select('*').eq('site_id', currentSite.id),
+      ]);
+
+      const exportData = {
+        site: currentSite,
+        access_logs: accessLogs.data || [],
+        people: people.data || [],
+        settings: settings.data || [],
+        memberships: memberships.data || [],
+        invitations: invitations.data || [],
+        exported_at: new Date().toISOString(),
+      };
+
+      // Create download
+      const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `brik-backup-${currentSite.name}-${new Date().toISOString().split('T')[0]}.json`;
+      a.click();
+      URL.revokeObjectURL(url);
+
+      toast({ title: 'Datos exportados', description: 'Se descargó el backup completo del sitio.' });
+    } catch (err: any) {
+      toast({ title: 'Error', description: err.message, variant: 'destructive' });
+    } finally {
+      setLoading(false);
     }
   };
 
