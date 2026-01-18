@@ -41,6 +41,7 @@ export default function UserManagementTab() {
     const [loading, setLoading] = useState(true);
     const [inviting, setInviting] = useState(false);
     const [showInviteForm, setShowInviteForm] = useState(false);
+    const [isOwner, setIsOwner] = useState(false);
 
     // Invite form
     const [inviteEmail, setInviteEmail] = useState('');
@@ -50,6 +51,7 @@ export default function UserManagementTab() {
     useEffect(() => {
         if (currentSite) {
             loadData();
+            checkIfOwner();
         }
     }, [currentSite]);
 
@@ -105,6 +107,82 @@ export default function UserManagementTab() {
             console.error('Error loading users:', error);
         } finally {
             setLoading(false);
+        }
+    };
+
+    const checkIfOwner = async () => {
+        if (!currentSite || !user) return;
+        try {
+            const { data: membership } = await supabase
+                .from('site_memberships')
+                .select('role')
+                .eq('site_id', currentSite.id)
+                .eq('user_id', user.id)
+                .single();
+
+            setIsOwner(membership?.role === 'owner' || membership?.role === 'admin');
+        } catch (error) {
+            setIsOwner(false);
+        }
+    };
+
+    const deleteUser = async (userId: string) => {
+        if (!currentSite || userId === user?.id) {
+            toast({
+                title: 'Error',
+                description: 'No puedes eliminarte a ti mismo',
+                variant: 'destructive',
+            });
+            return;
+        }
+
+        if (!confirm('¿Estás seguro de eliminar este usuario? Esta acción no se puede deshacer.')) {
+            return;
+        }
+
+        try {
+            await supabase
+                .from('site_memberships')
+                .delete()
+                .eq('site_id', currentSite.id)
+                .eq('user_id', userId);
+
+            toast({ title: 'Usuario eliminado correctamente' });
+            loadData();
+        } catch (error: any) {
+            toast({
+                title: 'Error',
+                description: error.message,
+                variant: 'destructive',
+            });
+        }
+    };
+
+    const changeUserRole = async (userId: string, newRole: RoleEnum) => {
+        if (!currentSite || userId === user?.id) {
+            toast({
+                title: 'Error',
+                description: 'No puedes cambiar tu propio rol',
+                variant: 'destructive',
+            });
+            return;
+        }
+
+        try {
+            await supabase
+                .from('site_memberships')
+                .update({ role: newRole })
+                .eq('site_id', currentSite.id)
+                .eq('user_id', userId);
+
+            toast({ title: 'Rol actualizado correctamente' });
+            loadData();
+        } catch (error: any) {
+            toast({
+                title: 'Error',
+                description: error.message,
+                variant: 'destructive',
+            });
         }
     };
 
@@ -358,7 +436,50 @@ export default function UserManagementTab() {
                                     >
                                         <Bell className="w-4 h-4" />
                                     </button>
-                                    {getRoleBadge(u.role)}
+
+                                    {/* Role badge/dropdown */}
+                                    {isOwner && u.user_id !== user?.id ? (
+                                        <Select value={u.role} onValueChange={(newRole) => changeUserRole(u.user_id, newRole as RoleEnum)}>
+                                            <SelectTrigger className="w-[120px] h-7 bg-white/10 border-white/20 text-white text-xs">
+                                                <SelectValue />
+                                            </SelectTrigger>
+                                            <SelectContent className="bg-slate-800 border-white/10">
+                                                <SelectItem value="guard" className="text-white text-xs">
+                                                    <div className="flex items-center gap-2">
+                                                        <Shield className="w-3 h-3 text-blue-400" />
+                                                        Guardia
+                                                    </div>
+                                                </SelectItem>
+                                                <SelectItem value="inspector" className="text-white text-xs">
+                                                    <div className="flex items-center gap-2">
+                                                        <Shield className="w-3 h-3 text-orange-400" />
+                                                        Inspector
+                                                    </div>
+                                                </SelectItem>
+                                                <SelectItem value="supervisor" className="text-white text-xs">
+                                                    <div className="flex items-center gap-2">
+                                                        <Shield className="w-3 h-3 text-purple-400" />
+                                                        Supervisor
+                                                    </div>
+                                                </SelectItem>
+                                            </SelectContent>
+                                        </Select>
+                                    ) : (
+                                        getRoleBadge(u.role)
+                                    )}
+
+                                    {/* Delete button - only for owner and not self */}
+                                    {isOwner && u.user_id !== user?.id && (
+                                        <Button
+                                            size="sm"
+                                            variant="ghost"
+                                            onClick={() => deleteUser(u.user_id)}
+                                            className="text-white/50 hover:text-red-400 h-7 w-7 p-0"
+                                            title="Eliminar usuario"
+                                        >
+                                            <Trash2 className="w-4 h-4" />
+                                        </Button>
+                                    )}
                                 </div>
                             </div>
                         ))}
