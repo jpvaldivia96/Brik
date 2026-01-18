@@ -11,6 +11,7 @@ import { es } from 'date-fns/locale';
 import InspectionNoteEditor from './InspectionNoteEditor';
 import InspectionNoteViewer from './InspectionNoteViewer';
 import { toast } from 'sonner';
+import { useAuth } from '@/contexts/AuthContext';
 
 interface Worker {
     id: string;
@@ -46,6 +47,13 @@ export default function InspectionNotesPanel() {
     const [showViewer, setShowViewer] = useState(false);
     const [selectedNote, setSelectedNote] = useState<InspectionNote | null>(null);
     const [editMode, setEditMode] = useState(false);
+    const { user } = useAuth();
+
+    // Helper to strip HTML tags for preview
+    const stripHtml = (html: string): string => {
+        const doc = new DOMParser().parseFromString(html, 'text/html');
+        return doc.body.textContent || '';
+    };
 
     useEffect(() => {
         if (currentSite) {
@@ -92,12 +100,21 @@ export default function InspectionNotesPanel() {
             // Get inspector emails and workers for each note
             const notesWithDetails: InspectionNote[] = [];
             for (const note of (data || [])) {
-                // Get email
-                const { data: invitation } = await (supabase as any)
-                    .from('user_invitations')
-                    .select('email')
-                    .eq('accepted_by', note.inspector_user_id)
-                    .maybeSingle();
+                // Get email - if current user is the inspector, use their email directly
+                let inspectorEmail = 'Usuario del sistema';
+                if (user && note.inspector_user_id === user.id) {
+                    inspectorEmail = user.email || 'Usuario del sistema';
+                } else {
+                    // Try to get from invitations
+                    const { data: invitation } = await (supabase as any)
+                        .from('user_invitations')
+                        .select('email')
+                        .eq('accepted_by', note.inspector_user_id)
+                        .maybeSingle();
+                    if (invitation?.email) {
+                        inspectorEmail = invitation.email;
+                    }
+                }
 
                 // Get workers associated with this note
                 const { data: workerLinks } = await (supabase as any)
@@ -116,7 +133,7 @@ export default function InspectionNotesPanel() {
 
                 notesWithDetails.push({
                     ...note,
-                    inspector_email: invitation?.email || 'Usuario del sistema',
+                    inspector_email: inspectorEmail,
                     workers,
                 });
             }
@@ -200,11 +217,11 @@ export default function InspectionNotesPanel() {
             {/* Header */}
             <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
                 <div>
-                    <h2 className="text-2xl font-bold tracking-tight flex items-center gap-2">
+                    <h2 className="text-2xl font-bold tracking-tight flex items-center gap-2 text-white">
                         <FileText className="h-6 w-6" />
                         Control de Obra
                     </h2>
-                    <p className="text-muted-foreground">Notas de fiscalización y seguimiento diario</p>
+                    <p className="text-white/70">Notas de fiscalización y seguimiento diario</p>
                 </div>
                 <Button onClick={handleNewNote} className="gap-2">
                     <PlusCircle className="h-4 w-4" />
@@ -322,8 +339,8 @@ export default function InspectionNotesPanel() {
                                 )}
                                 {/* Note preview */}
                                 <div className="text-sm text-muted-foreground line-clamp-3">
-                                    {note.content.substring(0, 200)}
-                                    {note.content.length > 200 && '...'}
+                                    {stripHtml(note.content).substring(0, 200)}
+                                    {stripHtml(note.content).length > 200 && '...'}
                                 </div>
                             </CardContent>
                         </Card>

@@ -40,9 +40,9 @@ export default function InspectionNoteViewer({ note, onClose, onEdit, canEdit }:
                     </div>
                 </DialogHeader>
 
-                <div className="border border-border rounded-lg p-6 bg-card">
+                <div className="border border-border rounded-lg p-6 bg-amber-50">
                     <div
-                        className="prose prose-sm max-w-none text-white prose-invert"
+                        className="prose prose-sm max-w-none"
                         dangerouslySetInnerHTML={{ __html: note.content }}
                     />
                 </div>
