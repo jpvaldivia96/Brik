@@ -19,6 +19,7 @@ interface SiteUser {
     created_at: string;
     email?: string;
     receive_notifications: boolean;
+    invited_by?: string; // email of inviter
 }
 
 interface Invitation {
@@ -66,27 +67,37 @@ export default function UserManagementTab() {
                 .select('user_id, role, created_at, receive_notifications')
                 .eq('site_id', currentSite.id);
 
-            // Load accepted invitations to get emails
+            // Load accepted invitations to get emails AND inviters
             const { data: acceptedInvites } = await (supabase as any)
                 .from('user_invitations')
-                .select('email, accepted_by')
+                .select('email, accepted_by, invited_by')
                 .eq('site_id', currentSite.id)
                 .not('accepted_at', 'is', null);
 
-            // Create a map of user_id -> email from accepted invitations
+            // Create maps
             const emailMap: Record<string, string> = {};
-            (acceptedInvites || []).forEach((inv: any) => {
+            const inviterMap: Record<string, string> = {};
+
+            for (const inv of (acceptedInvites || [])) {
                 if (inv.accepted_by && inv.email) {
                     emailMap[inv.accepted_by] = inv.email;
-                }
-            });
 
-            // Merge memberships with emails
+                    // Get inviter email if invited_by exists
+                    if (inv.invited_by) {
+                        const { data: inviterUser } = await supabase.auth.admin.getUserById(inv.invited_by);
+                        inviterMap[inv.accepted_by] = inviterUser?.user?.email || 'Sistema';
+                    } else {
+                        inviterMap[inv.accepted_by] = 'Sistema';
+                    }
+                }
+            }
+
+            // Merge memberships with emails and inviters
             const usersWithEmail = (memberships || []).map((m: any) => ({
                 ...m,
-                // Priority: 1) Email from invitation, 2) Current user's email if it matches, 3) undefined
                 email: emailMap[m.user_id] || (m.user_id === user?.id ? user?.email : undefined),
-                receive_notifications: m.receive_notifications ?? true
+                receive_notifications: m.receive_notifications ?? true,
+                invited_by: inviterMap[m.user_id] || 'Desconocido'
             })) as SiteUser[];
 
             setUsers(usersWithEmail);
@@ -174,6 +185,17 @@ export default function UserManagementTab() {
                 .update({ role: newRole })
                 .eq('site_id', currentSite.id)
                 .eq('user_id', userId);
+
+            // Log audit event
+            const oldRole = users.find(u => u.user_id === userId)?.role;
+            await supabase.from('audit_events').insert({
+                site_id: currentSite.id,
+                action: 'ROLE_CHANGED',
+                entity_type: 'site_memberships',
+                entity_id: userId,
+                before: { role: oldRole },
+                after: { role: newRole },
+            });
 
             toast({ title: 'Rol actualizado correctamente' });
             loadData();

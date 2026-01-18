@@ -165,6 +165,76 @@ export default function SettingsTab() {
     }
   };
 
+  const handleDeleteAllLogs = async () => {
+    if (!currentSite || !isOwner) return;
+
+    const siteName = prompt(`⚠️ PELIGRO: Esto eliminará TODOS los registros de acceso.\n\nEscribe el nombre exacto de la obra "${currentSite.name}" para confirmar:`);
+
+    if (siteName !== currentSite.name) {
+      toast({ title: 'Cancelado', description: 'El nombre no coincide.' });
+      return;
+    }
+
+    const finalConfirm = confirm('¿Estás ABSOLUTAMENTE seguro? Esta acción NO se puede deshacer.');
+    if (!finalConfirm) return;
+
+    setLoading(true);
+    try {
+      const { error } = await supabase
+        .from('access_logs')
+        .delete()
+        .eq('site_id', currentSite.id);
+
+      if (error) throw error;
+
+      // Log audit event
+      await supabase.from('audit_events').insert({
+        site_id: currentSite.id,
+        action: 'ALL_LOGS_DELETED',
+        entity_type: 'access_logs',
+        entity_id: currentSite.id,
+      });
+
+      toast({ title: 'Logs eliminados', description: 'Todos los registros de acceso fueron eliminados.' });
+    } catch (err: any) {
+      toast({ title: 'Error', description: err.message, variant: 'destructive' });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleDeactivateSite = async () => {
+    if (!currentSite || !isOwner) return;
+
+    const confirm1 = confirm('⚠️ Esto marcará la obra como inactiva.\n\nLos usuarios no podrán acceder hasta que se reactive.\n\n¿Continuar?');
+    if (!confirm1) return;
+
+    setLoading(true);
+    try {
+      const { error } = await supabase
+        .from('sites')
+        .update({ is_active: false })
+        .eq('id', currentSite.id);
+
+      if (error) throw error;
+
+      //Log audit event
+      await supabase.from('audit_events').insert({
+        site_id: currentSite.id,
+        action: 'SITE_DEACTIVATED',
+        entity_type: 'sites',
+        entity_id: currentSite.id,
+      });
+
+      toast({ title: 'Obra desactivada', description: 'La obra ha sido marcada como inactiva.' });
+      await refreshSites();
+    } catch (err: any) {
+      toast({ title: 'Error', description: err.message, variant: 'destructive' });
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handleChangeSite = () => {
     localStorage.removeItem('brik_current_site');
     sessionStorage.setItem('brik_force_site_selector', 'true');
