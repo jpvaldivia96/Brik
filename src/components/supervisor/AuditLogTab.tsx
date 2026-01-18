@@ -43,6 +43,9 @@ export default function AuditLogTab() {
     'ACCESS_LOG_FORCE_EXIT',
     'SETTINGS_UPDATED',
     'IMPORT_COMPLETED',
+    'ROLE_CHANGED',
+    'SITE_INFO_UPDATED',
+    'ALL_LOGS_DELETED',
   ];
 
   const exportCSV = () => {
@@ -68,6 +71,42 @@ export default function AuditLogTab() {
     const link = document.createElement('a');
     link.href = url;
     link.download = `auditoria_${new Date().toISOString().split('T')[0]}.csv`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  };
+
+  const exportJSON = () => {
+    if (events.length === 0) return;
+
+    const jsonData = {
+      site: currentSite?.name,
+      exported_at: new Date().toISOString(),
+      filters: {
+        date_from: dateFrom || 'all',
+        date_to: dateTo || 'all',
+        action: actionFilter,
+      },
+      total_events: events.length,
+      events: events.map(e => ({
+        timestamp: e.created_at,
+        action: e.action,
+        entity_type: e.entity_type,
+        entity_id: e.entity_id,
+        user_id: e.user_id,
+        role: e.role_snapshot,
+        note: e.note,
+        before: e.before,
+        after: e.after,
+      })),
+    };
+
+    const blob = new Blob([JSON.stringify(jsonData, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `auditoria-${currentSite?.name}-${new Date().toISOString().split('T')[0]}.json`;
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
