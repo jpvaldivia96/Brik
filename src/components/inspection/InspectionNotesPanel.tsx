@@ -5,12 +5,19 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Spinner } from '@/components/ui/spinner';
-import { PlusCircle, Search, Calendar, User, Edit, Eye, FileText } from 'lucide-react';
+import { PlusCircle, Search, Calendar, User, Edit, Eye, FileText, HardHat } from 'lucide-react';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 import InspectionNoteEditor from './InspectionNoteEditor';
 import InspectionNoteViewer from './InspectionNoteViewer';
 import { toast } from 'sonner';
+
+interface Worker {
+    id: string;
+    full_name: string;
+    ci: string;
+    contractor: string | null;
+}
 
 interface InspectionNote {
     id: string;
@@ -21,6 +28,7 @@ interface InspectionNote {
     content: string;
     created_at: string;
     updated_at: string;
+    workers: Worker[];
 }
 
 export default function InspectionNotesPanel() {
@@ -72,7 +80,7 @@ export default function InspectionNotesPanel() {
     const fetchNotes = async () => {
         setLoading(true);
         try {
-            // Direct query instead of RPC to avoid function issues
+            // Direct query to get notes
             const { data, error } = await (supabase as any)
                 .from('inspection_notes')
                 .select('*')
@@ -81,24 +89,40 @@ export default function InspectionNotesPanel() {
 
             if (error) throw error;
 
-            // Get inspector emails for each note
-            const notesWithEmail: InspectionNote[] = [];
+            // Get inspector emails and workers for each note
+            const notesWithDetails: InspectionNote[] = [];
             for (const note of (data || [])) {
-                // Try to get email from invitations
+                // Get email
                 const { data: invitation } = await (supabase as any)
                     .from('user_invitations')
                     .select('email')
                     .eq('accepted_by', note.inspector_user_id)
                     .maybeSingle();
 
-                notesWithEmail.push({
+                // Get workers associated with this note
+                const { data: workerLinks } = await (supabase as any)
+                    .from('inspection_note_workers')
+                    .select('person_id, people:person_id(id, full_name, ci, contractor)')
+                    .eq('note_id', note.id);
+
+                const workers: Worker[] = (workerLinks || [])
+                    .filter((link: any) => link.people)
+                    .map((link: any) => ({
+                        id: link.people.id,
+                        full_name: link.people.full_name,
+                        ci: link.people.ci,
+                        contractor: link.people.contractor,
+                    }));
+
+                notesWithDetails.push({
                     ...note,
-                    inspector_email: invitation?.email || 'Usuario del sistema'
+                    inspector_email: invitation?.email || 'Usuario del sistema',
+                    workers,
                 });
             }
 
-            setNotes(notesWithEmail);
-            setFilteredNotes(notesWithEmail);
+            setNotes(notesWithDetails);
+            setFilteredNotes(notesWithDetails);
         } catch (error) {
             console.error('Error fetching inspection notes:', error);
             toast.error('Error al cargar notas de control');
@@ -281,7 +305,22 @@ export default function InspectionNotesPanel() {
                                     </div>
                                 </div>
                             </CardHeader>
-                            <CardContent>
+                            <CardContent className="space-y-3">
+                                {/* Workers tags */}
+                                {note.workers && note.workers.length > 0 && (
+                                    <div className="flex flex-wrap gap-1.5">
+                                        {note.workers.map(worker => (
+                                            <span
+                                                key={worker.id}
+                                                className="inline-flex items-center gap-1 px-2 py-0.5 bg-orange-500/10 text-orange-600 rounded-full text-xs"
+                                            >
+                                                <HardHat className="h-3 w-3" />
+                                                {worker.full_name}
+                                            </span>
+                                        ))}
+                                    </div>
+                                )}
+                                {/* Note preview */}
                                 <div className="text-sm text-muted-foreground line-clamp-3">
                                     {note.content.substring(0, 200)}
                                     {note.content.length > 200 && '...'}
