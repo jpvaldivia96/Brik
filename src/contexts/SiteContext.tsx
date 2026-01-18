@@ -224,8 +224,8 @@ export function SiteProvider({ children }: { children: React.ReactNode }) {
     fetchSites();
   }, [user]);
 
-  // Supervisor is true when role is supervisor OR when in admin mode
-  const isSupervisor = currentRole === 'supervisor' || isInAdminMode;
+  // Supervisor is true when role is supervisor, owner, admin OR when in admin mode
+  const isSupervisor = ['supervisor', 'owner', 'admin'].includes(currentRole || '') || isInAdminMode;
 
   return (
     <SiteContext.Provider
