@@ -67,40 +67,50 @@ export default function UserManagementTab() {
                 .select('user_id, role, created_at')
                 .eq('site_id', currentSite.id);
 
-            // Load emails directly from auth.users for each user_id
-            const usersWithEmail: SiteUser[] = [];
+            // Load accepted invitations to get invitation emails and inviters
+            const { data: acceptedInvites } = await (supabase as any)
+                .from('user_invitations')
+                .select('email, accepted_by, invited_by')
+                .eq('site_id', currentSite.id)
+                .not('accepted_at', 'is', null);
 
-            for (const m of (memberships || [])) {
-                // Get user email from auth
-                const { data: userData } = await supabase.auth.admin.getUserById(m.user_id);
-                const email = userData?.user?.email;
+            // Create email and inviter maps from invitations
+            const emailMap: Record<string, string> = {};
+            const inviterIdMap: Record<string, string> = {};
 
-                // Get inviter if exists
-                const { data: invitation } = await (supabase as any)
-                    .from('user_invitations')
-                    .select('invited_by')
-                    .eq('site_id', currentSite.id)
-                    .eq('accepted_by', m.user_id)
-                    .not('accepted_at', 'is', null)
-                    .maybeSingle();
-
-                let inviter = 'Desconocido';
-                if (invitation?.invited_by) {
-                    const { data: inviterData } = await supabase.auth.admin.getUserById(invitation.invited_by);
-                    inviter = inviterData?.user?.email || 'Sistema';
-                } else {
-                    inviter = 'Sistema';
+            for (const inv of (acceptedInvites || [])) {
+                if (inv.accepted_by && inv.email) {
+                    emailMap[inv.accepted_by] = inv.email;
+                    if (inv.invited_by) {
+                        inviterIdMap[inv.accepted_by] = inv.invited_by;
+                    }
                 }
-
-                usersWithEmail.push({
-                    user_id: m.user_id,
-                    role: m.role,
-                    created_at: m.created_at,
-                    email: email || undefined,
-                    receive_notifications: true,
-                    invited_by: inviter
-                });
             }
+
+            // Get inviter emails
+            const inviterEmails: Record<string, string> = {};
+            for (const userId of Object.values(inviterIdMap)) {
+                if (!inviterEmails[userId]) {
+                    // Find inviter email from their invitation or if they're current user
+                    if (userId === user?.id) {
+                        inviterEmails[userId] = user.email || 'Sistema';
+                    } else {
+                        const inviterInvite = (acceptedInvites || []).find((inv: any) => inv.accepted_by === userId);
+                        inviterEmails[userId] = inviterInvite?.email || 'Sistema';
+                    }
+                }
+            }
+
+            // Build users list
+            const usersWithEmail: SiteUser[] = (memberships || []).map((m: any) => ({
+                user_id: m.user_id,
+                role: m.role,
+                created_at: m.created_at,
+                // Priority: 1) Current user email, 2) Invitation email, 3) Fallback to ID
+                email: m.user_id === user?.id ? user?.email : (emailMap[m.user_id] || m.user_id.slice(0, 8)),
+                receive_notifications: true,
+                invited_by: inviterIdMap[m.user_id] ? inviterEmails[inviterIdMap[m.user_id]] : 'Sistema'
+            }));
 
             setUsers(usersWithEmail);
 
