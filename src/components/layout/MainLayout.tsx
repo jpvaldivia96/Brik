@@ -84,7 +84,7 @@ function DateTimeDisplay() {
 
 export default function MainLayout() {
   const navigate = useNavigate();
-  const { currentSite, sites, selectSite, isSupervisor, isInAdminMode, exitAdminMode, isPlatformAdmin } = useSite();
+  const { currentSite, sites, selectSite, isSupervisor, isInspector, isInAdminMode, exitAdminMode, isPlatformAdmin } = useSite();
   const { signOut, user } = useAuth();
   const [activeAction, setActiveAction] = useState('');
   const [activeAdminPanel, setActiveAdminPanel] = useState('dashboard');
@@ -251,8 +251,8 @@ export default function MainLayout() {
               </Button>
             )}
 
-            {/* Admin Button - only for supervisors */}
-            {isSupervisor && (
+            {/* Admin Button - for supervisors and inspectors */}
+            {(isSupervisor || isInspector) && (
               <Button
                 variant="ghost"
                 size="icon"
@@ -263,8 +263,8 @@ export default function MainLayout() {
               </Button>
             )}
 
-            {/* Logout Button - only for guards (non-supervisors) */}
-            {!isSupervisor && (
+            {/* Logout Button - for guards and inspectors (non-supervisors) */}
+            {(!isSupervisor || isInspector) && (
               <Button
                 variant="ghost"
                 size="icon"
@@ -292,11 +292,13 @@ export default function MainLayout() {
         <LimitBlockModal onClose={() => setShowLimitModal(false)} />
       )}
 
-      {/* Bottom Action Bar */}
-      <BottomActionBar
-        activeAction={activeAction}
-        onActionChange={handleActionChange}
-      />
+      {/* Bottom Action Bar - NOT for inspectors */}
+      {!isInspector && (
+        <BottomActionBar
+          activeAction={activeAction}
+          onActionChange={handleActionChange}
+        />
+      )}
 
       {/* Admin Drawer */}
       <AdminDrawer
@@ -306,11 +308,13 @@ export default function MainLayout() {
         onPanelChange={setActiveAdminPanel}
       />
 
-      {/* Action Drawer */}
-      <ActionDrawer
-        activeAction={activeAction}
-        onOpenChange={handleDrawerOpenChange}
-      />
+      {/* Action Drawer - NOT for inspectors */}
+      {!isInspector && (
+        <ActionDrawer
+          activeAction={activeAction}
+          onOpenChange={handleDrawerOpenChange}
+        />
+      )}
     </div>
   );
 }

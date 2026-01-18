@@ -22,7 +22,7 @@ interface BottomActionBarProps {
 }
 
 export default function BottomActionBar({ activeAction, onActionChange }: Omit<BottomActionBarProps, 'onAdminClick'>) {
-  const { currentSite } = useSite();
+  const { currentSite, isInspector } = useSite();
   const { user } = useAuth();
   const { toast } = useToast();
   const { findMatch, loadModels, loading: modelsLoading, error: modelsError, modelLoaded } = useFace();
