@@ -1,8 +1,10 @@
+import React, { useState } from 'react';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { Button } from '@/components/ui/button';
-import { Settings, FileText, Wrench, Upload, History, LayoutDashboard, X, Users, UserCog, Bell, BarChart } from 'lucide-react';
+import { Settings, FileText, Wrench, Upload, History, LayoutDashboard, X, Users, UserCog, Bell, BarChart, ClipboardCheck } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useSite } from '@/contexts/SiteContext';
+import { supabase } from '@/integrations/supabase/client';
 
 interface AdminDrawerProps {
   open: boolean;
@@ -17,6 +19,7 @@ const adminOptions = [
   { id: 'users', icon: UserCog, label: 'Usuarios', description: 'Gestionar accesos', supervisorOnly: true },
   { id: 'alerts', icon: Bell, label: 'Mis Alertas', description: 'Preferencias personales', supervisorOnly: false },
   { id: 'stats', icon: BarChart, label: 'Estadísticas', description: 'Análisis y reportes', supervisorOnly: true },
+  { id: 'inspection', icon: ClipboardCheck, label: 'Control de Obra', description: 'Notas de fiscalización', supervisorOnly: true, allowInspector: true },
   { id: 'settings', icon: Settings, label: 'Configuración', description: 'Ajustes de la obra', supervisorOnly: true },
   { id: 'audit', icon: History, label: 'Auditoría', description: 'Historial de cambios', supervisorOnly: true },
   { id: 'tools', icon: Wrench, label: 'Herramientas', description: 'Correcciones y ajustes', supervisorOnly: true },
@@ -25,17 +28,43 @@ const adminOptions = [
 ];
 
 export default function AdminDrawer({ open, onOpenChange, activePanel, onPanelChange }: AdminDrawerProps) {
-  const { isSupervisor } = useSite();
+  const { isSupervisor, currentSite } = useSite();
+  const [userRole, setUserRole] = useState<string>('');
 
   const handleSelect = (panelId: string) => {
     onPanelChange(panelId);
     onOpenChange(false);
   };
 
+  // Fetch user role
+  React.useEffect(() => {
+    const fetchUserRole = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user && currentSite) {
+        const { data: membership } = await supabase
+          .from('site_memberships')
+          .select('role')
+          .eq('site_id', currentSite.id)
+          .eq('user_id', user.id)
+          .single();
+
+        if (membership) {
+          setUserRole(membership.role);
+        }
+      }
+    };
+    fetchUserRole();
+  }, [currentSite]);
+
   // Filter options based on role
-  const visibleOptions = adminOptions.filter(option =>
-    !option.supervisorOnly || isSupervisor
-  );
+  const visibleOptions = adminOptions.filter(option => {
+    // Allow inspection panel for both inspector and supervisor/admin
+    if (option.id === 'inspection') {
+      return ['inspector', 'supervisor', 'admin', 'owner'].includes(userRole);
+    }
+    // Other supervisor-only options
+    return !option.supervisorOnly || isSupervisor;
+  });
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>

@@ -25,6 +25,7 @@ import PeopleTab from '@/components/supervisor/PeopleTab';
 import UserManagementTab from '@/components/supervisor/UserManagementTab';
 import { PersonalNotificationSettings } from '@/components/settings/PersonalNotificationSettings';
 import StatisticsPanel from '@/components/analytics/StatisticsPanel';
+import InspectionNotesPanel from '@/components/inspection/InspectionNotesPanel';
 import { UsageBanner } from '@/components/subscription/UsageBanner';
 import { LimitBlockModal } from '@/components/subscription/LimitBlockModal';
 import { useSubscription } from '@/hooks/useSubscription';
@@ -125,6 +126,8 @@ export default function MainLayout() {
         return <UserManagementTab />;
       case 'stats':
         return <StatisticsPanel />;
+      case 'inspection':
+        return <InspectionNotesPanel />;
       case 'alerts':
         return <PersonalNotificationSettings />;
 
@@ -148,6 +151,9 @@ export default function MainLayout() {
       dashboard: 'Dashboard',
       people: 'Personal',
       users: 'Usuarios',
+      stats: 'Estadísticas',
+      inspection: 'Control de Obra',
+      alerts: 'Mis Alertas',
       settings: 'Configuración',
       audit: 'Auditoría',
       tools: 'Herramientas',
