@@ -1,4 +1,6 @@
 import { useState, useRef, useEffect } from 'react';
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
 import { useSite } from '@/contexts/SiteContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
@@ -14,6 +16,7 @@ import { HCaptcha, HCaptchaRef } from '@/components/ui/hcaptcha';
 import { useRateLimit } from '@/hooks/useRateLimit';
 import { logAuditEvent } from '@/lib/auditLog';
 import { ContractorAutocomplete } from '@/components/ui/contractor-autocomplete';
+import { workerFormSchema, WorkerFormData, workerFormDefaults } from '@/lib/schemas/workerSchema';
 
 export default function NewWorkerTab() {
   const { currentSite } = useSite();
@@ -32,19 +35,23 @@ export default function NewWorkerTab() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [facingMode, setFacingMode] = useState<'user' | 'environment'>('environment');
 
-  const [form, setForm] = useState({
-    ci: '',
-    fullName: '',
-    contractor: '',
-    role: '',
-    insuranceNumber: '',
-    insuranceExpiry: '',
-    phone: '',
-    emergencyContact: '',
-    bloodType: '',
-    inductionCompleted: false,
-    isInspector: false,
+  // React Hook Form with Zod validation
+  const {
+    register,
+    handleSubmit: handleFormSubmit,
+    formState: { errors, isValid },
+    watch,
+    setValue,
+    reset,
+    getValues,
+  } = useForm<WorkerFormData>({
+    resolver: zodResolver(workerFormSchema),
+    defaultValues: workerFormDefaults,
+    mode: 'onChange', // Validate on change for real-time feedback
   });
+
+  // Watch form values for components that need them
+  const formValues = watch();
 
   const captchaRef = useRef<HCaptchaRef>(null);
   const { checkRateLimit, isLimited, retryAfter } = useRateLimit();
@@ -187,9 +194,13 @@ export default function NewWorkerTab() {
     startCamera();
   };
 
-  const handleSubmit = async (e: React.FormEvent, createEntry = false) => {
-    e.preventDefault();
+  // Track if user clicked "Registrar e Ingresar"
+  const createEntryRef = useRef(false);
+
+  const onSubmit = async (data: WorkerFormData) => {
     if (!currentSite || !user) return;
+    const createEntry = createEntryRef.current;
+    createEntryRef.current = false; // Reset for next submission
 
     setSubmitting(true);
     setMessage(null);
@@ -224,7 +235,7 @@ export default function NewWorkerTab() {
       // Upload photo if captured
       let photoUrl: string | null = null;
       if (capturedImage) {
-        photoUrl = await uploadPhoto(capturedImage, form.ci.trim());
+        photoUrl = await uploadPhoto(capturedImage, data.ci.trim());
       }
 
       // Create person
@@ -232,10 +243,10 @@ export default function NewWorkerTab() {
         .from('people')
         .insert({
           site_id: currentSite.id,
-          ci: form.ci.trim(),
-          full_name: form.fullName.trim(),
+          ci: data.ci.trim(),
+          full_name: data.fullName.trim(),
           type: 'worker',
-          contractor: form.contractor.trim() || null,
+          contractor: data.contractor.trim() || null,
           face_descriptor: faceDescriptor ? JSON.stringify(Array.from(faceDescriptor)) : null,
           photo_url: photoUrl
         })
@@ -249,14 +260,14 @@ export default function NewWorkerTab() {
         .from('workers_profile')
         .insert({
           person_id: person.id,
-          role: form.role.trim() || null,
-          insurance_number: form.insuranceNumber.trim() || null,
-          insurance_expiry: form.insuranceExpiry || null,
-          induction_date: form.inductionCompleted ? new Date().toISOString().split('T')[0] : null,
-          phone: form.phone.trim() || null,
-          emergency_contact: form.emergencyContact.trim() || null,
-          blood_type: form.bloodType.trim() || null,
-          is_inspector: form.isInspector,
+          role: data.role.trim() || null,
+          insurance_number: data.insuranceNumber.trim() || null,
+          insurance_expiry: data.insuranceExpiry || null,
+          induction_date: data.inductionCompleted ? new Date().toISOString().split('T')[0] : null,
+          phone: data.phone.trim() || null,
+          emergency_contact: data.emergencyContact.trim() || null,
+          blood_type: data.bloodType.trim() || null,
+          is_inspector: data.isInspector,
         });
 
       if (profileError) throw profileError;
@@ -269,39 +280,39 @@ export default function NewWorkerTab() {
             site_id: currentSite.id,
             person_id: person.id,
             entry_at: new Date().toISOString(),
-            ci_snapshot: form.ci.trim(),
-            name_snapshot: form.fullName.trim(),
+            ci_snapshot: data.ci.trim(),
+            name_snapshot: data.fullName.trim(),
             type_snapshot: 'worker',
-            contractor_snapshot: form.contractor.trim() || null,
+            contractor_snapshot: data.contractor.trim() || null,
           });
 
         if (logError) throw logError;
-        toast({ title: 'Trabajador creado e ingresado', description: `${form.fullName} registrado y ya está dentro.` });
-        setMessage({ type: 'success', text: `${form.fullName} creado e ingresado exitosamente.` });
+        toast({ title: 'Trabajador creado e ingresado', description: `${data.fullName} registrado y ya está dentro.` });
+        setMessage({ type: 'success', text: `${data.fullName} creado e ingresado exitosamente.` });
         // Audit log for worker creation with entry
         logAuditEvent({
           siteId: currentSite.id,
           userId: user?.id || null,
           action: 'PERSON_CREATED',
           entityType: 'person',
-          after: { ci: form.ci.trim(), full_name: form.fullName.trim(), contractor: form.contractor.trim(), with_entry: true },
-          note: `Trabajador ${form.fullName} (CI: ${form.ci}) creado e ingresado`,
+          after: { ci: data.ci.trim(), full_name: data.fullName.trim(), contractor: data.contractor.trim(), with_entry: true },
+          note: `Trabajador ${data.fullName} (CI: ${data.ci}) creado e ingresado`,
         });
       } else {
-        toast({ title: 'Trabajador creado', description: `${form.fullName} registrado con biometría.` });
-        setMessage({ type: 'success', text: `Trabajador ${form.fullName} creado exitosamente.` });
+        toast({ title: 'Trabajador creado', description: `${data.fullName} registrado con biometría.` });
+        setMessage({ type: 'success', text: `Trabajador ${data.fullName} creado exitosamente.` });
         // Audit log for worker creation without entry
         logAuditEvent({
           siteId: currentSite.id,
           userId: user?.id || null,
           action: 'PERSON_CREATED',
           entityType: 'person',
-          after: { ci: form.ci.trim(), full_name: form.fullName.trim(), contractor: form.contractor.trim(), with_entry: false },
-          note: `Trabajador ${form.fullName} (CI: ${form.ci}) creado (sin entrada)`,
+          after: { ci: data.ci.trim(), full_name: data.fullName.trim(), contractor: data.contractor.trim(), with_entry: false },
+          note: `Trabajador ${data.fullName} (CI: ${data.ci}) creado (sin entrada)`,
         });
       }
 
-      setForm({ ci: '', fullName: '', contractor: '', role: '', insuranceNumber: '', insuranceExpiry: '', phone: '', emergencyContact: '', bloodType: '', inductionCompleted: false, isInspector: false });
+      reset();
       setCapturedImage(null);
       setFaceDescriptor(null);
     } catch (err: any) {
@@ -398,53 +409,89 @@ export default function NewWorkerTab() {
 
       <canvas ref={canvasRef} className="hidden" />
 
-      <form onSubmit={handleSubmit} className="space-y-4">
+      <form onSubmit={handleFormSubmit(onSubmit)} className="space-y-4">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div className="space-y-2">
             <Label htmlFor="ci">CI *</Label>
-            <Input id="ci" value={form.ci} onChange={(e) => setForm({ ...form, ci: e.target.value })} required />
+            <Input
+              id="ci"
+              {...register('ci')}
+              className={errors.ci ? 'border-red-500' : ''}
+            />
+            {errors.ci && <p className="text-xs text-red-500">{errors.ci.message}</p>}
           </div>
           <div className="space-y-2">
             <Label htmlFor="fullName">Nombre completo *</Label>
-            <Input id="fullName" value={form.fullName} onChange={(e) => setForm({ ...form, fullName: e.target.value })} required />
+            <Input
+              id="fullName"
+              {...register('fullName')}
+              className={errors.fullName ? 'border-red-500' : ''}
+            />
+            {errors.fullName && <p className="text-xs text-red-500">{errors.fullName.message}</p>}
           </div>
           <div className="space-y-2">
             <Label htmlFor="contractor">Contratista</Label>
             <ContractorAutocomplete
-              value={form.contractor}
-              onChange={(val) => setForm({ ...form, contractor: val })}
+              value={formValues.contractor}
+              onChange={(val) => setValue('contractor', val)}
               placeholder="Seleccionar contratista"
             />
+            {errors.contractor && <p className="text-xs text-red-500">{errors.contractor.message}</p>}
           </div>
           <div className="space-y-2">
             <Label htmlFor="role">Cargo / Rol</Label>
             <Input
               id="role"
-              value={form.role}
-              onChange={(e) => setForm({ ...form, role: e.target.value })}
+              {...register('role')}
               placeholder="Ej: Electricista, Gerente, Albañil"
+              className={errors.role ? 'border-red-500' : ''}
             />
+            {errors.role && <p className="text-xs text-red-500">{errors.role.message}</p>}
           </div>
           <div className="space-y-2">
             <Label htmlFor="phone">Teléfono</Label>
-            <Input id="phone" value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} />
+            <Input
+              id="phone"
+              {...register('phone')}
+              className={errors.phone ? 'border-red-500' : ''}
+            />
+            {errors.phone && <p className="text-xs text-red-500">{errors.phone.message}</p>}
           </div>
-          {/* Omitted other fields for brevity if needed, but keeping them for completeness based on original file */}
           <div className="space-y-2">
             <Label htmlFor="insuranceNumber">Nº Seguro</Label>
-            <Input id="insuranceNumber" value={form.insuranceNumber} onChange={(e) => setForm({ ...form, insuranceNumber: e.target.value })} />
+            <Input
+              id="insuranceNumber"
+              {...register('insuranceNumber')}
+              className={errors.insuranceNumber ? 'border-red-500' : ''}
+            />
+            {errors.insuranceNumber && <p className="text-xs text-red-500">{errors.insuranceNumber.message}</p>}
           </div>
           <div className="space-y-2">
             <Label htmlFor="insuranceExpiry">Vencimiento Seguro</Label>
-            <Input id="insuranceExpiry" type="date" value={form.insuranceExpiry} onChange={(e) => setForm({ ...form, insuranceExpiry: e.target.value })} />
+            <Input
+              id="insuranceExpiry"
+              type="date"
+              {...register('insuranceExpiry')}
+            />
           </div>
           <div className="space-y-2">
             <Label htmlFor="emergencyContact">Contacto emergencia</Label>
-            <Input id="emergencyContact" value={form.emergencyContact} onChange={(e) => setForm({ ...form, emergencyContact: e.target.value })} />
+            <Input
+              id="emergencyContact"
+              {...register('emergencyContact')}
+              className={errors.emergencyContact ? 'border-red-500' : ''}
+            />
+            {errors.emergencyContact && <p className="text-xs text-red-500">{errors.emergencyContact.message}</p>}
           </div>
           <div className="space-y-2">
             <Label htmlFor="bloodType">Tipo de sangre</Label>
-            <Input id="bloodType" value={form.bloodType} onChange={(e) => setForm({ ...form, bloodType: e.target.value })} placeholder="Ej: O+" />
+            <Input
+              id="bloodType"
+              {...register('bloodType')}
+              placeholder="Ej: O+"
+              className={errors.bloodType ? 'border-red-500' : ''}
+            />
+            {errors.bloodType && <p className="text-xs text-red-500">{errors.bloodType.message}</p>}
           </div>
         </div>
 
@@ -453,8 +500,7 @@ export default function NewWorkerTab() {
           <input
             type="checkbox"
             id="isInspector"
-            checked={form.isInspector}
-            onChange={(e) => setForm({ ...form, isInspector: e.target.checked })}
+            {...register('isInspector')}
             className="w-5 h-5 rounded border-border text-purple-500 focus:ring-purple-500"
           />
           <Label htmlFor="isInspector" className="flex-1 cursor-pointer">
@@ -473,8 +519,7 @@ export default function NewWorkerTab() {
           <input
             type="checkbox"
             id="inductionCompleted"
-            checked={form.inductionCompleted}
-            onChange={(e) => setForm({ ...form, inductionCompleted: e.target.checked })}
+            {...register('inductionCompleted')}
             className="w-5 h-5 rounded border-border text-primary focus:ring-primary"
           />
           <Label htmlFor="inductionCompleted" className="flex-1 cursor-pointer">
@@ -488,7 +533,7 @@ export default function NewWorkerTab() {
         <div className="grid grid-cols-1 gap-3 mt-6">
           <Button
             type="submit"
-            disabled={submitting || isLimited || (!!capturedImage && !faceDescriptor)}
+            disabled={submitting || isLimited || !isValid || (!!capturedImage && !faceDescriptor)}
             variant="outline"
             className="w-full h-12"
           >
@@ -496,9 +541,9 @@ export default function NewWorkerTab() {
             Solo Registrar
           </Button>
           <Button
-            type="button"
-            onClick={(e) => handleSubmit(e, true)}
-            disabled={submitting || isLimited || (!!capturedImage && !faceDescriptor) || !form.ci || !form.fullName}
+            type="submit"
+            onClick={() => { createEntryRef.current = true; }}
+            disabled={submitting || isLimited || !isValid || (!!capturedImage && !faceDescriptor)}
             className="w-full h-12 bg-gradient-to-r from-emerald-500 to-green-500 hover:from-emerald-600 hover:to-green-600"
           >
             {submitting ? <Spinner size="sm" className="mr-2" /> : <LogIn className="w-5 h-5 mr-2" />}
