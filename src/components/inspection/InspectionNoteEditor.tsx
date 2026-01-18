@@ -39,7 +39,7 @@ export default function InspectionNoteEditor({ note, onClose, onSave }: Inspecti
         },
         editorProps: {
             attributes: {
-                class: 'prose prose-sm max-w-none focus:outline-none min-h-[400px] p-4 text-white prose-invert',
+                class: 'prose prose-sm max-w-none focus:outline-none min-h-[400px] p-4',
             },
         },
     });
@@ -74,7 +74,7 @@ export default function InspectionNoteEditor({ note, onClose, onSave }: Inspecti
 
             if (note?.id) {
                 // Update existing note
-                const { error } = await supabase
+                const { error } = await (supabase as any)
                     .from('inspection_notes')
                     .update({
                         content,
@@ -86,7 +86,7 @@ export default function InspectionNoteEditor({ note, onClose, onSave }: Inspecti
                 toast.success('Nota actualizada correctamente');
             } else {
                 // Create new note
-                const { error } = await supabase
+                const { error } = await (supabase as any)
                     .from('inspection_notes')
                     .insert({
                         site_id: currentSite?.id,
