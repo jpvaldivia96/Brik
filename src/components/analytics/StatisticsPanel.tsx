@@ -327,342 +327,341 @@ export default function StatisticsPanel() {
                     </div>
                 </CardContent>
             </Card>
-        </div>
 
-            {/* ==================== NEW: HALL OF FAME ==================== */ }
-    <div className="grid gap-4 md:grid-cols-3">
-        <Card className="bg-gradient-to-br from-yellow-500/10 to-orange-500/10 border-yellow-500/20">
-            <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                    <Trophy className="h-5 w-5 text-yellow-500" />
-                    🥇 Más Puntual
-                </CardTitle>
-            </CardHeader>
-            <CardContent>
-                {hallOfFame.punctual ? (
-                    <div className="text-center">
-                        {hallOfFame.punctual.photo_url && (
-                            <img src={hallOfFame.punctual.photo_url} alt="" className="w-20 h-20 rounded-full mx-auto mb-3 border-2 border-yellow-500" />
-                        )}
-                        <p className="font-bold text-lg">{hallOfFame.punctual.full_name}</p>
-                        <p className="text-sm text-muted-foreground">{hallOfFame.punctual.contractor}</p>
-                        <p className="text-2xl font-bold text-yellow-500 mt-2">{hallOfFame.punctual.punctuality_pct}%</p>
-                        <p className="text-xs text-muted-foreground">Puntualidad</p>
-                    </div>
-                ) : (
-                    <p className="text-center text-muted-foreground">Sin datos suficientes</p>
-                )}
-            </CardContent>
-        </Card>
-
-        <Card className="bg-gradient-to-br from-blue-500/10 to-cyan-500/10 border-blue-500/20">
-            <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                    <Award className="h-5 w-5 text-blue-500" />
-                    🥈 Más Constante
-                </CardTitle>
-            </CardHeader>
-            <CardContent>
-                {hallOfFame.consistent ? (
-                    <div className="text-center">
-                        {hallOfFame.consistent.photo_url && (
-                            <img src={hallOfFame.consistent.photo_url} alt="" className="w-20 h-20 rounded-full mx-auto mb-3 border-2 border-blue-500" />
-                        )}
-                        <p className="font-bold text-lg">{hallOfFame.consistent.full_name}</p>
-                        <p className="text-sm text-muted-foreground">{hallOfFame.consistent.contractor}</p>
-                        <p className="text-2xl font-bold text-blue-500 mt-2">{hallOfFame.consistent.days_worked}</p>
-                        <p className="text-xs text-muted-foreground">Días trabajados (último mes)</p>
-                    </div>
-                ) : (
-                    <p className="text-center text-muted-foreground">Sin datos suficientes</p>
-                )}
-            </CardContent>
-        </Card>
-
-        <Card className="bg-gradient-to-br from-purple-500/10 to-pink-500/10 border-purple-500/20">
-            <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                    <Users className="h-5 w-5 text-purple-500" />
-                    🥉 Veterano
-                </CardTitle>
-            </CardHeader>
-            <CardContent>
-                {hallOfFame.veteran ? (
-                    <div className="text-center">
-                        {hallOfFame.veteran.photo_url && (
-                            <img src={hallOfFame.veteran.photo_url} alt="" className="w-20 h-20 rounded-full mx-auto mb-3 border-2 border-purple-500" />
-                        )}
-                        <p className="font-bold text-lg">{hallOfFame.veteran.full_name}</p>
-                        <p className="text-sm text-muted-foreground">{hallOfFame.veteran.contractor}</p>
-                        <p className="text-2xl font-bold text-purple-500 mt-2">{hallOfFame.veteran.days_since_induction}</p>
-                        <p className="text-xs text-muted-foreground">Días desde inducción</p>
-                    </div>
-                ) : (
-                    <p className="text-center text-muted-foreground">Sin datos suficientes</p>
-                )}
-            </CardContent>
-        </Card>
-    </div>
-
-    {/* ==================== NEW: COMPLIANCE DASHBOARD ==================== */ }
-    {
-        complianceData && (
-            <Card>
-                <CardHeader>
-                    <CardTitle className="flex items-center gap-2">
-                        <Shield className="h-5 w-5" />
-                        Dashboard de Cumplimiento
-                    </CardTitle>
-                    <CardDescription>Porcentaje de trabajadores con documentación completa</CardDescription>
-                </CardHeader>
-                <CardContent>
-                    <div className="grid md:grid-cols-3 gap-6">
-                        <div>
-                            <div className="flex justify-between mb-2">
-                                <span className="text-sm font-medium">Seguro Vigente</span>
-                                <span className={`text-sm font-bold ${getComplianceColor(complianceData.insurance_pct)}`}>
-                                    {complianceData.insurance_pct.toFixed(0)}%
-                                </span>
+            {/* ==================== NEW: HALL OF FAME ==================== */}
+            <div className="grid gap-4 md:grid-cols-3">
+                <Card className="bg-gradient-to-br from-yellow-500/10 to-orange-500/10 border-yellow-500/20">
+                    <CardHeader>
+                        <CardTitle className="flex items-center gap-2">
+                            <Trophy className="h-5 w-5 text-yellow-500" />
+                            🥇 Más Puntual
+                        </CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                        {hallOfFame.punctual ? (
+                            <div className="text-center">
+                                {hallOfFame.punctual.photo_url && (
+                                    <img src={hallOfFame.punctual.photo_url} alt="" className="w-20 h-20 rounded-full mx-auto mb-3 border-2 border-yellow-500" />
+                                )}
+                                <p className="font-bold text-lg">{hallOfFame.punctual.full_name}</p>
+                                <p className="text-sm text-muted-foreground">{hallOfFame.punctual.contractor}</p>
+                                <p className="text-2xl font-bold text-yellow-500 mt-2">{hallOfFame.punctual.punctuality_pct}%</p>
+                                <p className="text-xs text-muted-foreground">Puntualidad</p>
                             </div>
-                            <Progress value={complianceData.insurance_pct} className="h-2" />
-                        </div>
-                        <div>
-                            <div className="flex justify-between mb-2">
-                                <span className="text-sm font-medium">Inducción Completa</span>
-                                <span className={`text-sm font-bold ${getComplianceColor(complianceData.induction_pct)}`}>
-                                    {complianceData.induction_pct.toFixed(0)}%
-                                </span>
-                            </div>
-                            <Progress value={complianceData.induction_pct} className="h-2" />
-                        </div>
-                        <div>
-                            <div className="flex justify-between mb-2">
-                                <span className="text-sm font-medium">Foto Registrada</span>
-                                <span className={`text-sm font-bold ${getComplianceColor(complianceData.photo_pct)}`}>
-                                    {complianceData.photo_pct.toFixed(0)}%
-                                </span>
-                            </div>
-                            <Progress value={complianceData.photo_pct} className="h-2" />
-                        </div>
-                    </div>
-                </CardContent>
-            </Card>
-        )
-    }
+                        ) : (
+                            <p className="text-center text-muted-foreground">Sin datos suficientes</p>
+                        )}
+                    </CardContent>
+                </Card>
 
-    {/* ==================== NEW: PUNCTUALITY LEADERBOARD ==================== */ }
-    {
-        punctualityData.length > 0 && (
-            <Card>
-                <CardHeader>
-                    <CardTitle className="flex items-center gap-2">
-                        <Clock className="h-5 w-5" />
-                        Ranking de Puntualidad
-                    </CardTitle>
-                    <CardDescription>Top 10 trabajadores más puntuales (antes de las 8:00 AM)</CardDescription>
-                </CardHeader>
-                <CardContent>
-                    <div className="space-y-3">
-                        {punctualityData.map((worker, idx) => (
-                            <div key={idx} className="flex items-center justify-between p-3 bg-muted/30 rounded-lg">
-                                <div className="flex items-center gap-3">
-                                    <span className="text-lg font-bold text-muted-foreground w-6">{idx + 1}</span>
-                                    <div>
-                                        <p className="font-medium">{worker.full_name}</p>
-                                        <p className="text-sm text-muted-foreground">{worker.contractor}</p>
+                <Card className="bg-gradient-to-br from-blue-500/10 to-cyan-500/10 border-blue-500/20">
+                    <CardHeader>
+                        <CardTitle className="flex items-center gap-2">
+                            <Award className="h-5 w-5 text-blue-500" />
+                            🥈 Más Constante
+                        </CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                        {hallOfFame.consistent ? (
+                            <div className="text-center">
+                                {hallOfFame.consistent.photo_url && (
+                                    <img src={hallOfFame.consistent.photo_url} alt="" className="w-20 h-20 rounded-full mx-auto mb-3 border-2 border-blue-500" />
+                                )}
+                                <p className="font-bold text-lg">{hallOfFame.consistent.full_name}</p>
+                                <p className="text-sm text-muted-foreground">{hallOfFame.consistent.contractor}</p>
+                                <p className="text-2xl font-bold text-blue-500 mt-2">{hallOfFame.consistent.days_worked}</p>
+                                <p className="text-xs text-muted-foreground">Días trabajados (último mes)</p>
+                            </div>
+                        ) : (
+                            <p className="text-center text-muted-foreground">Sin datos suficientes</p>
+                        )}
+                    </CardContent>
+                </Card>
+
+                <Card className="bg-gradient-to-br from-purple-500/10 to-pink-500/10 border-purple-500/20">
+                    <CardHeader>
+                        <CardTitle className="flex items-center gap-2">
+                            <Users className="h-5 w-5 text-purple-500" />
+                            🥉 Veterano
+                        </CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                        {hallOfFame.veteran ? (
+                            <div className="text-center">
+                                {hallOfFame.veteran.photo_url && (
+                                    <img src={hallOfFame.veteran.photo_url} alt="" className="w-20 h-20 rounded-full mx-auto mb-3 border-2 border-purple-500" />
+                                )}
+                                <p className="font-bold text-lg">{hallOfFame.veteran.full_name}</p>
+                                <p className="text-sm text-muted-foreground">{hallOfFame.veteran.contractor}</p>
+                                <p className="text-2xl font-bold text-purple-500 mt-2">{hallOfFame.veteran.days_since_induction}</p>
+                                <p className="text-xs text-muted-foreground">Días desde inducción</p>
+                            </div>
+                        ) : (
+                            <p className="text-center text-muted-foreground">Sin datos suficientes</p>
+                        )}
+                    </CardContent>
+                </Card>
+            </div>
+
+            {/* ==================== NEW: COMPLIANCE DASHBOARD ==================== */}
+            {
+                complianceData && (
+                    <Card>
+                        <CardHeader>
+                            <CardTitle className="flex items-center gap-2">
+                                <Shield className="h-5 w-5" />
+                                Dashboard de Cumplimiento
+                            </CardTitle>
+                            <CardDescription>Porcentaje de trabajadores con documentación completa</CardDescription>
+                        </CardHeader>
+                        <CardContent>
+                            <div className="grid md:grid-cols-3 gap-6">
+                                <div>
+                                    <div className="flex justify-between mb-2">
+                                        <span className="text-sm font-medium">Seguro Vigente</span>
+                                        <span className={`text-sm font-bold ${getComplianceColor(complianceData.insurance_pct)}`}>
+                                            {complianceData.insurance_pct.toFixed(0)}%
+                                        </span>
                                     </div>
+                                    <Progress value={complianceData.insurance_pct} className="h-2" />
                                 </div>
-                                <div className="text-right">
-                                    <p className="text-2xl font-bold text-primary">{worker.punctuality_pct}%</p>
-                                    <p className="text-xs text-muted-foreground">{worker.on_time_count}/{worker.total_count} a tiempo</p>
+                                <div>
+                                    <div className="flex justify-between mb-2">
+                                        <span className="text-sm font-medium">Inducción Completa</span>
+                                        <span className={`text-sm font-bold ${getComplianceColor(complianceData.induction_pct)}`}>
+                                            {complianceData.induction_pct.toFixed(0)}%
+                                        </span>
+                                    </div>
+                                    <Progress value={complianceData.induction_pct} className="h-2" />
+                                </div>
+                                <div>
+                                    <div className="flex justify-between mb-2">
+                                        <span className="text-sm font-medium">Foto Registrada</span>
+                                        <span className={`text-sm font-bold ${getComplianceColor(complianceData.photo_pct)}`}>
+                                            {complianceData.photo_pct.toFixed(0)}%
+                                        </span>
+                                    </div>
+                                    <Progress value={complianceData.photo_pct} className="h-2" />
                                 </div>
                             </div>
-                        ))}
-                    </div>
-                </CardContent>
-            </Card>
-        )
-    }
+                        </CardContent>
+                    </Card>
+                )
+            }
 
-    {/* ==================== NEW: AVERAGE HOURS BY CONTRACTOR ==================== */ }
-    {
-        avgHoursData.length > 0 && (
-            <Card>
-                <CardHeader>
-                    <CardTitle>Tiempo Promedio de Permanencia por Contratista</CardTitle>
-                    <CardDescription>Promedio de horas trabajadas por empresa (último mes)</CardDescription>
-                </CardHeader>
-                <CardContent>
-                    <div className="h-[400px]">
-                        <ResponsiveContainer width="100%" height="100%">
-                            <BarChart data={avgHoursData} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
-                                <CartesianGrid strokeDasharray="3 3" stroke="#333" />
-                                <XAxis dataKey="contractor" angle={-45} textAnchor="end" height={100} stroke="#888888" fontSize={10} />
-                                <YAxis stroke="#888888" label={{ value: 'Horas', angle: -90, position: 'insideLeft' }} />
-                                <Tooltip contentStyle={{ backgroundColor: '#1f2937', borderColor: '#374151', color: '#fff' }} />
-                                <Bar dataKey="avg_hours" fill="#8884d8" radius={[8, 8, 0, 0]}>
-                                    {avgHoursData.map((entry, index) => (
-                                        <Cell
-                                            key={`cell-${index}`}
-                                            fill={
-                                                entry.avg_hours < 6 ? '#ef4444' :
-                                                    entry.avg_hours > 12 ? '#f59e0b' :
-                                                        '#10b981'
-                                            }
-                                        />
-                                    ))}
-                                </Bar>
-                            </BarChart>
-                        </ResponsiveContainer>
-                    </div>
-                </CardContent>
-            </Card>
-        )
-    }
+            {/* ==================== NEW: PUNCTUALITY LEADERBOARD ==================== */}
+            {
+                punctualityData.length > 0 && (
+                    <Card>
+                        <CardHeader>
+                            <CardTitle className="flex items-center gap-2">
+                                <Clock className="h-5 w-5" />
+                                Ranking de Puntualidad
+                            </CardTitle>
+                            <CardDescription>Top 10 trabajadores más puntuales (antes de las 8:00 AM)</CardDescription>
+                        </CardHeader>
+                        <CardContent>
+                            <div className="space-y-3">
+                                {punctualityData.map((worker, idx) => (
+                                    <div key={idx} className="flex items-center justify-between p-3 bg-muted/30 rounded-lg">
+                                        <div className="flex items-center gap-3">
+                                            <span className="text-lg font-bold text-muted-foreground w-6">{idx + 1}</span>
+                                            <div>
+                                                <p className="font-medium">{worker.full_name}</p>
+                                                <p className="text-sm text-muted-foreground">{worker.contractor}</p>
+                                            </div>
+                                        </div>
+                                        <div className="text-right">
+                                            <p className="text-2xl font-bold text-primary">{worker.punctuality_pct}%</p>
+                                            <p className="text-xs text-muted-foreground">{worker.on_time_count}/{worker.total_count} a tiempo</p>
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        </CardContent>
+                    </Card>
+                )
+            }
 
-    {/* ==================== NEW: TURNOVER ANALYSIS ==================== */ }
-    {
-        turnoverData.length > 0 && (
-            <Card>
-                <CardHeader>
-                    <CardTitle className="flex items-center gap-2">
-                        <TrendingUp className="h-5 w-5" />
-                        Tasa de Rotación Mensual
-                    </CardTitle>
-                    <CardDescription>Trabajadores nuevos vs inactivos por mes</CardDescription>
-                </CardHeader>
-                <CardContent>
-                    <div className="h-[300px]">
-                        <ResponsiveContainer width="100%" height="100%">
-                            <BarChart data={turnoverData}>
-                                <CartesianGrid strokeDasharray="3 3" stroke="#333" />
-                                <XAxis dataKey="month" stroke="#888888" fontSize={12} />
-                                <YAxis stroke="#888888" />
-                                <Tooltip contentStyle={{ backgroundColor: '#1f2937', borderColor: '#374151', color: '#fff' }} />
-                                <Legend />
-                                <Bar dataKey="new_workers" fill="#10b981" name="Nuevos" />
-                                <Bar dataKey="inactive_workers" fill="#ef4444" name="Inactivos" />
-                            </BarChart>
-                        </ResponsiveContainer>
-                    </div>
-                </CardContent>
-            </Card>
-        )
-    }
+            {/* ==================== NEW: AVERAGE HOURS BY CONTRACTOR ==================== */}
+            {
+                avgHoursData.length > 0 && (
+                    <Card>
+                        <CardHeader>
+                            <CardTitle>Tiempo Promedio de Permanencia por Contratista</CardTitle>
+                            <CardDescription>Promedio de horas trabajadas por empresa (último mes)</CardDescription>
+                        </CardHeader>
+                        <CardContent>
+                            <div className="h-[400px]">
+                                <ResponsiveContainer width="100%" height="100%">
+                                    <BarChart data={avgHoursData} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
+                                        <CartesianGrid strokeDasharray="3 3" stroke="#333" />
+                                        <XAxis dataKey="contractor" angle={-45} textAnchor="end" height={100} stroke="#888888" fontSize={10} />
+                                        <YAxis stroke="#888888" label={{ value: 'Horas', angle: -90, position: 'insideLeft' }} />
+                                        <Tooltip contentStyle={{ backgroundColor: '#1f2937', borderColor: '#374151', color: '#fff' }} />
+                                        <Bar dataKey="avg_hours" fill="#8884d8" radius={[8, 8, 0, 0]}>
+                                            {avgHoursData.map((entry, index) => (
+                                                <Cell
+                                                    key={`cell-${index}`}
+                                                    fill={
+                                                        entry.avg_hours < 6 ? '#ef4444' :
+                                                            entry.avg_hours > 12 ? '#f59e0b' :
+                                                                '#10b981'
+                                                    }
+                                                />
+                                            ))}
+                                        </Bar>
+                                    </BarChart>
+                                </ResponsiveContainer>
+                            </div>
+                        </CardContent>
+                    </Card>
+                )
+            }
 
-    {/* ==================== NEW: SMART ALERTS ==================== */ }
-    {
-        anomalies.length > 0 && (
-            <Card className="border-orange-500/30">
-                <CardHeader>
-                    <CardTitle className="flex items-center gap-2">
-                        <AlertTriangle className="h-5 w-5 text-orange-500" />
-                        Alertas Predictivas Inteligentes
-                    </CardTitle>
-                    <CardDescription>Anomalías detectadas automáticamente</CardDescription>
-                </CardHeader>
-                <CardContent>
-                    <div className="space-y-3">
-                        {anomalies.map((anomaly, idx) => (
-                            <div
-                                key={idx}
-                                className={`p-4 rounded-lg border ${anomaly.severity === 'high' ? 'border-red-500/50 bg-red-500/10' :
-                                    anomaly.severity === 'medium' ? 'border-yellow-500/50 bg-yellow-500/10' :
-                                        'border-blue-500/50 bg-blue-500/10'
-                                    }`}
-                            >
-                                <div className="flex items-start gap-3">
-                                    <AlertTriangle
-                                        className={`h-5 w-5 mt-0.5 ${anomaly.severity === 'high' ? 'text-red-500' :
-                                            anomaly.severity === 'medium' ? 'text-yellow-500' :
-                                                'text-blue-500'
+            {/* ==================== NEW: TURNOVER ANALYSIS ==================== */}
+            {
+                turnoverData.length > 0 && (
+                    <Card>
+                        <CardHeader>
+                            <CardTitle className="flex items-center gap-2">
+                                <TrendingUp className="h-5 w-5" />
+                                Tasa de Rotación Mensual
+                            </CardTitle>
+                            <CardDescription>Trabajadores nuevos vs inactivos por mes</CardDescription>
+                        </CardHeader>
+                        <CardContent>
+                            <div className="h-[300px]">
+                                <ResponsiveContainer width="100%" height="100%">
+                                    <BarChart data={turnoverData}>
+                                        <CartesianGrid strokeDasharray="3 3" stroke="#333" />
+                                        <XAxis dataKey="month" stroke="#888888" fontSize={12} />
+                                        <YAxis stroke="#888888" />
+                                        <Tooltip contentStyle={{ backgroundColor: '#1f2937', borderColor: '#374151', color: '#fff' }} />
+                                        <Legend />
+                                        <Bar dataKey="new_workers" fill="#10b981" name="Nuevos" />
+                                        <Bar dataKey="inactive_workers" fill="#ef4444" name="Inactivos" />
+                                    </BarChart>
+                                </ResponsiveContainer>
+                            </div>
+                        </CardContent>
+                    </Card>
+                )
+            }
+
+            {/* ==================== NEW: SMART ALERTS ==================== */}
+            {
+                anomalies.length > 0 && (
+                    <Card className="border-orange-500/30">
+                        <CardHeader>
+                            <CardTitle className="flex items-center gap-2">
+                                <AlertTriangle className="h-5 w-5 text-orange-500" />
+                                Alertas Predictivas Inteligentes
+                            </CardTitle>
+                            <CardDescription>Anomalías detectadas automáticamente</CardDescription>
+                        </CardHeader>
+                        <CardContent>
+                            <div className="space-y-3">
+                                {anomalies.map((anomaly, idx) => (
+                                    <div
+                                        key={idx}
+                                        className={`p-4 rounded-lg border ${anomaly.severity === 'high' ? 'border-red-500/50 bg-red-500/10' :
+                                            anomaly.severity === 'medium' ? 'border-yellow-500/50 bg-yellow-500/10' :
+                                                'border-blue-500/50 bg-blue-500/10'
                                             }`}
-                                    />
-                                    <div>
-                                        <p className="font-medium">{anomaly.description}</p>
-                                        <p className="text-sm text-muted-foreground mt-1">Afectado: {anomaly.affected_entity}</p>
+                                    >
+                                        <div className="flex items-start gap-3">
+                                            <AlertTriangle
+                                                className={`h-5 w-5 mt-0.5 ${anomaly.severity === 'high' ? 'text-red-500' :
+                                                    anomaly.severity === 'medium' ? 'text-yellow-500' :
+                                                        'text-blue-500'
+                                                    }`}
+                                            />
+                                            <div>
+                                                <p className="font-medium">{anomaly.description}</p>
+                                                <p className="text-sm text-muted-foreground mt-1">Afectado: {anomaly.affected_entity}</p>
+                                            </div>
+                                        </div>
                                     </div>
-                                </div>
+                                ))}
                             </div>
-                        ))}
-                    </div>
-                </CardContent>
-            </Card>
-        )
-    }
+                        </CardContent>
+                    </Card>
+                )
+            }
 
-    {/* ==================== NEW: PREDICTION ==================== */ }
-    {
-        prediction.length > 0 && (
-            <Card>
-                <CardHeader>
-                    <CardTitle className="flex items-center gap-2">
-                        <Target className="h-5 w-5" />
-                        Predicción de Asistencia (Próximos 7 días)
-                    </CardTitle>
-                    <CardDescription>Proyección basada en tendencia de últimos 7 días</CardDescription>
-                </CardHeader>
-                <CardContent>
-                    <div className="h-[300px]">
-                        <ResponsiveContainer width="100%" height="100%">
-                            <LineChart data={[...dailyStats, ...prediction]}>
-                                <CartesianGrid strokeDasharray="3 3" stroke="#333" />
-                                <XAxis dataKey="date" stroke="#888888" fontSize={12} tickFormatter={(value) => value.slice(5)} />
-                                <YAxis stroke="#888888" />
-                                <Tooltip contentStyle={{ backgroundColor: '#1f2937', borderColor: '#374151', color: '#fff' }} />
-                                <Legend />
-                                <Line type="monotone" dataKey="count" stroke="#adfa1d" strokeWidth={2} name="Real" />
-                                <Line
-                                    type="monotone"
-                                    dataKey="predicted_count"
-                                    stroke="#3b82f6"
-                                    strokeWidth={2}
-                                    strokeDasharray="5 5"
-                                    name="Predicción"
-                                />
-                            </LineChart>
-                        </ResponsiveContainer>
-                    </div>
-                </CardContent>
-            </Card>
-        )
-    }
+            {/* ==================== NEW: PREDICTION ==================== */}
+            {
+                prediction.length > 0 && (
+                    <Card>
+                        <CardHeader>
+                            <CardTitle className="flex items-center gap-2">
+                                <Target className="h-5 w-5" />
+                                Predicción de Asistencia (Próximos 7 días)
+                            </CardTitle>
+                            <CardDescription>Proyección basada en tendencia de últimos 7 días</CardDescription>
+                        </CardHeader>
+                        <CardContent>
+                            <div className="h-[300px]">
+                                <ResponsiveContainer width="100%" height="100%">
+                                    <LineChart data={[...dailyStats, ...prediction]}>
+                                        <CartesianGrid strokeDasharray="3 3" stroke="#333" />
+                                        <XAxis dataKey="date" stroke="#888888" fontSize={12} tickFormatter={(value) => value.slice(5)} />
+                                        <YAxis stroke="#888888" />
+                                        <Tooltip contentStyle={{ backgroundColor: '#1f2937', borderColor: '#374151', color: '#fff' }} />
+                                        <Legend />
+                                        <Line type="monotone" dataKey="count" stroke="#adfa1d" strokeWidth={2} name="Real" />
+                                        <Line
+                                            type="monotone"
+                                            dataKey="predicted_count"
+                                            stroke="#3b82f6"
+                                            strokeWidth={2}
+                                            strokeDasharray="5 5"
+                                            name="Predicción"
+                                        />
+                                    </LineChart>
+                                </ResponsiveContainer>
+                            </div>
+                        </CardContent>
+                    </Card>
+                )
+            }
 
-    {/* ==================== NEW: PROGRESS VS TARGET ==================== */ }
-    {
-        progressData.length > 0 && (
-            <Card>
-                <CardHeader>
-                    <CardTitle className="flex items-center gap-2">
-                        <Target className="h-5 w-5" />
-                        Progreso vs Planificación
-                    </CardTitle>
-                    <CardDescription>Asistencia real vs objetivo diario (50 personas)</CardDescription>
-                </CardHeader>
-                <CardContent>
-                    <div className="h-[300px]">
-                        <ResponsiveContainer width="100%" height="100%">
-                            <AreaChart data={progressData}>
-                                <defs>
-                                    <linearGradient id="colorActual" x1="0" y1="0" x2="0" y2="1">
-                                        <stop offset="5%" stopColor="#10b981" stopOpacity={0.8} />
-                                        <stop offset="95%" stopColor="#10b981" stopOpacity={0} />
-                                    </linearGradient>
-                                </defs>
-                                <CartesianGrid strokeDasharray="3 3" stroke="#333" />
-                                <XAxis dataKey="date" stroke="#888888" fontSize={12} tickFormatter={(value) => value.slice(5)} />
-                                <YAxis stroke="#888888" />
-                                <Tooltip contentStyle={{ backgroundColor: '#1f2937', borderColor: '#374151', color: '#fff' }} />
-                                <Legend />
-                                <Area type="monotone" dataKey="actual_attendance" stroke="#10b981" fillOpacity={1} fill="url(#colorActual)" name="Real" />
-                                <Line type="monotone" dataKey="target_attendance" stroke="#ef4444" strokeWidth={2} strokeDasharray="5 5" name="Objetivo" dot={false} />
-                            </AreaChart>
-                        </ResponsiveContainer>
-                    </div>
-                </CardContent>
-            </Card>
-        )
-    }
+            {/* ==================== NEW: PROGRESS VS TARGET ==================== */}
+            {
+                progressData.length > 0 && (
+                    <Card>
+                        <CardHeader>
+                            <CardTitle className="flex items-center gap-2">
+                                <Target className="h-5 w-5" />
+                                Progreso vs Planificación
+                            </CardTitle>
+                            <CardDescription>Asistencia real vs objetivo diario (50 personas)</CardDescription>
+                        </CardHeader>
+                        <CardContent>
+                            <div className="h-[300px]">
+                                <ResponsiveContainer width="100%" height="100%">
+                                    <AreaChart data={progressData}>
+                                        <defs>
+                                            <linearGradient id="colorActual" x1="0" y1="0" x2="0" y2="1">
+                                                <stop offset="5%" stopColor="#10b981" stopOpacity={0.8} />
+                                                <stop offset="95%" stopColor="#10b981" stopOpacity={0} />
+                                            </linearGradient>
+                                        </defs>
+                                        <CartesianGrid strokeDasharray="3 3" stroke="#333" />
+                                        <XAxis dataKey="date" stroke="#888888" fontSize={12} tickFormatter={(value) => value.slice(5)} />
+                                        <YAxis stroke="#888888" />
+                                        <Tooltip contentStyle={{ backgroundColor: '#1f2937', borderColor: '#374151', color: '#fff' }} />
+                                        <Legend />
+                                        <Area type="monotone" dataKey="actual_attendance" stroke="#10b981" fillOpacity={1} fill="url(#colorActual)" name="Real" />
+                                        <Line type="monotone" dataKey="target_attendance" stroke="#ef4444" strokeWidth={2} strokeDasharray="5 5" name="Objetivo" dot={false} />
+                                    </AreaChart>
+                                </ResponsiveContainer>
+                            </div>
+                        </CardContent>
+                    </Card>
+                )
+            }
         </div >
     );
 }
