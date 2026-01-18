@@ -207,9 +207,11 @@ export default function UserManagementTab() {
             "px-2 py-0.5 rounded-full text-xs font-medium",
             role === 'supervisor'
                 ? "bg-purple-500/20 text-purple-300"
-                : "bg-blue-500/20 text-blue-300"
+                : role === 'inspector'
+                    ? "bg-orange-500/20 text-orange-300"
+                    : "bg-blue-500/20 text-blue-300"
         )}>
-            {role === 'supervisor' ? 'Supervisor' : 'Guardia'}
+            {role === 'supervisor' ? 'Supervisor' : role === 'inspector' ? 'Inspector' : 'Guardia'}
         </span>
     );
 
@@ -269,6 +271,12 @@ export default function UserManagementTab() {
                                         <div className="flex items-center gap-2">
                                             <Shield className="w-4 h-4 text-blue-400" />
                                             Guardia
+                                        </div>
+                                    </SelectItem>
+                                    <SelectItem value="inspector" className="text-white">
+                                        <div className="flex items-center gap-2">
+                                            <Shield className="w-4 h-4 text-orange-400" />
+                                            Inspector
                                         </div>
                                     </SelectItem>
                                     <SelectItem value="supervisor" className="text-white">
