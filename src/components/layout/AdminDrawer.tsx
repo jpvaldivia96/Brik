@@ -28,7 +28,7 @@ const adminOptions = [
 ];
 
 export default function AdminDrawer({ open, onOpenChange, activePanel, onPanelChange }: AdminDrawerProps) {
-  const { isSupervisor, currentSite } = useSite();
+  const { isSupervisor, currentSite, currentRole } = useSite();
   const [userRole, setUserRole] = useState<string>('');
 
   const handleSelect = (panelId: string) => {
@@ -60,7 +60,7 @@ export default function AdminDrawer({ open, onOpenChange, activePanel, onPanelCh
   const visibleOptions = adminOptions.filter(option => {
     // Allow inspection panel for both inspector and supervisor/admin
     if (option.id === 'inspection') {
-      return ['inspector', 'supervisor', 'admin', 'owner'].includes(userRole);
+      return ['inspector', 'supervisor', 'admin', 'owner'].includes(currentRole || '');
     }
     // Other supervisor-only options
     return !option.supervisorOnly || isSupervisor;
