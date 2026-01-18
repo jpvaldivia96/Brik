@@ -205,10 +205,16 @@ export default function InvitePage() {
                 <div className="flex justify-center">
                     <span className={`px-4 py-2 rounded-full text-sm font-medium flex items-center gap-2 ${invitation?.role === 'supervisor'
                             ? 'bg-purple-500/20 text-purple-300'
-                            : 'bg-blue-500/20 text-blue-300'
+                            : invitation?.role === 'inspector'
+                                ? 'bg-orange-500/20 text-orange-300'
+                                : 'bg-blue-500/20 text-blue-300'
                         }`}>
                         <Shield className="w-4 h-4" />
-                        {invitation?.role === 'supervisor' ? 'Supervisor' : 'Guardia'}
+                        {invitation?.role === 'supervisor'
+                            ? 'Supervisor'
+                            : invitation?.role === 'inspector'
+                                ? 'Inspector'
+                                : 'Guardia'}
                     </span>
                 </div>
 
