@@ -302,18 +302,39 @@ export default function UserManagementTab() {
         }
     };
 
-    const getRoleBadge = (role: RoleEnum) => (
-        <span className={cn(
-            "px-2 py-0.5 rounded-full text-xs font-medium",
-            role === 'supervisor'
-                ? "bg-purple-500/20 text-purple-300"
-                : role === 'inspector'
-                    ? "bg-orange-500/20 text-orange-300"
-                    : "bg-blue-500/20 text-blue-300"
-        )}>
-            {role === 'supervisor' ? 'Supervisor' : role === 'inspector' ? 'Inspector' : 'Guardia'}
-        </span>
-    );
+    const getRoleBadge = (role: RoleEnum) => {
+        let bgColor = "bg-blue-500/20";
+        let textColor = "text-blue-300";
+        let label = "Guardia";
+
+        if (role === 'owner') {
+            bgColor = "bg-yellow-500/20";
+            textColor = "text-yellow-300";
+            label = "Owner";
+        } else if (role === 'admin') {
+            bgColor = "bg-red-500/20";
+            textColor = "text-red-300";
+            label = "Admin";
+        } else if (role === 'supervisor') {
+            bgColor = "bg-purple-500/20";
+            textColor = "text-purple-300";
+            label = "Supervisor";
+        } else if (role === 'inspector') {
+            bgColor = "bg-orange-500/20";
+            textColor = "text-orange-300";
+            label = "Inspector";
+        }
+
+        return (
+            <span className={cn(
+                "px-2 py-0.5 rounded-full text-xs font-medium",
+                bgColor,
+                textColor
+            )}>
+                {label}
+            </span>
+        );
+    };
 
     if (loading) {
         return (
