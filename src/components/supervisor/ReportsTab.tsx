@@ -181,6 +181,46 @@ export default function ReportsTab() {
       filterDescription = `Persona: ${person?.full_name || 'N/A'}`;
     }
 
+    // Get inspection notes for relevant workers in the date range
+    const workerIds = [...new Set((logs || []).map(l => l.person_id).filter(Boolean))];
+    const inspectionNotesMap: Record<string, string[]> = {};
+
+    if (workerIds.length > 0) {
+      // Get all note-worker links for these workers
+      const { data: noteWorkers } = await (supabase as any)
+        .from('inspection_note_workers')
+        .select('person_id, note_id, inspection_notes:note_id(id, date, content)')
+        .in('person_id', workerIds);
+
+      // Filter notes within date range and organize by person+date
+      (noteWorkers || []).forEach((nw: any) => {
+        if (nw.inspection_notes) {
+          const noteDate = nw.inspection_notes.date;
+          if (noteDate >= dateFrom && noteDate <= dateTo) {
+            const key = `${nw.person_id}_${noteDate}`;
+            if (!inspectionNotesMap[key]) {
+              inspectionNotesMap[key] = [];
+            }
+            // Strip HTML and add note
+            const doc = new DOMParser().parseFromString(nw.inspection_notes.content, 'text/html');
+            const plainText = doc.body.textContent || '';
+            inspectionNotesMap[key].push(plainText);
+          }
+        }
+      });
+    }
+
+    // Enrich logs with inspection notes
+    const logsWithNotes = (logs || []).map(log => {
+      const logDate = log.entry_at.split('T')[0];
+      const key = `${log.person_id}_${logDate}`;
+      const notes = inspectionNotesMap[key] || [];
+      return {
+        ...log,
+        inspection_notes: notes.join(' | '),
+      };
+    });
+
     return {
       period: { from: dateFrom, to: dateTo },
       site: currentSite.name,
@@ -190,7 +230,7 @@ export default function ReportsTab() {
       totalHours: totalHours.toFixed(1),
       byDay,
       byContractor,
-      logs: logs || [],
+      logs: logsWithNotes,
     };
   };
 
@@ -201,7 +241,7 @@ export default function ReportsTab() {
       if (!data) return;
 
       // Create CSV content
-      const headers = ['Fecha Entrada', 'Hora Entrada', 'Fecha Salida', 'Hora Salida', 'Horas', 'Nombre', 'CI', 'Tipo', 'Contratista', 'Observaciones'];
+      const headers = ['Fecha Entrada', 'Hora Entrada', 'Fecha Salida', 'Hora Salida', 'Horas', 'Nombre', 'CI', 'Tipo', 'Contratista', 'Observaciones', 'Comentarios Fiscalización'];
       const rows = data.logs.map(log => {
         const entryDate = new Date(log.entry_at);
         const exitDate = log.exit_at ? new Date(log.exit_at) : null;
@@ -217,6 +257,7 @@ export default function ReportsTab() {
           log.type_snapshot || '',
           log.contractor_snapshot || '',
           log.observations || '',
+          log.inspection_notes || '',
         ].map(v => `"${v}"`).join(',');
       });
 
@@ -427,15 +468,17 @@ export default function ReportsTab() {
                   <th>Nombre</th>
                   <th>CI</th>
                   <th>Contratista</th>
+                  <th>Fiscalización</th>
                 </tr>
               </thead>
               <tbody>
                 ${data.logs.length === 0 ?
-          '<tr><td colspan="7" style="text-align: center; padding: 40px; color: #9ca3af;">No hay registros en el período seleccionado</td></tr>' :
+          '<tr><td colspan="8" style="text-align: center; padding: 40px; color: #9ca3af;">No hay registros en el período seleccionado</td></tr>' :
           data.logs.map(log => {
             const entry = new Date(log.entry_at);
             const exit = log.exit_at ? new Date(log.exit_at) : null;
             const hours = exit ? ((exit.getTime() - entry.getTime()) / (1000 * 60 * 60)).toFixed(1) : '-';
+            const notesText = log.inspection_notes ? log.inspection_notes.substring(0, 100) + (log.inspection_notes.length > 100 ? '...' : '') : '-';
             return '<tr>' +
               '<td>' + entry.toLocaleDateString('es-BO') + '</td>' +
               '<td>' + entry.toLocaleTimeString('es-BO', { hour: '2-digit', minute: '2-digit' }) + '</td>' +
@@ -444,6 +487,7 @@ export default function ReportsTab() {
               '<td><span style="font-weight: 600; color: #1f2937;">' + (log.name_snapshot || '-') + '</span></td>' +
               '<td>' + (log.ci_snapshot || '-') + '</td>' +
               '<td>' + (log.contractor_snapshot || '-') + '</td>' +
+              '<td style="font-size: 11px; color: #f97316; max-width: 150px;">' + notesText + '</td>' +
               '</tr>';
           }).join('')
         }
