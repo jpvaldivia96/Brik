@@ -29,7 +29,7 @@ export default defineConfig({
     // Shared settings for all tests
     use: {
         // Base URL for navigation
-        baseURL: 'http://localhost:8083',
+        baseURL: 'http://localhost:8080',
 
         // Collect trace when retrying a failed test
         trace: 'on-first-retry',
@@ -61,7 +61,7 @@ export default defineConfig({
     // Run local dev server before starting the tests
     webServer: {
         command: 'npm run dev',
-        url: 'http://localhost:8083',
+        url: 'http://localhost:8080',
         reuseExistingServer: !process.env.CI,
         timeout: 120 * 1000, // 2 minutes to start
     },
