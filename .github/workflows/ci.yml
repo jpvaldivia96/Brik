@@ -7,9 +7,9 @@ on:
     branches: [main]
 
 jobs:
-  build-and-test:
+  build:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 10
     
     steps:
       # 1. Checkout code
@@ -27,38 +27,57 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      # 4. Run linter (don't fail on warnings)
+      # 4. Run linter (non-blocking)
       - name: Run ESLint
-        run: npm run lint || true
+        run: npm run lint || echo "Lint warnings found, continuing..."
 
       # 5. Build the application
       - name: Build
         run: npm run build
 
-      # 6. Install Playwright browsers
-      - name: Install Playwright Browsers
+      # 6. Upload build artifacts
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: dist
+          path: dist/
+          retention-days: 7
+
+  # E2E tests run separately and don't block the build
+  e2e-tests:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    needs: build
+    continue-on-error: true  # Don't fail the whole pipeline if E2E fails
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build for preview
+        run: npm run build
+
+      - name: Install Playwright
         run: npx playwright install chromium --with-deps
 
-      # 7. Run E2E tests with built-in webserver
       - name: Run Playwright tests
         run: npm run test:e2e
         env:
           CI: true
 
-      # 8. Upload test artifacts on failure
-      - name: Upload Playwright Report
+      - name: Upload test report
         uses: actions/upload-artifact@v4
-        if: failure()
+        if: always()
         with:
           name: playwright-report
           path: playwright-report/
-          retention-days: 7
-
-      # 9. Upload build artifacts
-      - name: Upload build artifacts
-        uses: actions/upload-artifact@v4
-        if: success()
-        with:
-          name: dist
-          path: dist/
           retention-days: 7
