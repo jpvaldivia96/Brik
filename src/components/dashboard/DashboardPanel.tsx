@@ -9,9 +9,13 @@ import { EditWorkerModal } from './EditWorkerModal';
 import { ExportButton } from './ExportButton';
 import { ExitQueueModal } from './ExitQueueModal';
 import { EmergencyRollCall } from './EmergencyRollCall';
-import { Users, AlertTriangle, Clock, Building2, UserCheck, UserMinus, Siren, BarChart } from 'lucide-react';
+import { Users, AlertTriangle, Clock, Building2, UserCheck, UserMinus, Siren, BarChart, Edit2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import StatisticsPanel from '@/components/analytics/StatisticsPanel';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '@/components/ui/dialog';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { useToast } from '@/hooks/use-toast';
 
 interface InsideLog {
   id: string;
@@ -61,6 +65,10 @@ export default function DashboardPanel() {
   const [showExitQueue, setShowExitQueue] = useState(false);
   const [showEmergency, setShowEmergency] = useState(false);
   const [expandedContractors, setExpandedContractors] = useState<Set<string>>(new Set());
+  const [editingContractor, setEditingContractor] = useState<string | null>(null);
+  const [newContractorName, setNewContractorName] = useState('');
+  const [updatingContractor, setUpdatingContractor] = useState(false);
+  const { toast } = useToast();
 
   // Stats
   const stats = useMemo(() => {
@@ -564,6 +572,18 @@ export default function DashboardPanel() {
                             <div className="text-sm text-white/60">{c.entriesToday} entradas hoy</div>
                           </div>
                           <div className="text-right flex items-center gap-3">
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="text-white/50 hover:text-white"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setEditingContractor(c.contractor);
+                                setNewContractorName(c.contractor);
+                              }}
+                            >
+                              <Edit2 className="w-4 h-4" />
+                            </Button>
                             <div>
                               <div className="text-2xl font-bold text-primary">{c.inside}</div>
                               <div className="text-xs text-white/50">dentro</div>
@@ -644,6 +664,75 @@ export default function DashboardPanel() {
         open={showEmergency}
         onClose={() => setShowEmergency(false)}
       />
+
+      {/* Edit Contractor Modal */}
+      <Dialog open={!!editingContractor} onOpenChange={(open) => !open && setEditingContractor(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Editar Contratista</DialogTitle>
+            <DialogDescription>
+              El nuevo nombre se aplicará a todos los trabajadores de este contratista.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label>Nombre actual</Label>
+              <div className="p-2 bg-muted rounded-md text-muted-foreground">{editingContractor}</div>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="newName">Nuevo nombre</Label>
+              <Input
+                id="newName"
+                value={newContractorName}
+                onChange={(e) => setNewContractorName(e.target.value)}
+                placeholder="Escribir nuevo nombre..."
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setEditingContractor(null)}>
+              Cancelar
+            </Button>
+            <Button
+              onClick={async () => {
+                if (!currentSite || !editingContractor || !newContractorName.trim()) return;
+                setUpdatingContractor(true);
+
+                try {
+                  // Update all people with this contractor name
+                  const { error, count } = await supabase
+                    .from('people')
+                    .update({ contractor: newContractorName.trim().toUpperCase() })
+                    .eq('site_id', currentSite.id)
+                    .ilike('contractor', editingContractor);
+
+                  if (error) throw error;
+
+                  toast({
+                    title: 'Contratista actualizado',
+                    description: `Se actualizaron ${count || 'los'} registros a "${newContractorName.trim().toUpperCase()}"`,
+                  });
+
+                  setEditingContractor(null);
+                  fetchData(); // Refresh dashboard
+                } catch (err: any) {
+                  toast({
+                    title: 'Error',
+                    description: err.message,
+                    variant: 'destructive',
+                  });
+                } finally {
+                  setUpdatingContractor(false);
+                }
+              }}
+              disabled={updatingContractor || !newContractorName.trim() || newContractorName.trim().toUpperCase() === editingContractor}
+            >
+              {updatingContractor ? <Spinner size="sm" className="mr-2" /> : null}
+              Guardar
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

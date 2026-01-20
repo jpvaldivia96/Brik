@@ -16,7 +16,8 @@ import {
     DialogFooter,
     DialogDescription
 } from '@/components/ui/dialog';
-import { Users, Trash2, Search, UserX, RefreshCw } from 'lucide-react';
+import { Users, Trash2, Search, UserX, RefreshCw, User } from 'lucide-react';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { useToast } from '@/hooks/use-toast';
 import { EditWorkerModal } from '@/components/dashboard/EditWorkerModal';
 
@@ -26,6 +27,7 @@ interface PersonResult {
     ci: string;
     type: string;
     contractor: string | null;
+    photo_url: string | null;
     created_at: string;
 }
 
@@ -51,7 +53,7 @@ export default function PeopleTab() {
         try {
             const { data, error } = await supabase
                 .from('people')
-                .select('id, full_name, ci, type, contractor, created_at')
+                .select('id, full_name, ci, type, contractor, photo_url, created_at')
                 .eq('site_id', currentSite.id)
                 .order('contractor', { ascending: true, nullsFirst: false })
                 .order('full_name', { ascending: true });
@@ -243,8 +245,18 @@ export default function PeopleTab() {
                                         className="hover:bg-white/5 cursor-pointer transition-colors"
                                     >
                                         <td>
-                                            <div className="font-medium text-white">{p.full_name}</div>
-                                            <div className="text-xs text-white/50">{p.ci}</div>
+                                            <div className="flex items-center gap-3">
+                                                <Avatar className="w-10 h-10">
+                                                    <AvatarImage src={p.photo_url || ''} alt={p.full_name} />
+                                                    <AvatarFallback className="bg-purple-500/30 text-white">
+                                                        {p.full_name.split(' ').map(n => n[0]).slice(0, 2).join('')}
+                                                    </AvatarFallback>
+                                                </Avatar>
+                                                <div>
+                                                    <div className="font-medium text-white">{p.full_name}</div>
+                                                    <div className="text-xs text-white/50">{p.ci}</div>
+                                                </div>
+                                            </div>
                                         </td>
                                         <td>
                                             <StatusBadge status={p.type === 'worker' ? 'ok' : 'warn'}>
@@ -280,28 +292,36 @@ export default function PeopleTab() {
                                 className="bg-white/5 border border-white/10 rounded-xl p-4 flex justify-between items-start cursor-pointer active:bg-white/10 transition-colors"
                                 onClick={() => setEditingPersonId(p.id)}
                             >
-                                <div>
-                                    <div className="font-medium text-white">{p.full_name}</div>
-                                    <div className="text-sm text-white/50">CI: {p.ci}</div>
-                                    <div className="text-sm text-white/50">{p.contractor || 'Sin contratista'}</div>
-                                    <div className="flex gap-2 mt-2">
-                                        <StatusBadge status={p.type === 'worker' ? 'ok' : 'warn'}>
-                                            {p.type === 'worker' ? 'Trabajador' : 'Visita'}
-                                        </StatusBadge>
+                                <div className="flex items-start gap-3">
+                                    <Avatar className="w-12 h-12">
+                                        <AvatarImage src={p.photo_url || ''} alt={p.full_name} />
+                                        <AvatarFallback className="bg-purple-500/30 text-white">
+                                            {p.full_name.split(' ').map(n => n[0]).slice(0, 2).join('')}
+                                        </AvatarFallback>
+                                    </Avatar>
+                                    <div>
+                                        <div className="font-medium text-white">{p.full_name}</div>
+                                        <div className="text-sm text-white/50">CI: {p.ci}</div>
+                                        <div className="text-sm text-white/50">{p.contractor || 'Sin contratista'}</div>
+                                        <div className="flex gap-2 mt-2">
+                                            <StatusBadge status={p.type === 'worker' ? 'ok' : 'warn'}>
+                                                {p.type === 'worker' ? 'Trabajador' : 'Visita'}
+                                            </StatusBadge>
+                                        </div>
                                     </div>
+                                    <Button
+                                        variant="ghost"
+                                        size="sm"
+                                        className="text-red-400 hover:bg-red-500/10"
+                                        onClick={(e) => {
+                                            e.stopPropagation();
+                                            setSelectedPerson(p);
+                                            setDeleteOpen(true);
+                                        }}
+                                    >
+                                        <Trash2 className="w-4 h-4" />
+                                    </Button>
                                 </div>
-                                <Button
-                                    variant="ghost"
-                                    size="sm"
-                                    className="text-red-400 hover:bg-red-500/10"
-                                    onClick={(e) => {
-                                        e.stopPropagation();
-                                        setSelectedPerson(p);
-                                        setDeleteOpen(true);
-                                    }}
-                                >
-                                    <Trash2 className="w-4 h-4" />
-                                </Button>
                             </div>
                         ))}
                     </div>
