@@ -9,13 +9,13 @@ import { SearchInput } from '@/components/ui/search-input';
 import { AlertCosmos } from '@/components/ui/alert-cosmos';
 import { Spinner } from '@/components/ui/spinner';
 import { StatusBadge } from '@/components/ui/status-badge';
-import { 
-  Dialog, 
-  DialogContent, 
-  DialogHeader, 
-  DialogTitle, 
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
   DialogFooter,
-  DialogDescription 
+  DialogDescription
 } from '@/components/ui/dialog';
 import { Wrench, LogOut, Edit, Trash2, Search } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
@@ -181,7 +181,7 @@ export default function ToolsTab() {
 
       const { error } = await supabase
         .from('access_logs')
-        .update({ 
+        .update({
           voided_at: new Date().toISOString(),
           void_reason: reason,
         })
@@ -283,6 +283,7 @@ export default function ToolsTab() {
                             <Button
                               variant="outline"
                               size="sm"
+                              className="border-white/30 text-white hover:bg-white/10"
                               onClick={() => { setSelectedLog(log); setForceExitOpen(true); }}
                             >
                               <LogOut className="w-3 h-3 mr-1" /> Forzar Salida
@@ -291,6 +292,7 @@ export default function ToolsTab() {
                           <Button
                             variant="outline"
                             size="sm"
+                            className="border-white/30 text-white hover:bg-white/10"
                             onClick={() => openEdit(log)}
                           >
                             <Edit className="w-3 h-3 mr-1" /> Editar
@@ -298,7 +300,7 @@ export default function ToolsTab() {
                           <Button
                             variant="outline"
                             size="sm"
-                            className="text-status-crit hover:text-status-crit"
+                            className="border-red-500/50 text-red-400 hover:bg-red-500/10 hover:text-red-300"
                             onClick={() => { setSelectedLog(log); setVoidOpen(true); }}
                           >
                             <Trash2 className="w-3 h-3 mr-1" /> Anular
@@ -423,9 +425,9 @@ export default function ToolsTab() {
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setVoidOpen(false)}>Cancelar</Button>
-            <Button 
-              variant="destructive" 
-              onClick={handleVoid} 
+            <Button
+              variant="destructive"
+              onClick={handleVoid}
               disabled={submitting || !reason.trim()}
             >
               {submitting ? <Spinner size="sm" className="mr-2" /> : null}

@@ -38,6 +38,8 @@ export default function PeopleTab() {
     const [loading, setLoading] = useState(true);
     const [allPeople, setAllPeople] = useState<PersonResult[]>([]);
     const [selectedContractor, setSelectedContractor] = useState<string>('all');
+    const [contractorSearch, setContractorSearch] = useState('');
+    const [showContractorDropdown, setShowContractorDropdown] = useState(false);
     const [selectedPerson, setSelectedPerson] = useState<PersonResult | null>(null);
     const [editingPersonId, setEditingPersonId] = useState<string | null>(null);
 
@@ -204,17 +206,53 @@ export default function PeopleTab() {
                             className="pl-10 bg-white/10 border-white/20 text-white placeholder:text-white/40"
                         />
                     </div>
-                    <Select value={selectedContractor} onValueChange={setSelectedContractor}>
-                        <SelectTrigger className="w-full sm:w-48 bg-white/10 border-white/20 text-white/80">
-                            <SelectValue placeholder="Contratista" />
-                        </SelectTrigger>
-                        <SelectContent className="bg-slate-800/95 backdrop-blur-xl border-white/10">
-                            <SelectItem value="all" className="text-white/80 focus:bg-white/10">Todos</SelectItem>
-                            {contractors.map(c => (
-                                <SelectItem key={c} value={c} className="text-white/80 focus:bg-white/10">{c}</SelectItem>
-                            ))}
-                        </SelectContent>
-                    </Select>
+                    <div className="relative w-full sm:w-48">
+                        <Input
+                            placeholder="Todos los contratistas"
+                            value={contractorSearch}
+                            onChange={(e) => {
+                                setContractorSearch(e.target.value);
+                                setShowContractorDropdown(true);
+                                if (!e.target.value.trim()) {
+                                    setSelectedContractor('all');
+                                }
+                            }}
+                            onFocus={() => setShowContractorDropdown(true)}
+                            onBlur={() => setTimeout(() => setShowContractorDropdown(false), 200)}
+                            className="bg-white/10 border-white/20 text-white placeholder:text-white/40"
+                        />
+                        {showContractorDropdown && (
+                            <div className="absolute top-full left-0 right-0 mt-1 bg-slate-800/95 backdrop-blur-xl border border-white/10 rounded-lg max-h-48 overflow-y-auto z-50">
+                                <button
+                                    type="button"
+                                    onClick={() => {
+                                        setSelectedContractor('all');
+                                        setContractorSearch('');
+                                        setShowContractorDropdown(false);
+                                    }}
+                                    className={`w-full text-left px-3 py-2 text-sm hover:bg-white/10 ${selectedContractor === 'all' ? 'text-primary' : 'text-white/80'}`}
+                                >
+                                    ✓ Todos
+                                </button>
+                                {contractors
+                                    .filter(c => c.toLowerCase().includes(contractorSearch.toLowerCase()))
+                                    .map(c => (
+                                        <button
+                                            type="button"
+                                            key={c}
+                                            onClick={() => {
+                                                setSelectedContractor(c);
+                                                setContractorSearch(c);
+                                                setShowContractorDropdown(false);
+                                            }}
+                                            className={`w-full text-left px-3 py-2 text-sm hover:bg-white/10 ${selectedContractor === c ? 'text-primary' : 'text-white/80'}`}
+                                        >
+                                            {c}
+                                        </button>
+                                    ))}
+                            </div>
+                        )}
+                    </div>
                 </div>
                 <div className="mt-3 text-sm text-white/50">
                     {filteredPeople.length} de {allPeople.length} personas
