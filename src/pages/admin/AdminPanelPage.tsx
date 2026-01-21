@@ -26,7 +26,10 @@ import {
     Github,
     Zap,
     RefreshCw,
-    DoorOpen
+    DoorOpen,
+    Pause,
+    Play,
+    Trash2
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { format, formatDistanceToNow } from 'date-fns';
@@ -421,7 +424,7 @@ function SitesTab({
             {/* Sites List */}
             <div className="space-y-2">
                 {sites.map(site => (
-                    <SiteCard key={site.id} site={site} onClick={() => navigate(`/brik-control/sites/${site.id}`)} />
+                    <SiteCard key={site.id} site={site} onClick={() => navigate(`/brik-control/sites/${site.id}`)} onRefresh={onRefresh} />
                 ))}
                 {sites.length === 0 && (
                     <div className="text-center py-12 text-white/50">
@@ -439,9 +442,11 @@ function SitesTab({
 }
 
 // Site Card
-function SiteCard({ site, onClick }: { site: AdminSite; onClick: () => void }) {
+function SiteCard({ site, onClick, onRefresh }: { site: AdminSite; onClick: () => void; onRefresh: () => void }) {
     const navigate = useNavigate();
     const { enterSiteAsAdmin } = useSite();
+    const [suspending, setSuspending] = useState(false);
+    const [deleting, setDeleting] = useState(false);
 
     const handleEnterSite = async (e: React.MouseEvent) => {
         e.stopPropagation();
@@ -449,12 +454,64 @@ function SiteCard({ site, onClick }: { site: AdminSite; onClick: () => void }) {
         navigate('/');
     };
 
+    const handleSuspend = async (e: React.MouseEvent) => {
+        e.stopPropagation();
+        if (!confirm('¿Suspender esta obra? Los usuarios no podrán acceder.')) return;
+        setSuspending(true);
+        try {
+            const { supabase } = await import('@/integrations/supabase/client');
+            await (supabase as any).rpc('suspend_site_subscription', { p_site_id: site.id });
+            onRefresh();
+        } catch (error) {
+            console.error('Error suspending:', error);
+        } finally {
+            setSuspending(false);
+        }
+    };
+
+    const handleReactivate = async (e: React.MouseEvent) => {
+        e.stopPropagation();
+        if (!confirm('¿Reactivar esta obra?')) return;
+        setSuspending(true);
+        try {
+            const { supabase } = await import('@/integrations/supabase/client');
+            await (supabase as any).rpc('reactivate_site_subscription', { p_site_id: site.id });
+            onRefresh();
+        } catch (error) {
+            console.error('Error reactivating:', error);
+        } finally {
+            setSuspending(false);
+        }
+    };
+
+    const handleDelete = async (e: React.MouseEvent) => {
+        e.stopPropagation();
+        if (!confirm(`¿ELIMINAR PERMANENTEMENTE la obra "${site.name}"? Esta acción NO se puede deshacer.`)) return;
+        if (!confirm('¿Estás SEGURO? Todos los datos serán eliminados.')) return;
+        setDeleting(true);
+        try {
+            const { supabase } = await import('@/integrations/supabase/client');
+            await (supabase as any).rpc('delete_site_completely', { p_site_id: site.id });
+            onRefresh();
+        } catch (error) {
+            console.error('Error deleting:', error);
+        } finally {
+            setDeleting(false);
+        }
+    };
+
+    const isSuspended = site.subscription?.status === 'suspended';
+
     const getStatusBadge = () => {
         if (!site.subscription) {
             return <span className="px-2 py-0.5 bg-gray-500/20 text-gray-400 rounded-full text-xs">Sin suscripción</span>;
         }
 
         const { status, plan, trial_ends_at } = site.subscription;
+
+        if (status === 'suspended') {
+            return <span className="px-2 py-0.5 bg-red-500/20 text-red-400 rounded-full text-xs">🔒 Suspendida</span>;
+        }
 
         if (status === 'trial' && trial_ends_at) {
             const daysLeft = Math.ceil((new Date(trial_ends_at).getTime() - Date.now()) / (1000 * 60 * 60 * 24));
@@ -476,13 +533,13 @@ function SiteCard({ site, onClick }: { site: AdminSite; onClick: () => void }) {
     };
 
     return (
-        <div className="w-full p-4 bg-slate-800 hover:bg-slate-700 rounded-xl border border-white/10 transition-colors flex items-center justify-between">
+        <div className={`w-full p-4 rounded-xl border transition-colors flex items-center justify-between ${isSuspended ? 'bg-red-900/20 border-red-500/30' : 'bg-slate-800 hover:bg-slate-700 border-white/10'}`}>
             <button
                 onClick={onClick}
                 className="flex items-center gap-4 flex-1 text-left"
             >
-                <div className="w-12 h-12 bg-gradient-to-br from-purple-500/20 to-blue-500/20 rounded-xl flex items-center justify-center">
-                    <Building2 className="w-5 h-5 text-purple-400" />
+                <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${isSuspended ? 'bg-red-500/20' : 'bg-gradient-to-br from-purple-500/20 to-blue-500/20'}`}>
+                    <Building2 className={`w-5 h-5 ${isSuspended ? 'text-red-400' : 'text-purple-400'}`} />
                 </div>
                 <div>
                     <div className="flex items-center gap-2">
@@ -501,14 +558,48 @@ function SiteCard({ site, onClick }: { site: AdminSite; onClick: () => void }) {
                     </div>
                 </div>
             </button>
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-1">
+                {/* Suspend/Reactivate button */}
+                {isSuspended ? (
+                    <Button
+                        size="sm"
+                        onClick={handleReactivate}
+                        disabled={suspending}
+                        className="bg-green-500/20 hover:bg-green-500/40 text-green-300 border border-green-500/30"
+                        title="Reactivar obra"
+                    >
+                        <Play className="w-4 h-4" />
+                    </Button>
+                ) : (
+                    <Button
+                        size="sm"
+                        onClick={handleSuspend}
+                        disabled={suspending}
+                        className="bg-yellow-500/20 hover:bg-yellow-500/40 text-yellow-300 border border-yellow-500/30"
+                        title="Suspender obra"
+                    >
+                        <Pause className="w-4 h-4" />
+                    </Button>
+                )}
+                {/* Enter button */}
                 <Button
                     size="sm"
                     onClick={handleEnterSite}
+                    disabled={isSuspended}
                     className="bg-purple-500/20 hover:bg-purple-500/40 text-purple-300 border border-purple-500/30"
+                    title="Entrar a esta obra"
                 >
-                    <DoorOpen className="w-4 h-4 mr-1" />
-                    Entrar
+                    <DoorOpen className="w-4 h-4" />
+                </Button>
+                {/* Delete button */}
+                <Button
+                    size="sm"
+                    onClick={handleDelete}
+                    disabled={deleting}
+                    className="bg-red-500/20 hover:bg-red-500/40 text-red-300 border border-red-500/30"
+                    title="Eliminar obra permanentemente"
+                >
+                    <Trash2 className="w-4 h-4" />
                 </Button>
                 <button onClick={onClick}>
                     <ChevronRight className="w-5 h-5 text-white/30" />

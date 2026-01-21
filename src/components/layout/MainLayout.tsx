@@ -31,6 +31,7 @@ import { LimitBlockModal } from '@/components/subscription/LimitBlockModal';
 import { useSubscription } from '@/hooks/useSubscription';
 import WelcomeModal from '@/components/onboarding/WelcomeModal';
 import SubscribeModal from '@/components/subscription/SubscribeModal';
+import { SuspendedOverlay } from '@/components/subscription/SuspendedOverlay';
 
 // Live Date/Time Display Component with Weather
 function DateTimeDisplay() {
@@ -298,6 +299,9 @@ export default function MainLayout() {
 
         {renderContent()}
       </main>
+
+      {/* Suspended Overlay - blocks everything */}
+      {subscription.isSuspended && <SuspendedOverlay />}
 
       {/* Limit Block Modal */}
       {subscription.isOverLimit && showLimitModal && (

@@ -5,7 +5,7 @@ import { supabase } from '@/integrations/supabase/client';
 export interface SubscriptionData {
     id: string;
     plan: 'free' | 'starter' | 'pro' | 'enterprise';
-    status: 'active' | 'trial' | 'past_due' | 'cancelled' | 'paused';
+    status: 'active' | 'trial' | 'past_due' | 'cancelled' | 'paused' | 'suspended';
     monthlyLimit: number;
     currentUsage: number;
     usagePercentage: number;
@@ -14,6 +14,7 @@ export interface SubscriptionData {
     trialEndsAt: string | null;
     isInTrial: boolean;
     daysLeftInTrial: number | null;
+    isSuspended: boolean;
 }
 
 const defaultSubscription: SubscriptionData = {
@@ -28,6 +29,7 @@ const defaultSubscription: SubscriptionData = {
     trialEndsAt: null,
     isInTrial: false,
     daysLeftInTrial: null,
+    isSuspended: false,
 };
 
 export function useSubscription() {
@@ -90,6 +92,7 @@ export function useSubscription() {
                 trialEndsAt: data.trial_ends_at || null,
                 isInTrial: !!isInTrial,
                 daysLeftInTrial,
+                isSuspended: data.status === 'suspended',
             });
         } catch (err: any) {
             // Silently fail and use defaults - don't break the app
