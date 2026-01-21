@@ -12,6 +12,7 @@ import { faceService } from "@/services/FaceService";
 import Index from "./pages/Index";
 import AuthPage from "./pages/AuthPage";
 import InvitePage from "./pages/InvitePage";
+import OnboardingPage from "./pages/OnboardingPage";
 import NotFound from "./pages/NotFound";
 import AdminPanelPage from "./pages/admin/AdminPanelPage";
 import AdminSiteDetailPage from "./pages/admin/AdminSiteDetailPage";
@@ -43,6 +44,7 @@ const App = () => {
                 <Route path="/" element={<Index />} />
                 <Route path="/auth" element={<AuthPage />} />
                 <Route path="/invite/:token" element={<InvitePage />} />
+                <Route path="/onboarding" element={<OnboardingPage />} />
                 {/* Admin Panel Routes */}
                 <Route path="/brik-control" element={<AdminPanelPage />} />
                 <Route path="/brik-control/sites/:siteId" element={<AdminSiteDetailPage />} />

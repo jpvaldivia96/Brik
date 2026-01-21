@@ -22,12 +22,12 @@ const adminOptions = [
   { id: 'settings', icon: Settings, label: 'Configuración', description: 'Ajustes de la obra', supervisorOnly: true },
   { id: 'audit', icon: History, label: 'Auditoría', description: 'Historial de cambios', supervisorOnly: true },
   { id: 'tools', icon: Wrench, label: 'Herramientas', description: 'Correcciones y ajustes', supervisorOnly: true },
-  { id: 'reports', icon: FileText, label: 'Reportes', description: 'Descargar informes', supervisorOnly: true },
+  { id: 'reports', icon: FileText, label: 'Reportes', description: 'Descargar informes', supervisorOnly: true, allowInspector: true },
   { id: 'import', icon: Upload, label: 'Importar', description: 'Cargar datos CSV', supervisorOnly: true },
 ];
 
 export default function AdminDrawer({ open, onOpenChange, activePanel, onPanelChange }: AdminDrawerProps) {
-  const { isSupervisor, currentSite, currentRole } = useSite();
+  const { isSupervisor, isInspector, currentSite, currentRole } = useSite();
   const [userRole, setUserRole] = useState<string>('');
 
   const handleSelect = (panelId: string) => {
@@ -57,12 +57,18 @@ export default function AdminDrawer({ open, onOpenChange, activePanel, onPanelCh
 
   // Filter options based on role
   const visibleOptions = adminOptions.filter(option => {
-    // Allow inspection panel for both inspector and supervisor/admin
-    if (option.id === 'inspection') {
-      return ['inspector', 'supervisor', 'admin', 'owner'].includes(currentRole || '');
+    // If option allows inspector and user is inspector, show it
+    if (option.allowInspector && isInspector) {
+      return true;
     }
-    // Other supervisor-only options
-    return !option.supervisorOnly || isSupervisor;
+
+    // Supervisor-only options require supervisor role
+    if (option.supervisorOnly) {
+      return isSupervisor;
+    }
+
+    // Non-supervisor-only options are visible to all
+    return true;
   });
 
   return (
