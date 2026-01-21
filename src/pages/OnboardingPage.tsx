@@ -58,14 +58,13 @@ export default function OnboardingPage() {
 
       if (siteError) throw siteError;
 
-      // 2. Add user as supervisor
-      // Note: RLS allows creating your own membership if role is supervisor
-      const { error: membershipError } = await supabase
+      // 2. Add user as owner of the new site
+      const { error: membershipError } = await (supabase as any)
         .from('site_memberships')
         .insert({
           site_id: siteId,
           user_id: user.id,
-          role: 'supervisor',
+          role: 'owner',
         });
 
       if (membershipError) throw membershipError;

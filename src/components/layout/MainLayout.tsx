@@ -30,6 +30,7 @@ import { UsageBanner } from '@/components/subscription/UsageBanner';
 import { LimitBlockModal } from '@/components/subscription/LimitBlockModal';
 import { useSubscription } from '@/hooks/useSubscription';
 import WelcomeModal from '@/components/onboarding/WelcomeModal';
+import SubscribeModal from '@/components/subscription/SubscribeModal';
 
 // Live Date/Time Display Component with Weather
 function DateTimeDisplay() {
@@ -92,6 +93,7 @@ export default function MainLayout() {
   const [adminDrawerOpen, setAdminDrawerOpen] = useState(false);
   const [showLimitModal, setShowLimitModal] = useState(false);
   const [showWelcome, setShowWelcome] = useState(false);
+  const [showSubscribe, setShowSubscribe] = useState(false);
   const { subscription } = useSubscription();
 
   // Check if this is a first-time user
@@ -292,7 +294,7 @@ export default function MainLayout() {
       {/* Content */}
       <main className="max-w-2xl mx-auto p-4 animate-fade-in">
         {/* Usage Banner */}
-        <UsageBanner className="mb-4" />
+        <UsageBanner className="mb-4" onSubscribeClick={() => setShowSubscribe(true)} />
 
         {renderContent()}
       </main>
@@ -335,6 +337,12 @@ export default function MainLayout() {
           }}
         />
       )}
+
+      {/* Subscribe Modal */}
+      <SubscribeModal
+        open={showSubscribe}
+        onOpenChange={setShowSubscribe}
+      />
     </div>
   );
 }

@@ -4,9 +4,10 @@ import { cn } from '@/lib/utils';
 
 interface UsageBannerProps {
     className?: string;
+    onSubscribeClick?: () => void;
 }
 
-export function UsageBanner({ className }: UsageBannerProps) {
+export function UsageBanner({ className, onSubscribeClick }: UsageBannerProps) {
     const { subscription, loading, getPlanDisplayName } = useSubscription();
 
     if (loading) return null;
@@ -25,7 +26,7 @@ export function UsageBanner({ className }: UsageBannerProps) {
                         {subscription.daysLeftInTrial} días restantes
                     </span>
                 </div>
-                <button className="text-xs px-3 py-1 rounded-full bg-gradient-to-r from-purple-500 to-blue-500 text-white font-medium hover:opacity-90 transition-opacity">
+                <button onClick={onSubscribeClick} className="text-xs px-3 py-1 rounded-full bg-gradient-to-r from-purple-500 to-blue-500 text-white font-medium hover:opacity-90 transition-opacity">
                     Suscribirse
                 </button>
             </div>
@@ -46,7 +47,7 @@ export function UsageBanner({ className }: UsageBannerProps) {
                         {subscription.currentUsage}/{subscription.monthlyLimit} registros
                     </span>
                 </div>
-                <button className="text-xs px-3 py-1 rounded-full bg-red-500 text-white font-medium hover:bg-red-600 transition-colors">
+                <button onClick={onSubscribeClick} className="text-xs px-3 py-1 rounded-full bg-red-500 text-white font-medium hover:bg-red-600 transition-colors">
                     Actualizar Plan
                 </button>
             </div>
@@ -67,7 +68,7 @@ export function UsageBanner({ className }: UsageBannerProps) {
                         {subscription.currentUsage}/{subscription.monthlyLimit} registros
                     </span>
                 </div>
-                <button className="text-xs px-3 py-1 rounded-full bg-yellow-500 text-black font-medium hover:bg-yellow-400 transition-colors">
+                <button onClick={onSubscribeClick} className="text-xs px-3 py-1 rounded-full bg-yellow-500 text-black font-medium hover:bg-yellow-400 transition-colors">
                     Ver Planes
                 </button>
             </div>
@@ -87,7 +88,7 @@ export function UsageBanner({ className }: UsageBannerProps) {
                         Plan {getPlanDisplayName(subscription.plan)} • {subscription.currentUsage}/{subscription.monthlyLimit} registros
                     </span>
                 </div>
-                <button className="text-xs px-3 py-1 rounded-full bg-white/10 text-white/80 font-medium hover:bg-white/20 transition-colors">
+                <button onClick={onSubscribeClick} className="text-xs px-3 py-1 rounded-full bg-white/10 text-white/80 font-medium hover:bg-white/20 transition-colors">
                     Mejorar
                 </button>
             </div>
