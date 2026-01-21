@@ -186,28 +186,49 @@ export default function ReportsTab() {
     const inspectionNotesMap: Record<string, string[]> = {};
 
     if (workerIds.length > 0) {
-      // Get all note-worker links for these workers
-      const { data: noteWorkers } = await (supabase as any)
+      // First, get all note-worker links for these workers
+      const { data: noteWorkers, error: nwError } = await (supabase as any)
         .from('inspection_note_workers')
-        .select('person_id, note_id, inspection_notes:note_id(id, date, content)')
+        .select('person_id, note_id')
         .in('person_id', workerIds);
 
-      // Filter notes within date range and organize by person+date
-      (noteWorkers || []).forEach((nw: any) => {
-        if (nw.inspection_notes) {
-          const noteDate = nw.inspection_notes.date;
-          if (noteDate >= dateFrom && noteDate <= dateTo) {
-            const key = `${nw.person_id}_${noteDate}`;
-            if (!inspectionNotesMap[key]) {
-              inspectionNotesMap[key] = [];
+      if (!nwError && noteWorkers && noteWorkers.length > 0) {
+        // Get unique note IDs
+        const noteIds = [...new Set(noteWorkers.map((nw: any) => nw.note_id))];
+
+        // Fetch the actual notes
+        const { data: notes, error: notesError } = await (supabase as any)
+          .from('inspection_notes')
+          .select('id, date, content')
+          .in('id', noteIds)
+          .gte('date', dateFrom)
+          .lte('date', dateTo);
+
+        if (!notesError && notes) {
+          // Create a lookup map for notes by ID
+          const notesById: Record<string, { date: string; content: string }> = {};
+          notes.forEach((n: any) => {
+            notesById[n.id] = { date: n.date, content: n.content };
+          });
+
+          // Organize by person+date
+          noteWorkers.forEach((nw: any) => {
+            const note = notesById[nw.note_id];
+            if (note) {
+              const key = `${nw.person_id}_${note.date}`;
+              if (!inspectionNotesMap[key]) {
+                inspectionNotesMap[key] = [];
+              }
+              // Strip HTML and add note
+              const doc = new DOMParser().parseFromString(note.content, 'text/html');
+              const plainText = doc.body.textContent || '';
+              if (plainText.trim()) {
+                inspectionNotesMap[key].push(plainText);
+              }
             }
-            // Strip HTML and add note
-            const doc = new DOMParser().parseFromString(nw.inspection_notes.content, 'text/html');
-            const plainText = doc.body.textContent || '';
-            inspectionNotesMap[key].push(plainText);
-          }
+          });
         }
-      });
+      }
     }
 
     // Enrich logs with inspection notes
