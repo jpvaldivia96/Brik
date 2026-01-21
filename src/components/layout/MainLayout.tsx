@@ -29,6 +29,7 @@ import InspectionNotesPanel from '@/components/inspection/InspectionNotesPanel';
 import { UsageBanner } from '@/components/subscription/UsageBanner';
 import { LimitBlockModal } from '@/components/subscription/LimitBlockModal';
 import { useSubscription } from '@/hooks/useSubscription';
+import WelcomeModal from '@/components/onboarding/WelcomeModal';
 
 // Live Date/Time Display Component with Weather
 function DateTimeDisplay() {
@@ -90,7 +91,16 @@ export default function MainLayout() {
   const [activeAdminPanel, setActiveAdminPanel] = useState('dashboard');
   const [adminDrawerOpen, setAdminDrawerOpen] = useState(false);
   const [showLimitModal, setShowLimitModal] = useState(false);
+  const [showWelcome, setShowWelcome] = useState(false);
   const { subscription } = useSubscription();
+
+  // Check if this is a first-time user
+  useEffect(() => {
+    const shouldShowWelcome = localStorage.getItem('brik_show_welcome');
+    if (shouldShowWelcome === 'true') {
+      setShowWelcome(true);
+    }
+  }, []);
 
   const handleExitAdminMode = () => {
     exitAdminMode();
@@ -313,6 +323,16 @@ export default function MainLayout() {
         <ActionDrawer
           activeAction={activeAction}
           onOpenChange={handleDrawerOpenChange}
+        />
+      )}
+
+      {/* Welcome Modal for first-time users */}
+      {showWelcome && (
+        <WelcomeModal
+          onComplete={() => {
+            localStorage.removeItem('brik_show_welcome');
+            setShowWelcome(false);
+          }}
         />
       )}
     </div>

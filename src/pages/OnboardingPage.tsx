@@ -17,7 +17,7 @@ const siteSchema = z.object({
 
 export default function OnboardingPage() {
   const { user, signOut } = useAuth();
-  const { refreshSites } = useSite();
+  const { refreshSites, selectSite } = useSite();
   const { toast } = useToast();
   const [loading, setLoading] = useState(false);
   const [siteName, setSiteName] = useState('');
@@ -75,8 +75,15 @@ export default function OnboardingPage() {
         description: `"${result.data.name}" está lista para usar`,
       });
 
-      // Refresh sites to pick up the new one
+      // Refresh sites to pick up the new one, then auto-select it
       await refreshSites();
+
+      // Mark as first-time user for tutorial
+      localStorage.setItem('brik_show_welcome', 'true');
+
+      // Select the new site and navigate to dashboard
+      selectSite(siteId);
+      window.location.href = '/';
     } catch (err: any) {
       console.error("Error creating site:", err);
       toast({
