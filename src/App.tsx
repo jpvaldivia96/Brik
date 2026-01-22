@@ -19,6 +19,9 @@ import AdminSiteDetailPage from "./pages/admin/AdminSiteDetailPage";
 
 const queryClient = new QueryClient();
 
+import ForgotPasswordPage from "./pages/ForgotPasswordPage";
+import ResetPasswordPage from "./pages/ResetPasswordPage";
+
 const App = () => {
   // Start auto-sync and preload face models when app loads
   useEffect(() => {
@@ -43,6 +46,8 @@ const App = () => {
               <Routes>
                 <Route path="/" element={<Index />} />
                 <Route path="/auth" element={<AuthPage />} />
+                <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+                <Route path="/reset-password" element={<ResetPasswordPage />} />
                 <Route path="/invite/:token" element={<InvitePage />} />
                 <Route path="/onboarding" element={<OnboardingPage />} />
                 {/* Admin Panel Routes */}
