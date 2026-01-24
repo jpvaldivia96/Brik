@@ -65,7 +65,8 @@ export default function SettingsTab() {
         .eq('user_id', user.id)
         .single();
 
-      setIsOwner(membership?.role === 'owner' || membership?.role === 'admin');
+      const role = membership?.role as string;
+      setIsOwner(role === 'owner' || role === 'admin');
     } catch (error) {
       setIsOwner(false);
     }
@@ -288,71 +289,63 @@ export default function SettingsTab() {
       {/* Sub-tab content */}
       {activeSubTab === 'obra' && (
         <>
-          <div className="card-cosmos p-6">
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              <div className="space-y-2">
-                <Label htmlFor="warn_hours" className="text-white/80">Horas para WARN</Label>
-                <Input
-                  id="warn_hours"
-                  type="number"
-                  step="0.5"
-                  min="1"
-                  value={form.warn_hours}
-                  onChange={(e) => setForm({ ...form, warn_hours: parseFloat(e.target.value) || 0 })}
-                  className="bg-white/10 border-white/20 text-white"
-                />
-                <p className="text-xs text-white/50">Alerta amarilla después de X horas</p>
+          {isOwner ? (
+            <div className="card-cosmos p-6">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <div className="space-y-2">
+                  <Label htmlFor="warn_hours" className="text-white/80">Horas para WARN</Label>
+                  <Input
+                    id="warn_hours"
+                    type="number"
+                    step="0.5"
+                    min="1"
+                    value={form.warn_hours}
+                    onChange={(e) => setForm({ ...form, warn_hours: parseFloat(e.target.value) || 0 })}
+                    className="bg-white/10 border-white/20 text-white"
+                  />
+                  <p className="text-xs text-white/50">Alerta amarilla después de X horas</p>
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="crit_hours" className="text-white/80">Horas para CRIT</Label>
+                  <Input
+                    id="crit_hours"
+                    type="number"
+                    step="0.5"
+                    min="1"
+                    value={form.crit_hours}
+                    onChange={(e) => setForm({ ...form, crit_hours: parseFloat(e.target.value) || 0 })}
+                    className="bg-white/10 border-white/20 text-white"
+                  />
+                  <p className="text-xs text-white/50">Alerta roja después de X horas</p>
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="seguro_warn_days" className="text-white/80">Días aviso seguro</Label>
+                  <Input
+                    id="seguro_warn_days"
+                    type="number"
+                    min="1"
+                    value={form.seguro_warn_days}
+                    onChange={(e) => setForm({ ...form, seguro_warn_days: parseInt(e.target.value) || 0 })}
+                    className="bg-white/10 border-white/20 text-white"
+                  />
+                  <p className="text-xs text-white/50">Alertar X días antes del vencimiento</p>
+                </div>
               </div>
 
-              <div className="space-y-2">
-                <Label htmlFor="crit_hours" className="text-white/80">Horas para CRIT</Label>
-                <Input
-                  id="crit_hours"
-                  type="number"
-                  step="0.5"
-                  min="1"
-                  value={form.crit_hours}
-                  onChange={(e) => setForm({ ...form, crit_hours: parseFloat(e.target.value) || 0 })}
-                  className="bg-white/10 border-white/20 text-white"
-                />
-                <p className="text-xs text-white/50">Alerta roja después de X horas</p>
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="seguro_warn_days" className="text-white/80">Días aviso seguro</Label>
-                <Input
-                  id="seguro_warn_days"
-                  type="number"
-                  min="1"
-                  value={form.seguro_warn_days}
-                  onChange={(e) => setForm({ ...form, seguro_warn_days: parseInt(e.target.value) || 0 })}
-                  className="bg-white/10 border-white/20 text-white"
-                />
-                <p className="text-xs text-white/50">Alertar X días antes del vencimiento</p>
+              <div className="mt-6 flex justify-end">
+                <Button onClick={handleSave} disabled={saving} className="bg-gradient-to-r from-purple-500 to-blue-500 hover:from-purple-600 hover:to-blue-600">
+                  {saving ? <Spinner size="sm" className="mr-2" /> : <Save className="w-4 h-4 mr-2" />}
+                  Guardar Configuración
+                </Button>
               </div>
             </div>
-
-            <div className="mt-6 flex justify-end">
-              <Button onClick={handleSave} disabled={saving} className="bg-gradient-to-r from-purple-500 to-blue-500 hover:from-purple-600 hover:to-blue-600">
-                {saving ? <Spinner size="sm" className="mr-2" /> : <Save className="w-4 h-4 mr-2" />}
-                Guardar Configuración
-              </Button>
+          ) : (
+            <div className="card-cosmos p-6 text-center">
+              <p className="text-white/60">Solo el propietario de la obra puede modificar los ajustes de alertas.</p>
             </div>
-          </div>
-
-          <div className="card-cosmos p-6">
-            <h4 className="font-medium mb-4 text-white/90">Información de la Obra</h4>
-            <div className="grid grid-cols-2 gap-4 text-sm">
-              <div>
-                <span className="text-white/50">Nombre:</span>
-                <p className="font-medium text-white">{currentSite?.name}</p>
-              </div>
-              <div>
-                <span className="text-white/50">Zona horaria:</span>
-                <p className="font-medium text-white">{currentSite?.timezone}</p>
-              </div>
-            </div>
-          </div>
+          )}
 
           {/* Account Actions */}
           <div className="card-cosmos p-6">
