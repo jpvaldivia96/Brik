@@ -350,6 +350,7 @@ export default function DashboardPanel() {
       {/* Alert Badges Summary - Clickable to filter */}
       <div className="grid grid-cols-3 gap-2">
         <button
+          id="tutorial-card-alert"
           onClick={() => setStatusFilter(statusFilter === 'crit' ? 'all' : 'crit')}
           className={cn(
             "flex items-center gap-1.5 px-2 py-2 rounded-xl border justify-center transition-all",
@@ -381,6 +382,7 @@ export default function DashboardPanel() {
         </button>
         {/* En obra button now resets filter to 'all', showing everyone */}
         <button
+          id="tutorial-card-inside"
           onClick={() => setStatusFilter('all')}
           className={cn(
             "flex items-center gap-1.5 px-2 py-2 rounded-xl border justify-center transition-all",
@@ -414,6 +416,7 @@ export default function DashboardPanel() {
                 Personas
               </button>
               <button
+                id="tutorial-tab-contractors"
                 onClick={() => setActiveTab('companies')}
                 className={cn(
                   "px-4 py-2 rounded-lg text-sm font-medium transition-colors",
@@ -426,6 +429,7 @@ export default function DashboardPanel() {
                 Contratistas
               </button>
               <button
+                id="tutorial-tab-stats"
                 onClick={() => setActiveTab('stats')}
                 className={cn(
                   "px-4 py-2 rounded-lg text-sm font-medium transition-colors",

@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { Button } from '@/components/ui/button';
-import { Settings, FileText, Wrench, Upload, History, LayoutDashboard, X, Users, UserCog, Bell, ClipboardCheck } from 'lucide-react';
+import { Settings, FileText, History, LayoutDashboard, X, Users, ClipboardCheck } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useSite } from '@/contexts/SiteContext';
 import { supabase } from '@/integrations/supabase/client';
@@ -16,14 +16,10 @@ interface AdminDrawerProps {
 const adminOptions = [
   { id: 'dashboard', icon: LayoutDashboard, label: 'Dashboard', description: 'KPIs y resumen', supervisorOnly: false },
   { id: 'people', icon: Users, label: 'Personal', description: 'Gestionar y eliminar', supervisorOnly: false },
-  { id: 'users', icon: UserCog, label: 'Usuarios', description: 'Gestionar accesos', supervisorOnly: true },
-  { id: 'alerts', icon: Bell, label: 'Mis Alertas', description: 'Preferencias personales', supervisorOnly: false },
   { id: 'inspection', icon: ClipboardCheck, label: 'Control de Obra', description: 'Notas de fiscalización', supervisorOnly: true, allowInspector: true },
-  { id: 'settings', icon: Settings, label: 'Configuración', description: 'Ajustes de la obra', supervisorOnly: true },
-  { id: 'audit', icon: History, label: 'Auditoría', description: 'Historial de cambios', supervisorOnly: true },
-  { id: 'tools', icon: Wrench, label: 'Herramientas', description: 'Correcciones y ajustes', supervisorOnly: true },
   { id: 'reports', icon: FileText, label: 'Reportes', description: 'Descargar informes', supervisorOnly: true, allowInspector: true },
-  { id: 'import', icon: Upload, label: 'Importar', description: 'Cargar datos CSV', supervisorOnly: true },
+  { id: 'audit', icon: History, label: 'Auditoría y Control', description: 'Historial y correcciones', supervisorOnly: true },
+  { id: 'settings', icon: Settings, label: 'Configuración', description: 'Usuarios, alertas y más', supervisorOnly: true },
 ];
 
 export default function AdminDrawer({ open, onOpenChange, activePanel, onPanelChange }: AdminDrawerProps) {

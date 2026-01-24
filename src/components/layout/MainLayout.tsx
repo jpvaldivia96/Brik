@@ -32,6 +32,7 @@ import { useSubscription } from '@/hooks/useSubscription';
 import WelcomeModal from '@/components/onboarding/WelcomeModal';
 import SubscribeModal from '@/components/subscription/SubscribeModal';
 import { SuspendedOverlay } from '@/components/subscription/SuspendedOverlay';
+import { SpotlightTutorial } from '@/components/tutorial/SpotlightTutorial';
 
 // Live Date/Time Display Component with Weather
 function DateTimeDisplay() {
@@ -95,6 +96,7 @@ export default function MainLayout() {
   const [showLimitModal, setShowLimitModal] = useState(false);
   const [showWelcome, setShowWelcome] = useState(false);
   const [showSubscribe, setShowSubscribe] = useState(false);
+  const [showTutorial, setShowTutorial] = useState(false);
   const { subscription } = useSubscription();
 
   // Check if this is a first-time user
@@ -102,6 +104,12 @@ export default function MainLayout() {
     const shouldShowWelcome = localStorage.getItem('brik_show_welcome');
     if (shouldShowWelcome === 'true') {
       setShowWelcome(true);
+    }
+    // Check if tutorial should be shown
+    const shouldShowTutorial = localStorage.getItem('brik_show_tutorial');
+    if (shouldShowTutorial === 'true') {
+      setShowTutorial(true);
+      localStorage.removeItem('brik_show_tutorial');
     }
   }, []);
 
@@ -213,7 +221,7 @@ export default function MainLayout() {
         <div className="max-w-2xl mx-auto px-4 h-40 flex items-center justify-between">
           <div className="flex items-center">
             {/* BRIK Brand - Home Button */}
-            <Button variant="ghost" className="p-0 hover:bg-transparent" onClick={goHome}>
+            <Button id="tutorial-logo" variant="ghost" className="p-0 hover:bg-transparent" onClick={goHome}>
               <img src="/brik-logo-white.png" alt="BRIK" className="h-36 w-auto object-contain" />
             </Button>
           </div>
@@ -223,7 +231,7 @@ export default function MainLayout() {
             <div className="flex flex-col items-end">
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                  <button className="flex items-center gap-2 text-sm font-medium text-white/80 hover:text-white transition-colors cursor-pointer">
+                  <button id="tutorial-site-selector" className="flex items-center gap-2 text-sm font-medium text-white/80 hover:text-white transition-colors cursor-pointer">
                     {currentSite?.name}
                     <ChevronDown className="w-4 h-4" />
                   </button>
@@ -267,6 +275,7 @@ export default function MainLayout() {
             {/* Admin Button - for supervisors and inspectors */}
             {(isSupervisor || isInspector) && (
               <Button
+                id="tutorial-menu-button"
                 variant="ghost"
                 size="icon"
                 onClick={() => setAdminDrawerOpen(true)}
@@ -332,12 +341,13 @@ export default function MainLayout() {
         />
       )}
 
-      {/* Welcome Modal for first-time users */}
       {showWelcome && (
         <WelcomeModal
           onComplete={() => {
             localStorage.removeItem('brik_show_welcome');
             setShowWelcome(false);
+            // Trigger tutorial after welcome modal closes
+            setShowTutorial(true);
           }}
         />
       )}
@@ -347,6 +357,11 @@ export default function MainLayout() {
         open={showSubscribe}
         onOpenChange={setShowSubscribe}
       />
+
+      {/* Spotlight Tutorial */}
+      {showTutorial && activeAdminPanel === 'dashboard' && (
+        <SpotlightTutorial onComplete={() => setShowTutorial(false)} />
+      )}
     </div>
   );
 }

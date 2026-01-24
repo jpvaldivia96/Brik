@@ -5,7 +5,11 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Spinner } from '@/components/ui/spinner';
-import { History, Search, ChevronDown, ChevronUp, Download } from 'lucide-react';
+import { History, Search, ChevronDown, ChevronUp, Download, Wrench } from 'lucide-react';
+import { cn } from '@/lib/utils';
+import ToolsTab from './ToolsTab';
+
+type AuditSubTab = 'history' | 'tools';
 
 interface AuditEvent {
   id: string;
@@ -22,6 +26,7 @@ interface AuditEvent {
 
 export default function AuditLogTab() {
   const { currentSite } = useSite();
+  const [activeSubTab, setActiveSubTab] = useState<AuditSubTab>('history');
   const [loading, setLoading] = useState(true);
   const [events, setEvents] = useState<AuditEvent[]>([]);
   const [dateFrom, setDateFrom] = useState('');
@@ -164,120 +169,156 @@ export default function AuditLogTab() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <History className="w-6 h-6 text-primary" />
-          <h3 className="text-lg font-medium">Historial de Auditoría</h3>
-        </div>
-        <Button variant="outline" size="sm" onClick={exportCSV} disabled={events.length === 0}>
-          <Download className="w-4 h-4 mr-2" />
-          Exportar CSV
-        </Button>
+      {/* Header */}
+      <div className="flex items-center gap-3">
+        <History className="w-6 h-6 text-primary" />
+        <h3 className="text-lg font-medium">Auditoría y Control</h3>
       </div>
 
-      {/* Filters */}
-      <div className="card-cosmos p-4">
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-          <div>
-            <label className="text-sm text-muted-foreground mb-1 block">Desde</label>
-            <Input type="date" value={dateFrom} onChange={(e) => setDateFrom(e.target.value)} />
-          </div>
-          <div>
-            <label className="text-sm text-muted-foreground mb-1 block">Hasta</label>
-            <Input type="date" value={dateTo} onChange={(e) => setDateTo(e.target.value)} />
-          </div>
-          <div>
-            <label className="text-sm text-muted-foreground mb-1 block">Acción</label>
-            <Select value={actionFilter} onValueChange={setActionFilter}>
-              <SelectTrigger><SelectValue /></SelectTrigger>
-              <SelectContent>
-                {actions.map(a => (
-                  <SelectItem key={a} value={a}>{a === 'all' ? 'Todas' : a}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-          <div className="flex items-end">
-            <Button onClick={fetchEvents} className="w-full">
-              <Search className="w-4 h-4 mr-2" /> Buscar
+      {/* Sub-tab navigation */}
+      <div className="flex gap-2">
+        <button
+          onClick={() => setActiveSubTab('history')}
+          className={cn(
+            "flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium transition-all",
+            activeSubTab === 'history'
+              ? "bg-purple-500 text-white shadow-lg"
+              : "bg-white/10 text-white/70 hover:bg-white/20 hover:text-white"
+          )}
+        >
+          <History className="w-4 h-4" />
+          Historial
+        </button>
+        <button
+          onClick={() => setActiveSubTab('tools')}
+          className={cn(
+            "flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium transition-all",
+            activeSubTab === 'tools'
+              ? "bg-purple-500 text-white shadow-lg"
+              : "bg-white/10 text-white/70 hover:bg-white/20 hover:text-white"
+          )}
+        >
+          <Wrench className="w-4 h-4" />
+          Correcciones
+        </button>
+      </div>
+
+      {/* Tools Tab */}
+      {activeSubTab === 'tools' && <ToolsTab />}
+
+      {/* History Tab - original audit content */}
+      {activeSubTab === 'history' && (
+        <>
+          <div className="flex justify-end">
+            <Button variant="outline" size="sm" onClick={exportCSV} disabled={events.length === 0}>
+              <Download className="w-4 h-4 mr-2" />
+              Exportar CSV
             </Button>
           </div>
-        </div>
-      </div>
-
-      {/* Events list */}
-      <div className="card-cosmos overflow-hidden">
-        {loading ? (
-          <div className="flex justify-center py-12"><Spinner /></div>
-        ) : events.length === 0 ? (
-          <div className="p-8 text-center text-muted-foreground">
-            No se encontraron eventos de auditoría.
-          </div>
-        ) : (
-          <div className="divide-y divide-border">
-            {events.map(event => (
-              <div key={event.id} className="p-4">
-                <div
-                  className="flex items-center justify-between cursor-pointer"
-                  onClick={() => setExpandedId(expandedId === event.id ? null : event.id)}
-                >
-                  <div className="flex items-center gap-4">
-                    <span className={`font-mono text-sm font-medium ${getActionColor(event.action)}`}>
-                      {event.action}
-                    </span>
-                    {event.entity_type && (
-                      <span className="text-sm text-muted-foreground">
-                        {event.entity_type}
-                      </span>
-                    )}
-                  </div>
-                  <div className="flex items-center gap-4">
-                    <span className="text-sm text-muted-foreground">
-                      {formatDate(event.created_at)}
-                    </span>
-                    {expandedId === event.id ? (
-                      <ChevronUp className="w-4 h-4" />
-                    ) : (
-                      <ChevronDown className="w-4 h-4" />
-                    )}
-                  </div>
-                </div>
-
-                {expandedId === event.id && (
-                  <div className="mt-4 space-y-3 text-sm">
-                    {event.note && (
-                      <div>
-                        <span className="text-muted-foreground">Nota:</span>
-                        <p className="mt-1 p-2 bg-muted/50 rounded">{event.note}</p>
-                      </div>
-                    )}
-                    {event.before && (
-                      <div>
-                        <span className="text-muted-foreground">Antes:</span>
-                        <pre className="mt-1 p-2 bg-muted/50 rounded overflow-x-auto text-xs">
-                          {JSON.stringify(event.before, null, 2)}
-                        </pre>
-                      </div>
-                    )}
-                    {event.after && (
-                      <div>
-                        <span className="text-muted-foreground">Después:</span>
-                        <pre className="mt-1 p-2 bg-muted/50 rounded overflow-x-auto text-xs">
-                          {JSON.stringify(event.after, null, 2)}
-                        </pre>
-                      </div>
-                    )}
-                    <div className="flex gap-4 text-xs text-muted-foreground">
-                      <span>ID: {event.entity_id?.slice(0, 8) || '-'}</span>
-                      <span>Rol: {event.role_snapshot || '-'}</span>
-                    </div>
-                  </div>
-                )}
+          <div className="card-cosmos p-4">
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+              <div>
+                <label className="text-sm text-muted-foreground mb-1 block">Desde</label>
+                <Input type="date" value={dateFrom} onChange={(e) => setDateFrom(e.target.value)} />
               </div>
-            ))}
+              <div>
+                <label className="text-sm text-muted-foreground mb-1 block">Hasta</label>
+                <Input type="date" value={dateTo} onChange={(e) => setDateTo(e.target.value)} />
+              </div>
+              <div>
+                <label className="text-sm text-muted-foreground mb-1 block">Acción</label>
+                <Select value={actionFilter} onValueChange={setActionFilter}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    {actions.map(a => (
+                      <SelectItem key={a} value={a}>{a === 'all' ? 'Todas' : a}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="flex items-end">
+                <Button onClick={fetchEvents} className="w-full">
+                  <Search className="w-4 h-4 mr-2" /> Buscar
+                </Button>
+              </div>
+            </div>
           </div>
-        )}
-      </div>
+
+          {/* Events list */}
+          <div className="card-cosmos overflow-hidden">
+            {loading ? (
+              <div className="flex justify-center py-12"><Spinner /></div>
+            ) : events.length === 0 ? (
+              <div className="p-8 text-center text-muted-foreground">
+                No se encontraron eventos de auditoría.
+              </div>
+            ) : (
+              <div className="divide-y divide-border">
+                {events.map(event => (
+                  <div key={event.id} className="p-4">
+                    <div
+                      className="flex items-center justify-between cursor-pointer"
+                      onClick={() => setExpandedId(expandedId === event.id ? null : event.id)}
+                    >
+                      <div className="flex items-center gap-4">
+                        <span className={`font-mono text-sm font-medium ${getActionColor(event.action)}`}>
+                          {event.action}
+                        </span>
+                        {event.entity_type && (
+                          <span className="text-sm text-muted-foreground">
+                            {event.entity_type}
+                          </span>
+                        )}
+                      </div>
+                      <div className="flex items-center gap-4">
+                        <span className="text-sm text-muted-foreground">
+                          {formatDate(event.created_at)}
+                        </span>
+                        {expandedId === event.id ? (
+                          <ChevronUp className="w-4 h-4" />
+                        ) : (
+                          <ChevronDown className="w-4 h-4" />
+                        )}
+                      </div>
+                    </div>
+
+                    {expandedId === event.id && (
+                      <div className="mt-4 space-y-3 text-sm">
+                        {event.note && (
+                          <div>
+                            <span className="text-muted-foreground">Nota:</span>
+                            <p className="mt-1 p-2 bg-muted/50 rounded">{event.note}</p>
+                          </div>
+                        )}
+                        {event.before && (
+                          <div>
+                            <span className="text-muted-foreground">Antes:</span>
+                            <pre className="mt-1 p-2 bg-muted/50 rounded overflow-x-auto text-xs">
+                              {JSON.stringify(event.before, null, 2)}
+                            </pre>
+                          </div>
+                        )}
+                        {event.after && (
+                          <div>
+                            <span className="text-muted-foreground">Después:</span>
+                            <pre className="mt-1 p-2 bg-muted/50 rounded overflow-x-auto text-xs">
+                              {JSON.stringify(event.after, null, 2)}
+                            </pre>
+                          </div>
+                        )}
+                        <div className="flex gap-4 text-xs text-muted-foreground">
+                          <span>ID: {event.entity_id?.slice(0, 8) || '-'}</span>
+                          <span>Rol: {event.role_snapshot || '-'}</span>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </>
+      )}
     </div>
   );
 }
