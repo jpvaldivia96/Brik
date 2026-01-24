@@ -6,10 +6,11 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '@/components/ui/dialog';
 import { AlertCosmos } from '@/components/ui/alert-cosmos';
 import { Spinner } from '@/components/ui/spinner';
 import { useToast } from '@/hooks/use-toast';
-import { UserCog, UserPlus, Mail, Shield, Clock, Trash2, Copy, Check, Users } from 'lucide-react';
+import { UserCog, UserPlus, Mail, Shield, Clock, Trash2, Copy, Check, Users, Edit2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import type { RoleEnum } from '@/lib/types';
 
@@ -48,6 +49,11 @@ export default function UserManagementTab() {
     const [inviteEmail, setInviteEmail] = useState('');
     const [inviteRole, setInviteRole] = useState<RoleEnum>('guard');
     const [copiedToken, setCopiedToken] = useState<string | null>(null);
+
+    // Edit email modal
+    const [editingUser, setEditingUser] = useState<{ userId: string; currentEmail: string } | null>(null);
+    const [newEmail, setNewEmail] = useState('');
+    const [savingEmail, setSavingEmail] = useState(false);
 
     useEffect(() => {
         if (currentSite) {
@@ -217,6 +223,65 @@ export default function UserManagementTab() {
                 description: error.message,
                 variant: 'destructive',
             });
+        }
+    };
+
+    const handleUpdateEmail = async () => {
+        if (!editingUser || !newEmail.trim() || !currentSite) return;
+
+        // Basic email validation
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        if (!emailRegex.test(newEmail.trim())) {
+            toast({
+                title: 'Email inválido',
+                description: 'Por favor ingresa un email válido',
+                variant: 'destructive',
+            });
+            return;
+        }
+
+        setSavingEmail(true);
+        try {
+            // Get the current user's session token
+            const { data: { session } } = await supabase.auth.getSession();
+            if (!session?.access_token) {
+                throw new Error('No hay sesión activa');
+            }
+
+            const response = await fetch(
+                `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/update-user-email`,
+                {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${session.access_token}`,
+                    },
+                    body: JSON.stringify({
+                        siteId: currentSite.id,
+                        targetUserId: editingUser.userId,
+                        newEmail: newEmail.trim().toLowerCase(),
+                    }),
+                }
+            );
+
+            const data = await response.json();
+
+            if (!response.ok) {
+                throw new Error(data.error || 'Error al actualizar email');
+            }
+
+            toast({ title: 'Email actualizado correctamente' });
+            setEditingUser(null);
+            setNewEmail('');
+            loadData();
+        } catch (error: any) {
+            toast({
+                title: 'Error',
+                description: error.message,
+                variant: 'destructive',
+            });
+        } finally {
+            setSavingEmail(false);
         }
     };
 
@@ -486,15 +551,29 @@ export default function UserManagementTab() {
 
                                     {/* Delete button - only for owner and not self */}
                                     {isOwner && u.user_id !== user?.id && (
-                                        <Button
-                                            size="sm"
-                                            variant="ghost"
-                                            onClick={() => deleteUser(u.user_id)}
-                                            className="text-white/50 hover:text-red-400 h-7 w-7 p-0"
-                                            title="Eliminar usuario"
-                                        >
-                                            <Trash2 className="w-4 h-4" />
-                                        </Button>
+                                        <>
+                                            <Button
+                                                size="sm"
+                                                variant="ghost"
+                                                onClick={() => {
+                                                    setEditingUser({ userId: u.user_id, currentEmail: u.email || '' });
+                                                    setNewEmail(u.email || '');
+                                                }}
+                                                className="text-white/50 hover:text-blue-400 h-7 w-7 p-0"
+                                                title="Editar email"
+                                            >
+                                                <Edit2 className="w-4 h-4" />
+                                            </Button>
+                                            <Button
+                                                size="sm"
+                                                variant="ghost"
+                                                onClick={() => deleteUser(u.user_id)}
+                                                className="text-white/50 hover:text-red-400 h-7 w-7 p-0"
+                                                title="Eliminar usuario"
+                                            >
+                                                <Trash2 className="w-4 h-4" />
+                                            </Button>
+                                        </>
                                     )}
                                 </div>
                             </div>
@@ -556,6 +635,54 @@ export default function UserManagementTab() {
                     </div>
                 )}
             </div>
+
+            {/* Edit Email Modal */}
+            <Dialog open={!!editingUser} onOpenChange={(open) => !open && setEditingUser(null)}>
+                <DialogContent className="bg-slate-800 border-white/20">
+                    <DialogHeader>
+                        <DialogTitle className="text-white">Editar Email de Usuario</DialogTitle>
+                        <DialogDescription className="text-white/60">
+                            El nuevo email se aplicará inmediatamente. El usuario deberá usar el nuevo email para iniciar sesión.
+                        </DialogDescription>
+                    </DialogHeader>
+                    <div className="space-y-4 py-4">
+                        <div className="space-y-2">
+                            <Label className="text-white/70">Email actual</Label>
+                            <div className="p-2 bg-white/5 rounded-md text-white/50 text-sm">
+                                {editingUser?.currentEmail || 'Sin email'}
+                            </div>
+                        </div>
+                        <div className="space-y-2">
+                            <Label htmlFor="new-email" className="text-white/70">Nuevo email</Label>
+                            <Input
+                                id="new-email"
+                                type="email"
+                                value={newEmail}
+                                onChange={(e) => setNewEmail(e.target.value)}
+                                placeholder="nuevo@email.com"
+                                className="bg-white/10 border-white/20 text-white placeholder:text-white/50"
+                            />
+                        </div>
+                    </div>
+                    <DialogFooter>
+                        <Button
+                            variant="outline"
+                            onClick={() => setEditingUser(null)}
+                            className="bg-white/10 border-white/20 text-white hover:bg-white/20"
+                        >
+                            Cancelar
+                        </Button>
+                        <Button
+                            onClick={handleUpdateEmail}
+                            disabled={savingEmail || !newEmail.trim() || newEmail === editingUser?.currentEmail}
+                            className="bg-gradient-to-r from-purple-500 to-blue-500"
+                        >
+                            {savingEmail ? <Spinner size="sm" className="mr-2" /> : null}
+                            Guardar
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
         </div>
     );
 }

@@ -22,9 +22,12 @@ import {
     Shield,
     Megaphone,
     UserCheck,
-    Save
+    Save,
+    Key
 } from 'lucide-react';
 import { toast } from 'sonner';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 
 interface UserPreferences {
     id?: string;
@@ -141,6 +144,11 @@ export function PersonalNotificationSettings() {
     const [saving, setSaving] = useState(false);
     const [preferences, setPreferences] = useState<UserPreferences | null>(null);
 
+    // Password change state
+    const [newPassword, setNewPassword] = useState('');
+    const [confirmPassword, setConfirmPassword] = useState('');
+    const [changingPassword, setChangingPassword] = useState(false);
+
     useEffect(() => {
         if (currentSite && user) {
             loadPreferences();
@@ -246,6 +254,36 @@ export function PersonalNotificationSettings() {
             toast.error('Error al guardar preferencias');
         } finally {
             setSaving(false);
+        }
+    };
+
+    const handleChangePassword = async () => {
+        if (!newPassword || !confirmPassword) {
+            toast.error('Completa ambos campos');
+            return;
+        }
+        if (newPassword.length < 6) {
+            toast.error('La contraseña debe tener al menos 6 caracteres');
+            return;
+        }
+        if (newPassword !== confirmPassword) {
+            toast.error('Las contraseñas no coinciden');
+            return;
+        }
+
+        setChangingPassword(true);
+        try {
+            const { error } = await supabase.auth.updateUser({ password: newPassword });
+            if (error) throw error;
+
+            toast.success('Contraseña actualizada correctamente');
+            setNewPassword('');
+            setConfirmPassword('');
+        } catch (err: any) {
+            console.error('Error changing password:', err);
+            toast.error(err.message || 'Error al cambiar contraseña');
+        } finally {
+            setChangingPassword(false);
         }
     };
 
@@ -485,6 +523,58 @@ export function PersonalNotificationSettings() {
                     </div>
                 </div>
             ))}
+
+            {/* Mi Cuenta - Password Change */}
+            <div className="space-y-4 pt-6 border-t">
+                <div className="flex items-center gap-2 pb-2">
+                    <Key className="h-5 w-5 text-primary" />
+                    <h3 className="text-lg font-semibold">Mi Cuenta</h3>
+                </div>
+
+                <div className="p-4 rounded-lg border bg-card">
+                    <h4 className="font-medium mb-4">Cambiar Contraseña</h4>
+                    <div className="grid gap-4 max-w-md">
+                        <div className="space-y-2">
+                            <Label htmlFor="new-password">Nueva contraseña</Label>
+                            <Input
+                                id="new-password"
+                                type="password"
+                                placeholder="Mínimo 6 caracteres"
+                                value={newPassword}
+                                onChange={(e) => setNewPassword(e.target.value)}
+                            />
+                        </div>
+                        <div className="space-y-2">
+                            <Label htmlFor="confirm-password">Confirmar contraseña</Label>
+                            <Input
+                                id="confirm-password"
+                                type="password"
+                                placeholder="Repetir contraseña"
+                                value={confirmPassword}
+                                onChange={(e) => setConfirmPassword(e.target.value)}
+                            />
+                        </div>
+                        <Button
+                            onClick={handleChangePassword}
+                            disabled={changingPassword || !newPassword || !confirmPassword}
+                            variant="outline"
+                            className="w-fit"
+                        >
+                            {changingPassword ? (
+                                <>
+                                    <Spinner className="h-4 w-4 mr-2" />
+                                    Cambiando...
+                                </>
+                            ) : (
+                                <>
+                                    <Key className="h-4 w-4 mr-2" />
+                                    Cambiar Contraseña
+                                </>
+                            )}
+                        </Button>
+                    </div>
+                </div>
+            </div>
 
             <div className="flex justify-end gap-2 pt-4">
                 <Button onClick={handleSave} disabled={saving}>
