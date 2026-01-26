@@ -6,16 +6,25 @@ interface SpinnerProps {
 }
 
 const sizeClasses = {
-  sm: 'w-4 h-4',
-  md: 'w-6 h-6',
-  lg: 'w-8 h-8',
+  sm: 'w-5 h-5',
+  md: 'w-8 h-8',
+  lg: 'w-12 h-12',
 };
 
 export function Spinner({ size = 'md', className }: SpinnerProps) {
   return (
-    <div
-      className={cn('spinner', sizeClasses[size], className)}
-      aria-label="Cargando..."
+    <img
+      src="/icon.png"
+      alt="Cargando..."
+      className={cn(
+        'animate-spin-slow',
+        sizeClasses[size],
+        className
+      )}
+      style={{
+        animation: 'spin 1.5s linear infinite',
+      }}
     />
   );
 }
+

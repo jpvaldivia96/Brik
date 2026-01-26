@@ -504,24 +504,24 @@ export default function UserManagementTab() {
                         {users.map((u) => (
                             <div
                                 key={u.user_id}
-                                className="flex items-center justify-between p-3 rounded-lg bg-white/5"
+                                className="flex flex-col sm:flex-row sm:items-center justify-between p-3 rounded-lg bg-white/5 gap-3"
                             >
-                                <div className="flex items-center gap-3">
-                                    <div className="w-8 h-8 rounded-full bg-gradient-to-br from-purple-500 to-blue-500 flex items-center justify-center text-white text-sm font-medium">
+                                <div className="flex items-center gap-3 min-w-0">
+                                    <div className="w-8 h-8 rounded-full bg-gradient-to-br from-purple-500 to-blue-500 flex items-center justify-center text-white text-sm font-medium flex-shrink-0">
                                         {u.email?.[0]?.toUpperCase() || '?'}
                                     </div>
-                                    <div>
-                                        <p className="text-white text-sm">{u.email || u.user_id.slice(0, 8)}</p>
+                                    <div className="min-w-0 flex-1">
+                                        <p className="text-white text-sm truncate">{u.email || u.user_id.slice(0, 8)}</p>
                                         <p className="text-white/50 text-xs">
                                             Desde {new Date(u.created_at).toLocaleDateString('es-BO')}
                                         </p>
                                     </div>
                                 </div>
-                                <div className="flex items-center gap-2">
+                                <div className="flex items-center gap-2 flex-shrink-0 ml-11 sm:ml-0">
                                     {/* Role badge/dropdown */}
                                     {isOwner && u.user_id !== user?.id ? (
                                         <Select value={u.role} onValueChange={(newRole) => changeUserRole(u.user_id, newRole as RoleEnum)}>
-                                            <SelectTrigger className="w-[120px] h-7 bg-white/10 border-white/20 text-white text-xs">
+                                            <SelectTrigger className="w-[110px] h-7 bg-white/10 border-white/20 text-white text-xs">
                                                 <SelectValue />
                                             </SelectTrigger>
                                             <SelectContent className="bg-slate-800 border-white/10">
