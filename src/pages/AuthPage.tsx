@@ -24,7 +24,7 @@ export default function AuthPage() {
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
-        <Spinner size="lg" />
+        <Spinner size="lg" variant="dark" />
       </div>
     );
   }
