@@ -14,7 +14,7 @@ const sizeClasses = {
 export function Spinner({ size = 'md', className }: SpinnerProps) {
   return (
     <img
-      src="/icon.png"
+      src="/spinner-isotipo.png"
       alt="Cargando..."
       className={cn(
         'animate-spin-slow',
