@@ -33,6 +33,10 @@ export default function StatisticsPanel() {
     const [progressData, setProgressData] = useState<any[]>([]);
     const [prediction, setPrediction] = useState<any[]>([]);
 
+    // NEW: Fixed statistics state
+    const [activeContractorsCount, setActiveContractorsCount] = useState<number>(0);
+    const [weeklyPunctualityRanking, setWeeklyPunctualityRanking] = useState<any[]>([]);
+
     useEffect(() => {
         if (currentSite) {
             fetchStats();
@@ -89,25 +93,33 @@ export default function StatisticsPanel() {
             });
             setAvgHoursData(avgHours || []);
 
-            // 3. Punctuality
-            const { data: punctuality } = await (supabase.rpc as any)('get_punctuality_leaderboard', {
+            // 3. Weekly Punctuality Ranking (NEW - replaces old leaderboard)
+            const { data: weeklyRanking } = await (supabase.rpc as any)('get_weekly_punctuality_ranking', {
                 target_site_id: currentSite?.id,
-                cutoff_time: '08:00',
-                days_back: 30
+                early_cutoff: '08:00'
             });
-            setPunctualityData(punctuality || []);
+            setWeeklyPunctualityRanking(weeklyRanking || []);
+            // Keep old for backwards compat
+            setPunctualityData(weeklyRanking || []);
 
-            // 4. Compliance Dashboard (Query workers_profile directly)
-            const { data: workers } = await supabase
-                .from('workers_profile')
-                .select('insurance_expiry, induction_date, person_id, people!inner(site_id, photo_url)')
-                .eq('people.site_id', currentSite?.id);
+            // 4. Compliance Dashboard (Fixed query - get people directly with workers_profile)
+            const { data: peopleData } = await supabase
+                .from('people')
+                .select('id, photo_url, workers_profile(insurance_expiry, induction_date)')
+                .eq('site_id', currentSite?.id)
+                .eq('type', 'worker');
 
             const now = new Date();
-            const withInsurance = workers?.filter(w => w.insurance_expiry && new Date(w.insurance_expiry) > now).length || 0;
-            const withInduction = workers?.filter(w => w.induction_date).length || 0;
-            const withPhoto = workers?.filter(w => w.people?.photo_url).length || 0;
-            const total = workers?.length || 1;
+            const total = peopleData?.length || 1;
+            const withInsurance = peopleData?.filter(p => {
+                const wp = p.workers_profile as any;
+                return wp?.insurance_expiry && new Date(wp.insurance_expiry) > now;
+            }).length || 0;
+            const withInduction = peopleData?.filter(p => {
+                const wp = p.workers_profile as any;
+                return wp?.induction_date;
+            }).length || 0;
+            const withPhoto = peopleData?.filter(p => p.photo_url).length || 0;
 
             setComplianceData({
                 insurance_pct: (withInsurance / total) * 100,
@@ -115,11 +127,17 @@ export default function StatisticsPanel() {
                 photo_pct: (withPhoto / total) * 100
             });
 
-            // 5. Days Without Accidents
-            const { data: daysCount } = await (supabase.rpc as any)('get_days_without_accidents', {
+            // 5. Days Without Accidents (v2 - improved)
+            const { data: daysCount } = await (supabase.rpc as any)('get_days_without_accidents_v2', {
                 target_site_id: currentSite?.id
             });
             setDaysWithoutAccidents(daysCount || 0);
+
+            // 6. Active Contractors Count (NEW - no limit)
+            const { data: contractorsCount } = await (supabase.rpc as any)('get_active_contractors_count', {
+                target_site_id: currentSite?.id
+            });
+            setActiveContractorsCount(contractorsCount || 0);
 
             // 6. Hall of Fame
             const { data: punctualWorker } = await (supabase.rpc as any)('get_most_punctual_worker', {
@@ -159,8 +177,8 @@ export default function StatisticsPanel() {
             });
             setTurnoverData(turnover || []);
 
-            // 3. Anomalies
-            const { data: anomalyList } = await (supabase.rpc as any)('get_anomalies', {
+            // 3. Smart Anomalies (NEW - day vs average comparison)
+            const { data: anomalyList } = await (supabase.rpc as any)('get_smart_anomalies', {
                 target_site_id: currentSite?.id
             });
             setAnomalies(anomalyList || []);
@@ -222,8 +240,8 @@ export default function StatisticsPanel() {
         <div className="space-y-6 animate-in fade-in duration-500 pb-20">
             <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
                 <div>
-                    <h2 className="text-2xl font-bold tracking-tight">Panel de Estadísticas</h2>
-                    <p className="text-muted-foreground">Análisis de asistencia y operaciones en tiempo real</p>
+                    <h2 className="text-2xl font-bold tracking-tight text-white">Panel de Estadísticas</h2>
+                    <p className="text-white/70">Análisis de asistencia y operaciones en tiempo real</p>
                 </div>
             </div>
 
@@ -241,14 +259,19 @@ export default function StatisticsPanel() {
                 </Card>
                 <Card>
                     <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                        <CardTitle className="text-sm font-medium">Semanal</CardTitle>
+                        <CardTitle className="text-sm font-medium">Esta Semana</CardTitle>
                         <TrendingUp className="h-4 w-4 text-muted-foreground" />
                     </CardHeader>
                     <CardContent>
                         <div className="text-2xl font-bold">{weeklyTotal}</div>
-                        <p className={`text-xs ${growth >= 0 ? 'text-green-500' : 'text-red-500'}`}>
-                            {growth > 0 ? '+' : ''}{growth.toFixed(1)}% vs semana pasada
+                        <p className="text-xs text-muted-foreground">
+                            Personas únicas (Sem. {Math.ceil((new Date().getDate()) / 7)} de {new Date().toLocaleString('es', { month: 'short' })})
                         </p>
+                        {growth !== 0 && (
+                            <p className={`text-xs mt-1 ${growth >= 0 ? 'text-green-500' : 'text-red-500'}`}>
+                                {growth > 0 ? '+' : ''}{growth.toFixed(1)}% vs anterior
+                            </p>
+                        )}
                     </CardContent>
                 </Card>
                 <Card>
@@ -257,8 +280,8 @@ export default function StatisticsPanel() {
                         <HardHat className="h-4 w-4 text-muted-foreground" />
                     </CardHeader>
                     <CardContent>
-                        <div className="text-2xl font-bold">{contractorStats.length}</div>
-                        <p className="text-xs text-muted-foreground">Empresas presentes esta semana</p>
+                        <div className="text-2xl font-bold">{activeContractorsCount}</div>
+                        <p className="text-xs text-muted-foreground">Empresas en los últimos 7 días</p>
                     </CardContent>
                 </Card>
                 <Card>
@@ -449,31 +472,35 @@ export default function StatisticsPanel() {
                 )
             }
 
-            {/* ==================== NEW: PUNCTUALITY LEADERBOARD ==================== */}
+            {/* ==================== WEEKLY PUNCTUALITY RANKING ==================== */}
             {
-                punctualityData.length > 0 && (
+                weeklyPunctualityRanking.length > 0 && (
                     <Card>
                         <CardHeader>
                             <CardTitle className="flex items-center gap-2">
                                 <Clock className="h-5 w-5" />
-                                Ranking de Puntualidad
+                                🏃 Ranking de Puntualidad - Esta Semana
                             </CardTitle>
-                            <CardDescription>Top 10 trabajadores más puntuales (antes de las 8:00 AM)</CardDescription>
+                            <CardDescription>
+                                Quién llega más temprano más veces (antes de 8:00 AM)
+                            </CardDescription>
                         </CardHeader>
                         <CardContent>
                             <div className="space-y-3">
-                                {punctualityData.map((worker, idx) => (
+                                {weeklyPunctualityRanking.map((worker, idx) => (
                                     <div key={idx} className="flex items-center justify-between p-3 bg-muted/30 rounded-lg">
                                         <div className="flex items-center gap-3">
-                                            <span className="text-lg font-bold text-muted-foreground w-6">{idx + 1}</span>
+                                            <span className={`text-lg font-bold w-6 ${idx === 0 ? 'text-yellow-500' : idx === 1 ? 'text-gray-400' : idx === 2 ? 'text-amber-600' : 'text-muted-foreground'}`}>
+                                                {idx === 0 ? '🥇' : idx === 1 ? '🥈' : idx === 2 ? '🥉' : idx + 1}
+                                            </span>
                                             <div>
                                                 <p className="font-medium">{worker.full_name}</p>
                                                 <p className="text-sm text-muted-foreground">{worker.contractor}</p>
                                             </div>
                                         </div>
                                         <div className="text-right">
-                                            <p className="text-2xl font-bold text-primary">{worker.punctuality_pct}%</p>
-                                            <p className="text-xs text-muted-foreground">{worker.on_time_count}/{worker.total_count} a tiempo</p>
+                                            <p className="text-2xl font-bold text-primary">{worker.early_arrivals}/{worker.total_days}</p>
+                                            <p className="text-xs text-muted-foreground">días temprano · {worker.avg_arrival_time?.slice(0, 5) || '--:--'}</p>
                                         </div>
                                     </div>
                                 ))}
@@ -549,16 +576,16 @@ export default function StatisticsPanel() {
                 )
             }
 
-            {/* ==================== NEW: SMART ALERTS ==================== */}
+            {/* ==================== SMART ALERTS (Day vs Average) ==================== */}
             {
                 anomalies.length > 0 && (
                     <Card className="border-orange-500/30">
                         <CardHeader>
                             <CardTitle className="flex items-center gap-2">
                                 <AlertTriangle className="h-5 w-5 text-orange-500" />
-                                Alertas Predictivas Inteligentes
+                                Alertas Inteligentes
                             </CardTitle>
-                            <CardDescription>Anomalías detectadas automáticamente</CardDescription>
+                            <CardDescription>Comparación de ayer vs promedio de 30 días</CardDescription>
                         </CardHeader>
                         <CardContent>
                             <div className="space-y-3">
