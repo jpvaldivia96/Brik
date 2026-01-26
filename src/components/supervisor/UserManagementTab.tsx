@@ -500,46 +500,49 @@ export default function UserManagementTab() {
                 {users.length === 0 ? (
                     <p className="text-white/50 text-sm">No hay usuarios registrados.</p>
                 ) : (
-                    <div className="space-y-2">
+                    <div className="space-y-3">
                         {users.map((u) => (
                             <div
                                 key={u.user_id}
-                                className="flex flex-col sm:flex-row sm:items-center justify-between p-3 rounded-lg bg-white/5 gap-3"
+                                className="p-4 rounded-xl bg-white/5 space-y-3"
                             >
-                                <div className="flex items-center gap-3 min-w-0">
-                                    <div className="w-8 h-8 rounded-full bg-gradient-to-br from-purple-500 to-blue-500 flex items-center justify-center text-white text-sm font-medium flex-shrink-0">
+                                {/* Row 1: Avatar + Email + Date */}
+                                <div className="flex items-center gap-3">
+                                    <div className="w-10 h-10 rounded-full bg-gradient-to-br from-purple-500 to-blue-500 flex items-center justify-center text-white font-medium flex-shrink-0">
                                         {u.email?.[0]?.toUpperCase() || '?'}
                                     </div>
                                     <div className="min-w-0 flex-1">
-                                        <p className="text-white text-sm truncate">{u.email || u.user_id.slice(0, 8)}</p>
+                                        <p className="text-white font-medium truncate">{u.email || u.user_id.slice(0, 8)}</p>
                                         <p className="text-white/50 text-xs">
                                             Desde {new Date(u.created_at).toLocaleDateString('es-BO')}
                                         </p>
                                     </div>
                                 </div>
-                                <div className="flex items-center gap-2 flex-shrink-0 ml-11 sm:ml-0">
+
+                                {/* Row 2: Role + Actions - full width, spaced */}
+                                <div className="flex items-center justify-between">
                                     {/* Role badge/dropdown */}
                                     {isOwner && u.user_id !== user?.id ? (
                                         <Select value={u.role} onValueChange={(newRole) => changeUserRole(u.user_id, newRole as RoleEnum)}>
-                                            <SelectTrigger className="w-[110px] h-7 bg-white/10 border-white/20 text-white text-xs">
+                                            <SelectTrigger className="w-[130px] h-8 bg-white/10 border-white/20 text-white text-sm rounded-full">
                                                 <SelectValue />
                                             </SelectTrigger>
                                             <SelectContent className="bg-slate-800 border-white/10">
-                                                <SelectItem value="guard" className="text-white text-xs">
+                                                <SelectItem value="guard" className="text-white">
                                                     <div className="flex items-center gap-2">
-                                                        <Shield className="w-3 h-3 text-blue-400" />
+                                                        <Shield className="w-4 h-4 text-blue-400" />
                                                         Guardia
                                                     </div>
                                                 </SelectItem>
-                                                <SelectItem value="inspector" className="text-white text-xs">
+                                                <SelectItem value="inspector" className="text-white">
                                                     <div className="flex items-center gap-2">
-                                                        <Shield className="w-3 h-3 text-orange-400" />
+                                                        <Shield className="w-4 h-4 text-orange-400" />
                                                         Inspector
                                                     </div>
                                                 </SelectItem>
-                                                <SelectItem value="supervisor" className="text-white text-xs">
+                                                <SelectItem value="supervisor" className="text-white">
                                                     <div className="flex items-center gap-2">
-                                                        <Shield className="w-3 h-3 text-purple-400" />
+                                                        <Shield className="w-4 h-4 text-purple-400" />
                                                         Supervisor
                                                     </div>
                                                 </SelectItem>
@@ -549,9 +552,9 @@ export default function UserManagementTab() {
                                         getRoleBadge(u.role)
                                     )}
 
-                                    {/* Delete button - only for owner and not self */}
-                                    {isOwner && u.user_id !== user?.id && (
-                                        <>
+                                    {/* Action buttons */}
+                                    {isOwner && u.user_id !== user?.id ? (
+                                        <div className="flex items-center gap-1">
                                             <Button
                                                 size="sm"
                                                 variant="ghost"
@@ -559,7 +562,7 @@ export default function UserManagementTab() {
                                                     setEditingUser({ userId: u.user_id, currentEmail: u.email || '' });
                                                     setNewEmail(u.email || '');
                                                 }}
-                                                className="text-white/50 hover:text-blue-400 h-7 w-7 p-0"
+                                                className="text-white/50 hover:text-blue-400 hover:bg-blue-400/10 h-8 w-8 p-0 rounded-full"
                                                 title="Editar email"
                                             >
                                                 <Edit2 className="w-4 h-4" />
@@ -568,12 +571,14 @@ export default function UserManagementTab() {
                                                 size="sm"
                                                 variant="ghost"
                                                 onClick={() => deleteUser(u.user_id)}
-                                                className="text-white/50 hover:text-red-400 h-7 w-7 p-0"
+                                                className="text-white/50 hover:text-red-400 hover:bg-red-400/10 h-8 w-8 p-0 rounded-full"
                                                 title="Eliminar usuario"
                                             >
                                                 <Trash2 className="w-4 h-4" />
                                             </Button>
-                                        </>
+                                        </div>
+                                    ) : (
+                                        <div /> // Empty space for alignment
                                     )}
                                 </div>
                             </div>
