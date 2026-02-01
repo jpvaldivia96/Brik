@@ -17,21 +17,18 @@ export const workerFormSchema = z.object({
 
     contractor: z
         .string()
-        .max(100, 'El contratista no puede exceder 100 caracteres')
-        .optional()
-        .default(''),
+        .min(1, 'El contratista es obligatorio')
+        .max(100, 'El contratista no puede exceder 100 caracteres'),
 
     role: z
         .string()
-        .max(50, 'El cargo no puede exceder 50 caracteres')
-        .optional()
-        .default(''),
+        .min(1, 'El cargo/rol es obligatorio')
+        .max(50, 'El cargo no puede exceder 50 caracteres'),
 
     phone: z
         .string()
-        .max(20, 'El teléfono no puede exceder 20 caracteres')
-        .optional()
-        .default(''),
+        .min(1, 'El teléfono es obligatorio')
+        .max(20, 'El teléfono no puede exceder 20 caracteres'),
 
     insuranceNumber: z
         .string()
@@ -46,16 +43,14 @@ export const workerFormSchema = z.object({
 
     emergencyContact: z
         .string()
-        .max(100, 'El contacto de emergencia no puede exceder 100 caracteres')
-        .optional()
-        .default(''),
+        .min(1, 'El contacto de emergencia es obligatorio')
+        .max(100, 'El contacto de emergencia no puede exceder 100 caracteres'),
 
     bloodType: z
         .string()
+        .min(1, 'El tipo de sangre es obligatorio')
         .max(10, 'El tipo de sangre no puede exceder 10 caracteres')
-        .regex(/^(A|B|AB|O)[+-]?$|^$/, 'Tipo de sangre inválido (ej: O+, A-, AB+)')
-        .optional()
-        .default(''),
+        .regex(/^(A|B|AB|O)[+-]$/, 'Tipo de sangre inválido (ej: O+, A-, AB+)'),
 
     inductionCompleted: z.boolean().default(false),
 

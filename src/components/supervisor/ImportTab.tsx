@@ -32,7 +32,7 @@ export default function ImportTab() {
       const values: string[] = [];
       let current = '';
       let inQuotes = false;
-      
+
       for (let i = 0; i < line.length; i++) {
         const char = line[i];
         if (char === '"') {
@@ -79,9 +79,31 @@ export default function ImportTab() {
     const result: ImportResult = { success: 0, errors: [] };
     // Skip header row
     for (let i = 1; i < rows.length; i++) {
-      const [ci, name, contractor, insuranceNum, insuranceExp, phone, emergency, blood, photoUrl] = rows[i];
+      const [ci, name, contractor, role, insuranceNum, insuranceExp, phone, emergency, blood, photoUrl] = rows[i];
+
+      // Validate required fields
       if (!ci || !name) {
         result.errors.push(`Fila ${i + 1}: CI y Nombre son obligatorios`);
+        continue;
+      }
+      if (!contractor?.trim()) {
+        result.errors.push(`Fila ${i + 1}: Contratista es obligatorio`);
+        continue;
+      }
+      if (!role?.trim()) {
+        result.errors.push(`Fila ${i + 1}: Cargo/Rol es obligatorio`);
+        continue;
+      }
+      if (!phone?.trim()) {
+        result.errors.push(`Fila ${i + 1}: Teléfono es obligatorio`);
+        continue;
+      }
+      if (!emergency?.trim()) {
+        result.errors.push(`Fila ${i + 1}: Contacto de emergencia es obligatorio`);
+        continue;
+      }
+      if (!blood?.trim() || !/^(A|B|AB|O)[+-]$/.test(blood.trim())) {
+        result.errors.push(`Fila ${i + 1}: Tipo de sangre inválido (debe ser O+, A-, AB+, etc.)`);
         continue;
       }
 
@@ -120,6 +142,7 @@ export default function ImportTab() {
           .from('workers_profile')
           .upsert({
             person_id: personId,
+            role: role?.trim() || null,
             insurance_number: insuranceNum?.trim() || null,
             insurance_expiry: parseDate(insuranceExp || ''),
             phone: phone?.trim() || null,
@@ -206,7 +229,7 @@ export default function ImportTab() {
           .maybeSingle();
 
         if (!person) {
-          const personType = type?.toLowerCase() === 'visitor' || type?.toLowerCase() === 'visitante' 
+          const personType = type?.toLowerCase() === 'visitor' || type?.toLowerCase() === 'visitante'
             ? 'visitor' : 'worker';
           const { data: newPerson, error: personError } = await supabase
             .from('people')
@@ -243,7 +266,7 @@ export default function ImportTab() {
             ci_snapshot: ci.trim(),
             name_snapshot: name?.trim() || null,
             contractor_snapshot: contractor?.trim() || null,
-            type_snapshot: type?.toLowerCase() === 'visitor' || type?.toLowerCase() === 'visitante' 
+            type_snapshot: type?.toLowerCase() === 'visitor' || type?.toLowerCase() === 'visitante'
               ? 'visitor' : 'worker',
           });
 
@@ -291,9 +314,9 @@ export default function ImportTab() {
 
       setResult(importResult);
       if (importResult.success > 0) {
-        toast({ 
-          title: 'Importación completada', 
-          description: `${importResult.success} registros importados correctamente.` 
+        toast({
+          title: 'Importación completada',
+          description: `${importResult.success} registros importados correctamente.`
         });
       }
     } catch (err: any) {
@@ -306,7 +329,7 @@ export default function ImportTab() {
   const getColumnInfo = () => {
     switch (importType) {
       case 'workers':
-        return 'CI, NOMBRE, CONTRATISTA, N°SEGURO, FECHA_VENC, CELULAR, CONTACTO_REF, TIPO_SANGRE, FOTO_URL';
+        return 'CI, NOMBRE, CONTRATISTA, CARGO, N_SEGURO, FECHA_VENC_SEGURO, CELULAR, CONTACTO_EMERGENCIA, TIPO_SANGRE, FOTO_URL';
       case 'visitors':
         return 'CI, NOMBRE, EMPRESA';
       case 'records':
@@ -354,8 +377,8 @@ export default function ImportTab() {
           </p>
         </div>
 
-        <Button 
-          onClick={handleImport} 
+        <Button
+          onClick={handleImport}
           disabled={importing || !file}
           className="w-full md:w-auto"
         >
