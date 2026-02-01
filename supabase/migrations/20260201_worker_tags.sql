@@ -10,9 +10,12 @@ CREATE TABLE IF NOT EXISTS worker_tags_definitions (
   name TEXT NOT NULL,
   color TEXT DEFAULT '#9333ea',
   created_at TIMESTAMPTZ DEFAULT now(),
-  created_by UUID REFERENCES auth.users(id),
-  UNIQUE(site_id, LOWER(name)) -- Evita duplicados case-insensitive
+  created_by UUID REFERENCES auth.users(id)
 );
+
+-- Índice único para evitar duplicados case-insensitive
+CREATE UNIQUE INDEX IF NOT EXISTS idx_worker_tags_definitions_unique_name 
+  ON worker_tags_definitions (site_id, LOWER(name));
 
 -- Tabla de asignación: qué trabajador tiene qué etiquetas
 CREATE TABLE IF NOT EXISTS worker_tags (
