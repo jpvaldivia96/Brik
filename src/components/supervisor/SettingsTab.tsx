@@ -6,12 +6,18 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Spinner } from '@/components/ui/spinner';
-import { Settings, Save, Building2, LogOut, UserCog, Bell, Upload, Sliders } from 'lucide-react';
+import { Settings, Save, Building2, LogOut, UserCog, Bell, Upload, Sliders, RotateCcw, AlertTriangle } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
 import UserManagementTab from './UserManagementTab';
 import { PersonalNotificationSettings } from '../settings/PersonalNotificationSettings';
 import ImportTab from './ImportTab';
+
+// Super usuarios que pueden resetear demos
+const SUPER_USER_EMAILS = [
+  'juanpablovaldc@gmail.com',
+  'admin@brik.pro',
+];
 
 type SettingsSubTab = 'obra' | 'users' | 'alerts' | 'import';
 
@@ -30,6 +36,10 @@ export default function SettingsTab() {
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [isOwner, setIsOwner] = useState(false);
+  const [resettingDemo, setResettingDemo] = useState(false);
+
+  // Verificar si es super usuario
+  const isSuperUser = user?.email && SUPER_USER_EMAILS.includes(user.email);
   const [form, setForm] = useState({
     warn_hours: 10,
     crit_hours: 12,
@@ -344,6 +354,64 @@ export default function SettingsTab() {
           ) : (
             <div className="card-cosmos p-6 text-center">
               <p className="text-white/60">Solo el propietario de la obra puede modificar los ajustes de alertas.</p>
+            </div>
+          )}
+
+          {/* Super User Demo Reset */}
+          {isSuperUser && (
+            <div className="card-cosmos p-6 border-2 border-amber-500/50">
+              <div className="flex items-center gap-2 mb-4">
+                <AlertTriangle className="w-5 h-5 text-amber-400" />
+                <h4 className="font-medium text-amber-400">Super Usuario - Reset Demo</h4>
+              </div>
+              <p className="text-white/60 text-sm mb-4">
+                Esto eliminará TODOS los datos de esta obra y regenerará datos de demo frescos
+                (~130 trabajadores, 15 contratistas, 1 mes de registros).
+              </p>
+              <Button
+                variant="outline"
+                onClick={async () => {
+                  if (!currentSite) return;
+                  const confirm1 = confirm('⚠️ ADVERTENCIA: Esto eliminará TODOS los datos de la obra y regenerará datos de demo.\n\n¿Estás seguro?');
+                  if (!confirm1) return;
+
+                  const confirm2 = prompt(`Escribe "RESET" para confirmar:`);
+                  if (confirm2 !== 'RESET') {
+                    toast({ title: 'Cancelado', description: 'No se escribió RESET correctamente.' });
+                    return;
+                  }
+
+                  setResettingDemo(true);
+                  try {
+                    const { data, error } = await supabase.rpc('reset_demo_site', {
+                      p_site_id: currentSite.id
+                    });
+
+                    if (error) throw error;
+
+                    toast({
+                      title: '✅ Demo Reseteada',
+                      description: 'Los datos de demo fueron regenerados exitosamente.'
+                    });
+
+                    // Refrescar para ver nuevos datos
+                    await refreshSites();
+                  } catch (err: any) {
+                    toast({ title: 'Error', description: err.message, variant: 'destructive' });
+                  } finally {
+                    setResettingDemo(false);
+                  }
+                }}
+                disabled={resettingDemo}
+                className="bg-amber-500/20 border-amber-500/50 text-amber-400 hover:bg-amber-500/30 hover:text-amber-300"
+              >
+                {resettingDemo ? (
+                  <Spinner size="sm" className="mr-2" />
+                ) : (
+                  <RotateCcw className="w-4 h-4 mr-2" />
+                )}
+                Reset Demo a Valores Iniciales
+              </Button>
             </div>
           )}
 
