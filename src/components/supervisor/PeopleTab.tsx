@@ -16,10 +16,11 @@ import {
     DialogFooter,
     DialogDescription
 } from '@/components/ui/dialog';
-import { Users, Trash2, Search, UserX, RefreshCw, User } from 'lucide-react';
+import { Users, Trash2, Search, UserX, RefreshCw, User, Tag, X } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { useToast } from '@/hooks/use-toast';
 import { EditWorkerModal } from '@/components/dashboard/EditWorkerModal';
+import { TagBadge } from '@/components/ui/tag-autocomplete';
 
 interface PersonResult {
     id: string;
@@ -29,6 +30,13 @@ interface PersonResult {
     contractor: string | null;
     photo_url: string | null;
     created_at: string;
+    tags?: { id: string; name: string; color: string }[];
+}
+
+interface TagDefinition {
+    id: string;
+    name: string;
+    color: string;
 }
 
 export default function PeopleTab() {
@@ -42,6 +50,11 @@ export default function PeopleTab() {
     const [showContractorDropdown, setShowContractorDropdown] = useState(false);
     const [selectedPerson, setSelectedPerson] = useState<PersonResult | null>(null);
     const [editingPersonId, setEditingPersonId] = useState<string | null>(null);
+
+    // Tags state
+    const [availableTags, setAvailableTags] = useState<TagDefinition[]>([]);
+    const [selectedTagIds, setSelectedTagIds] = useState<string[]>([]);
+    const [showTagDropdown, setShowTagDropdown] = useState(false);
 
     // Delete Dialog
     const [deleteOpen, setDeleteOpen] = useState(false);
@@ -61,7 +74,33 @@ export default function PeopleTab() {
                 .order('full_name', { ascending: true });
 
             if (error) throw error;
-            setAllPeople(data || []);
+
+            // Load tags for each person
+            const peopleWithTags = await Promise.all((data || []).map(async (person) => {
+                const { data: tagsData } = await (supabase as any)
+                    .from('worker_tags')
+                    .select('tag_id, worker_tags_definitions(id, name, color)')
+                    .eq('person_id', person.id);
+
+                const tags = (tagsData || []).map((t: any) => ({
+                    id: t.worker_tags_definitions?.id,
+                    name: t.worker_tags_definitions?.name,
+                    color: t.worker_tags_definitions?.color,
+                })).filter((t: any) => t.id);
+
+                return { ...person, tags };
+            }));
+
+            setAllPeople(peopleWithTags);
+
+            // Load available tags for filtering
+            const { data: tagsData } = await (supabase as any)
+                .from('worker_tags_definitions')
+                .select('id, name, color')
+                .eq('site_id', currentSite.id)
+                .order('name');
+
+            setAvailableTags((tagsData || []) as TagDefinition[]);
         } catch (err: any) {
             if (!isNetworkError(err)) {
                 toast({ title: 'Error', description: err.message, variant: 'destructive' });
@@ -87,7 +126,7 @@ export default function PeopleTab() {
         return Array.from(set).sort();
     }, [allPeople]);
 
-    // Filter results based on query and contractor - real-time filtering
+    // Filter results based on query, contractor, and tags
     const filteredPeople = useMemo(() => {
         let filtered = allPeople;
 
@@ -105,8 +144,16 @@ export default function PeopleTab() {
             );
         }
 
+        // Filter by selected tags - must have ALL selected tags
+        if (selectedTagIds.length > 0) {
+            filtered = filtered.filter(p => {
+                const personTagIds = (p.tags || []).map(t => t.id);
+                return selectedTagIds.every(tagId => personTagIds.includes(tagId));
+            });
+        }
+
         return filtered;
-    }, [allPeople, query, selectedContractor]);
+    }, [allPeople, query, selectedContractor, selectedTagIds]);
 
     const handleDelete = async () => {
         if (!selectedPerson || !currentSite) return;
@@ -253,7 +300,83 @@ export default function PeopleTab() {
                             </div>
                         )}
                     </div>
+
+                    {/* Tag Filter */}
+                    {availableTags.length > 0 && (
+                        <div className="relative w-full sm:w-48">
+                            <button
+                                type="button"
+                                onClick={() => setShowTagDropdown(!showTagDropdown)}
+                                className="w-full h-10 px-3 flex items-center justify-between rounded-md border bg-white/10 border-white/20 text-white hover:bg-white/20 transition-colors"
+                            >
+                                <span className="flex items-center gap-2 text-sm text-white/70">
+                                    <Tag className="w-4 h-4" />
+                                    {selectedTagIds.length > 0 ? `${selectedTagIds.length} etiquetas` : 'Filtrar por etiqueta'}
+                                </span>
+                            </button>
+                            {showTagDropdown && (
+                                <div className="absolute top-full left-0 right-0 mt-1 bg-slate-800/95 backdrop-blur-xl border border-white/10 rounded-lg max-h-48 overflow-y-auto z-50">
+                                    {selectedTagIds.length > 0 && (
+                                        <button
+                                            type="button"
+                                            onClick={() => {
+                                                setSelectedTagIds([]);
+                                                setShowTagDropdown(false);
+                                            }}
+                                            className="w-full text-left px-3 py-2 text-sm text-red-400 hover:bg-red-500/10 border-b border-white/10"
+                                        >
+                                            ✕ Limpiar filtros
+                                        </button>
+                                    )}
+                                    {availableTags.map(tag => (
+                                        <button
+                                            type="button"
+                                            key={tag.id}
+                                            onClick={() => {
+                                                setSelectedTagIds(prev =>
+                                                    prev.includes(tag.id)
+                                                        ? prev.filter(id => id !== tag.id)
+                                                        : [...prev, tag.id]
+                                                );
+                                            }}
+                                            className="w-full text-left px-3 py-2 text-sm hover:bg-white/10 flex items-center gap-2"
+                                        >
+                                            <span
+                                                className="w-3 h-3 rounded-full"
+                                                style={{ backgroundColor: tag.color }}
+                                            />
+                                            <span className={selectedTagIds.includes(tag.id) ? 'text-primary' : 'text-white/80'}>
+                                                {selectedTagIds.includes(tag.id) && '✓ '}{tag.name}
+                                            </span>
+                                        </button>
+                                    ))}
+                                </div>
+                            )}
+                        </div>
+                    )}
                 </div>
+
+                {/* Selected Tags Display */}
+                {selectedTagIds.length > 0 && (
+                    <div className="flex flex-wrap gap-1.5 mt-2">
+                        {selectedTagIds.map(tagId => {
+                            const tag = availableTags.find(t => t.id === tagId);
+                            if (!tag) return null;
+                            return (
+                                <span
+                                    key={tag.id}
+                                    className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium text-white cursor-pointer hover:opacity-80"
+                                    style={{ backgroundColor: tag.color }}
+                                    onClick={() => setSelectedTagIds(prev => prev.filter(id => id !== tag.id))}
+                                >
+                                    {tag.name}
+                                    <X className="w-3 h-3" />
+                                </span>
+                            );
+                        })}
+                    </div>
+                )}
+
                 <div className="mt-3 text-sm text-white/50">
                     {filteredPeople.length} de {allPeople.length} personas
                 </div>

@@ -9,13 +9,14 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { AlertCosmos } from '@/components/ui/alert-cosmos';
 import { Spinner } from '@/components/ui/spinner';
-import { UserPlus, Camera, RefreshCw, LogIn, SwitchCamera, User, Briefcase, Phone, Heart, Calendar, AlertCircle, CheckCircle2, UserCheck } from 'lucide-react';
+import { UserPlus, Camera, RefreshCw, LogIn, SwitchCamera, User, Briefcase, Phone, Heart, Calendar, AlertCircle, CheckCircle2, UserCheck, Tag } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useFace } from '@/hooks/useFace';
 import { HCaptcha, HCaptchaRef } from '@/components/ui/hcaptcha';
 import { useRateLimit } from '@/hooks/useRateLimit';
 import { logAuditEvent } from '@/lib/auditLog';
 import { ContractorAutocomplete } from '@/components/ui/contractor-autocomplete';
+import { TagAutocomplete } from '@/components/ui/tag-autocomplete';
 import { workerFormSchema, WorkerFormData, workerFormDefaults } from '@/lib/schemas/workerSchema';
 
 export default function NewWorkerTab() {
@@ -30,6 +31,7 @@ export default function NewWorkerTab() {
   const [capturedImage, setCapturedImage] = useState<string | null>(null);
   const [faceDescriptor, setFaceDescriptor] = useState<Float32Array | null>(null);
   const [isProcessingFace, setIsProcessingFace] = useState(false);
+  const [selectedTags, setSelectedTags] = useState<{ id: string; name: string; color: string }[]>([]);
 
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -272,6 +274,15 @@ export default function NewWorkerTab() {
 
       if (profileError) throw profileError;
 
+      // Save tags if any selected
+      if (selectedTags.length > 0) {
+        const tagInserts = selectedTags.map(t => ({
+          person_id: person.id,
+          tag_id: t.id,
+        }));
+        await (supabase as any).from('worker_tags').insert(tagInserts);
+      }
+
       // If createEntry, also create access log
       if (createEntry) {
         const { error: logError } = await supabase
@@ -315,6 +326,7 @@ export default function NewWorkerTab() {
       reset();
       setCapturedImage(null);
       setFaceDescriptor(null);
+      setSelectedTags([]);
     } catch (err: any) {
       if (err.message?.includes('duplicate')) {
         setMessage({ type: 'error', text: 'Ya existe un trabajador con ese CI en esta obra.' });
@@ -528,6 +540,21 @@ export default function NewWorkerTab() {
               Marcar si el trabajador completó la charla de seguridad del sitio
             </p>
           </Label>
+        </div>
+
+        {/* Tags Section */}
+        <div className="p-4 bg-card/50 rounded-xl border border-border mt-2">
+          <Label className="flex items-center gap-2 mb-2">
+            <Tag className="w-4 h-4 text-purple-400" />
+            <span className="font-medium">Etiquetas de personalidad</span>
+          </Label>
+          <p className="text-xs text-muted-foreground mb-3">
+            Asigna etiquetas para identificar características del trabajador
+          </p>
+          <TagAutocomplete
+            selectedTags={selectedTags}
+            onChange={setSelectedTags}
+          />
         </div>
 
         <div className="grid grid-cols-1 gap-3 mt-6">
