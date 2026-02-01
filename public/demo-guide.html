@@ -1,446 +1,756 @@
 <!DOCTYPE html>
 <html lang="es">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Guía de Demo - BRIK Pro</title>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Inter:wght@400;500;600;700&display=swap"
+        rel="stylesheet">
     <style>
         :root {
             --brik-purple: #9333ea;
             --brik-purple-light: #a855f7;
             --brik-purple-dark: #7c3aed;
-            --brik-gradient: linear-gradient(135deg, #667eea 0%, #764ba2 50%, #9333ea 100%);
-            --text-primary: #1f2937;
-            --text-secondary: #6b7280;
-            --bg-light: #f9fafb;
+            --brik-indigo: #667eea;
+            --brik-violet: #764ba2;
+            --text-primary: #1a1a2e;
+            --text-secondary: #64748b;
+            --text-muted: #94a3b8;
+            --bg-cream: #faf9f7;
+            --bg-white: #ffffff;
             --success: #10b981;
             --warning: #f59e0b;
         }
-        
+
         * {
             margin: 0;
             padding: 0;
             box-sizing: border-box;
         }
-        
+
         body {
-            font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+            font-family: 'Inter', system-ui, -apple-system, sans-serif;
             color: var(--text-primary);
-            line-height: 1.6;
-            background: var(--bg-light);
+            line-height: 1.7;
+            background: var(--bg-cream);
+            overflow-x: hidden;
         }
-        
-        /* Header */
-        .header {
-            background: var(--brik-gradient);
-            color: white;
-            padding: 60px 40px;
-            text-align: center;
+
+        /* Gradient Blobs Background */
+        .gradient-bg {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            z-index: -1;
+            overflow: hidden;
         }
-        
-        .logo {
-            font-size: 48px;
-            font-weight: 700;
-            margin-bottom: 10px;
-            letter-spacing: -1px;
+
+        .blob {
+            position: absolute;
+            border-radius: 50%;
+            filter: blur(80px);
+            opacity: 0.6;
         }
-        
-        .logo span {
-            opacity: 0.9;
+
+        .blob-1 {
+            width: 600px;
+            height: 600px;
+            background: linear-gradient(135deg, #a855f7 0%, #9333ea 100%);
+            top: -200px;
+            right: -100px;
         }
-        
-        .tagline {
-            font-size: 20px;
-            opacity: 0.9;
-            margin-bottom: 20px;
+
+        .blob-2 {
+            width: 500px;
+            height: 500px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            top: 30%;
+            left: -150px;
         }
-        
-        .badge {
-            display: inline-block;
-            background: rgba(255,255,255,0.2);
-            padding: 8px 20px;
-            border-radius: 50px;
-            font-size: 14px;
-            backdrop-filter: blur(10px);
+
+        .blob-3 {
+            width: 400px;
+            height: 400px;
+            background: linear-gradient(135deg, #ec4899 0%, #a855f7 100%);
+            bottom: 10%;
+            right: 5%;
         }
-        
-        /* Content */
-        .container {
-            max-width: 900px;
-            margin: 0 auto;
-            padding: 40px 20px;
+
+        /* Typography */
+        .serif {
+            font-family: 'Instrument Serif', Georgia, serif;
         }
-        
-        /* Section */
-        .section {
-            background: white;
-            border-radius: 16px;
-            padding: 32px;
-            margin-bottom: 24px;
-            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
-        }
-        
-        .section-header {
+
+        /* Floating Navigation */
+        .nav-pill {
+            position: fixed;
+            top: 24px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(255, 255, 255, 0.85);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border-radius: 100px;
+            padding: 12px 16px 12px 24px;
             display: flex;
             align-items: center;
-            gap: 16px;
-            margin-bottom: 24px;
+            gap: 32px;
+            box-shadow: 0 4px 24px rgba(0, 0, 0, 0.08);
+            z-index: 1000;
         }
-        
-        .section-icon {
-            width: 48px;
-            height: 48px;
-            background: var(--brik-gradient);
-            border-radius: 12px;
+
+        .nav-logo {
+            font-size: 22px;
+            font-weight: 700;
+            color: var(--brik-purple);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .nav-logo span {
+            font-size: 18px;
+        }
+
+        .nav-links {
+            display: flex;
+            gap: 24px;
+        }
+
+        .nav-links a {
+            color: var(--text-secondary);
+            text-decoration: none;
+            font-size: 14px;
+            font-weight: 500;
+            transition: color 0.2s;
+        }
+
+        .nav-links a:hover {
+            color: var(--text-primary);
+        }
+
+        .nav-cta {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+
+        .nav-cta-text {
+            background: var(--bg-cream);
+            color: var(--text-primary);
+            padding: 10px 20px;
+            border-radius: 100px 0 0 100px;
+            font-size: 14px;
+            font-weight: 600;
+            text-decoration: none;
+            transition: background 0.2s;
+        }
+
+        .nav-cta-arrow {
+            width: 40px;
+            height: 40px;
+            background: var(--brik-purple);
+            border-radius: 50%;
             display: flex;
             align-items: center;
             justify-content: center;
-            font-size: 24px;
+            color: white;
+            font-size: 18px;
+            transition: transform 0.2s;
         }
-        
-        .section-title {
-            font-size: 24px;
+
+        .nav-cta:hover .nav-cta-arrow {
+            transform: translateX(3px);
+        }
+
+        /* Hero Section */
+        .hero {
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            text-align: center;
+            padding: 140px 24px 80px;
+            max-width: 900px;
+            margin: 0 auto;
+        }
+
+        .hero-badge {
+            background: rgba(147, 51, 234, 0.1);
+            color: var(--brik-purple);
+            padding: 8px 20px;
+            border-radius: 100px;
+            font-size: 13px;
             font-weight: 600;
-            color: var(--text-primary);
+            margin-bottom: 32px;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
         }
-        
-        .section-subtitle {
+
+        .hero h1 {
+            font-family: 'Instrument Serif', Georgia, serif;
+            font-size: clamp(48px, 8vw, 80px);
+            font-weight: 400;
+            line-height: 1.1;
+            color: var(--text-primary);
+            margin-bottom: 24px;
+        }
+
+        .hero h1 em {
+            font-style: italic;
+            color: var(--brik-purple);
+        }
+
+        .hero-subtitle {
+            font-size: 18px;
+            color: var(--text-secondary);
+            max-width: 600px;
+            margin-bottom: 40px;
+        }
+
+        .hero-cta {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            margin-bottom: 24px;
+        }
+
+        .btn-primary {
+            background: var(--bg-white);
+            color: var(--text-primary);
+            padding: 16px 32px;
+            border-radius: 100px;
+            font-size: 16px;
+            font-weight: 600;
+            text-decoration: none;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
+            transition: all 0.2s;
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+        }
+
+        .btn-arrow {
+            width: 52px;
+            height: 52px;
+            background: var(--brik-purple);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 20px;
+            transition: transform 0.2s;
+        }
+
+        .hero-cta:hover .btn-arrow {
+            transform: translateX(4px);
+        }
+
+        .hero-links {
+            display: flex;
+            gap: 24px;
+        }
+
+        .hero-links a {
+            color: var(--text-secondary);
+            text-decoration: none;
             font-size: 14px;
+            font-weight: 500;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            transition: color 0.2s;
+        }
+
+        .hero-links a:hover {
+            color: var(--brik-purple);
+        }
+
+        /* Content Container */
+        .container {
+            max-width: 1000px;
+            margin: 0 auto;
+            padding: 0 24px;
+        }
+
+        /* Section */
+        .section {
+            padding: 80px 0;
+        }
+
+        .section-header {
+            text-align: center;
+            margin-bottom: 60px;
+        }
+
+        .section-header h2 {
+            font-family: 'Instrument Serif', Georgia, serif;
+            font-size: clamp(36px, 5vw, 52px);
+            font-weight: 400;
+            color: var(--text-primary);
+            margin-bottom: 16px;
+        }
+
+        .section-header p {
+            font-size: 18px;
             color: var(--text-secondary);
         }
-        
-        /* Feature Cards */
+
+        /* Feature Cards - Nuraform Style */
         .feature-grid {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-            gap: 16px;
-            margin-top: 20px;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 24px;
         }
-        
+
         .feature-card {
-            background: var(--bg-light);
-            border-radius: 12px;
-            padding: 20px;
-            border-left: 4px solid var(--brik-purple);
+            background: rgba(255, 255, 255, 0.8);
+            backdrop-filter: blur(20px);
+            border-radius: 32px;
+            padding: 32px;
+            transition: all 0.3s;
+            border: 1px solid rgba(255, 255, 255, 0.5);
         }
-        
-        .feature-card h4 {
-            font-size: 16px;
-            margin-bottom: 8px;
-            color: var(--brik-purple-dark);
+
+        .feature-card:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 20px 40px rgba(147, 51, 234, 0.1);
         }
-        
+
+        .feature-icon {
+            width: 56px;
+            height: 56px;
+            background: linear-gradient(135deg, var(--brik-indigo), var(--brik-purple));
+            border-radius: 16px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 28px;
+            margin-bottom: 20px;
+        }
+
+        .feature-card h3 {
+            font-size: 20px;
+            font-weight: 600;
+            margin-bottom: 12px;
+            color: var(--text-primary);
+        }
+
         .feature-card p {
-            font-size: 14px;
+            font-size: 15px;
             color: var(--text-secondary);
+            line-height: 1.6;
         }
-        
-        /* Steps */
+
+        /* Steps Section */
+        .steps-container {
+            background: rgba(255, 255, 255, 0.8);
+            backdrop-filter: blur(20px);
+            border-radius: 40px;
+            padding: 48px;
+            border: 1px solid rgba(255, 255, 255, 0.5);
+        }
+
         .step {
             display: flex;
-            gap: 16px;
-            padding: 20px 0;
-            border-bottom: 1px solid #e5e7eb;
+            gap: 24px;
+            padding: 24px 0;
+            border-bottom: 1px solid rgba(0, 0, 0, 0.06);
         }
-        
+
         .step:last-child {
             border-bottom: none;
+            padding-bottom: 0;
         }
-        
+
+        .step:first-child {
+            padding-top: 0;
+        }
+
         .step-number {
-            width: 36px;
-            height: 36px;
-            background: var(--brik-purple);
+            width: 44px;
+            height: 44px;
+            background: linear-gradient(135deg, var(--brik-indigo), var(--brik-purple));
             color: white;
             border-radius: 50%;
             display: flex;
             align-items: center;
             justify-content: center;
-            font-weight: 600;
+            font-weight: 700;
+            font-size: 16px;
             flex-shrink: 0;
         }
-        
+
         .step-content h4 {
-            font-size: 16px;
-            margin-bottom: 4px;
+            font-size: 18px;
+            font-weight: 600;
+            margin-bottom: 6px;
+            color: var(--text-primary);
         }
-        
+
         .step-content p {
-            font-size: 14px;
+            font-size: 15px;
             color: var(--text-secondary);
         }
-        
+
+        /* Data Table Card */
+        .data-card {
+            background: rgba(255, 255, 255, 0.8);
+            backdrop-filter: blur(20px);
+            border-radius: 32px;
+            overflow: hidden;
+            border: 1px solid rgba(255, 255, 255, 0.5);
+        }
+
+        .data-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        .data-table th {
+            background: rgba(147, 51, 234, 0.05);
+            padding: 16px 24px;
+            text-align: left;
+            font-size: 12px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            color: var(--brik-purple);
+        }
+
+        .data-table td {
+            padding: 16px 24px;
+            border-bottom: 1px solid rgba(0, 0, 0, 0.04);
+            font-size: 15px;
+        }
+
+        .data-table tr:last-child td {
+            border-bottom: none;
+        }
+
+        .data-table td:first-child {
+            font-weight: 600;
+        }
+
+        /* Tip Box */
+        .tip-box {
+            background: linear-gradient(135deg, rgba(245, 158, 11, 0.1), rgba(245, 158, 11, 0.05));
+            border-radius: 20px;
+            padding: 20px 24px;
+            margin: 32px 0;
+            display: flex;
+            align-items: flex-start;
+            gap: 16px;
+        }
+
+        .tip-icon {
+            font-size: 24px;
+            flex-shrink: 0;
+        }
+
+        .tip-box p {
+            font-size: 15px;
+            color: var(--text-primary);
+        }
+
+        .tip-box strong {
+            color: #b45309;
+        }
+
         /* Checklist */
         .checklist {
             list-style: none;
-            margin-top: 16px;
         }
-        
+
         .checklist li {
-            padding: 12px 16px;
-            background: var(--bg-light);
-            border-radius: 8px;
-            margin-bottom: 8px;
+            padding: 16px 0;
+            border-bottom: 1px solid rgba(0, 0, 0, 0.06);
             display: flex;
             align-items: center;
-            gap: 12px;
+            gap: 16px;
+            font-size: 16px;
         }
-        
-        .checklist li::before {
-            content: "☐";
-            font-size: 18px;
-            color: var(--brik-purple);
+
+        .checklist li:last-child {
+            border-bottom: none;
         }
-        
-        /* CTA Box */
-        .cta-box {
-            background: var(--brik-gradient);
-            color: white;
-            border-radius: 16px;
-            padding: 32px;
+
+        .check-icon {
+            width: 28px;
+            height: 28px;
+            background: rgba(147, 51, 234, 0.1);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 14px;
+            flex-shrink: 0;
+        }
+
+        /* CTA Section */
+        .cta-section {
+            background: linear-gradient(135deg, var(--brik-indigo), var(--brik-purple));
+            border-radius: 40px;
+            padding: 60px 48px;
             text-align: center;
+            margin: 80px 0;
         }
-        
-        .cta-box h3 {
-            font-size: 24px;
-            margin-bottom: 12px;
+
+        .cta-section h3 {
+            font-family: 'Instrument Serif', Georgia, serif;
+            font-size: clamp(32px, 4vw, 44px);
+            font-weight: 400;
+            color: white;
+            margin-bottom: 16px;
         }
-        
-        .cta-box p {
-            opacity: 0.9;
-            margin-bottom: 20px;
+
+        .cta-section p {
+            color: rgba(255, 255, 255, 0.85);
+            font-size: 17px;
+            margin-bottom: 32px;
         }
-        
-        .cta-button {
-            display: inline-block;
+
+        .cta-section .btn-primary {
             background: white;
             color: var(--brik-purple);
-            padding: 14px 32px;
-            border-radius: 50px;
-            text-decoration: none;
-            font-weight: 600;
-            transition: transform 0.2s;
+            display: inline-flex;
         }
-        
-        .cta-button:hover {
-            transform: scale(1.05);
-        }
-        
-        /* Tips */
-        .tip-box {
-            background: #fef3c7;
-            border-left: 4px solid var(--warning);
-            padding: 16px 20px;
-            border-radius: 8px;
-            margin: 16px 0;
-        }
-        
-        .tip-box strong {
-            color: #92400e;
-        }
-        
-        /* Table */
-        .info-table {
-            width: 100%;
-            border-collapse: collapse;
-            margin-top: 16px;
-        }
-        
-        .info-table th,
-        .info-table td {
-            padding: 12px 16px;
-            text-align: left;
-            border-bottom: 1px solid #e5e7eb;
-        }
-        
-        .info-table th {
-            background: var(--bg-light);
-            font-weight: 600;
-            color: var(--text-secondary);
-            font-size: 12px;
-            text-transform: uppercase;
-        }
-        
-        .info-table td {
-            font-size: 14px;
-        }
-        
+
         /* Footer */
         .footer {
             text-align: center;
-            padding: 40px 20px;
-            color: var(--text-secondary);
+            padding: 40px 24px 60px;
+            color: var(--text-muted);
             font-size: 14px;
         }
-        
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            .nav-pill {
+                padding: 10px 14px;
+                gap: 16px;
+            }
+
+            .nav-links {
+                display: none;
+            }
+
+            .hero {
+                padding-top: 120px;
+            }
+
+            .steps-container {
+                padding: 32px 24px;
+            }
+
+            .cta-section {
+                padding: 40px 24px;
+            }
+        }
+
         @media print {
-            .header { padding: 30px 20px; }
-            .section { break-inside: avoid; }
+            .nav-pill {
+                display: none;
+            }
+
+            .gradient-bg {
+                display: none;
+            }
+
+            body {
+                background: white;
+            }
+
+            .section {
+                break-inside: avoid;
+            }
         }
     </style>
 </head>
+
 <body>
-    <!-- Header -->
-    <div class="header">
-        <div class="logo">✦ brik</div>
-        <p class="tagline">Control de Acceso Inteligente para Obras</p>
-        <span class="badge">📖 Guía de Demo Interactiva</span>
+    <!-- Gradient Background -->
+    <div class="gradient-bg">
+        <div class="blob blob-1"></div>
+        <div class="blob blob-2"></div>
+        <div class="blob blob-3"></div>
     </div>
 
-    <div class="container">
-        <!-- Bienvenida -->
-        <div class="section">
-            <div class="section-header">
-                <div class="section-icon">👋</div>
-                <div>
-                    <h2 class="section-title">Bienvenido a BRIK Pro</h2>
-                    <p class="section-subtitle">Tu plataforma de control de acceso para la construcción</p>
-                </div>
-            </div>
-            
-            <p>Esta demo incluye datos realistas de una obra ficticia llamada <strong>"Proyecto X"</strong> con:</p>
-            
-            <ul class="checklist">
-                <li>~130 trabajadores de 15 contratistas diferentes</li>
-                <li>1 mes de registros de entrada y salida</li>
-                <li>Estadísticas y análisis en tiempo real</li>
-                <li>Sistema de alertas de seguros e inducción</li>
-            </ul>
-            
-            <div class="tip-box">
-                <strong>💡 Tip:</strong> Explora libremente. Esta demo se puede reiniciar a valores iniciales en cualquier momento.
-            </div>
+    <!-- Floating Navigation -->
+    <nav class="nav-pill">
+        <div class="nav-logo">
+            <span>✦</span> brik
+        </div>
+        <div class="nav-links">
+            <a href="#funciones">Funciones</a>
+            <a href="#pasos">Guía</a>
+            <a href="#datos">Datos</a>
+        </div>
+        <a href="https://brik-pro.vercel.app" class="nav-cta">
+            <span class="nav-cta-text">Ir a la App</span>
+            <span class="nav-cta-arrow">→</span>
+        </a>
+    </nav>
+
+    <!-- Hero Section -->
+    <section class="hero">
+        <span class="hero-badge">📖 Guía de Demo Interactiva</span>
+        <h1>Control de Acceso<br><em>Inteligente</em> para Obras</h1>
+        <p class="hero-subtitle">
+            Explora BRIK Pro con datos reales de "Proyecto X": 130 trabajadores,
+            15 contratistas, y un mes completo de registros.
+        </p>
+        <a href="https://brik-pro.vercel.app" class="hero-cta">
+            <span class="btn-primary">Explorar el Demo</span>
+            <span class="btn-arrow">→</span>
+        </a>
+        <div class="hero-links">
+            <a href="#pasos">Ver guía paso a paso →</a>
+            <a href="#contacto">Contactar ventas →</a>
+        </div>
+    </section>
+
+    <!-- Features Section -->
+    <section class="section container" id="funciones">
+        <div class="section-header">
+            <h2>Todo lo que puedes hacer</h2>
+            <p>Funciones diseñadas para la construcción moderna</p>
         </div>
 
-        <!-- Funciones Principales -->
-        <div class="section">
-            <div class="section-header">
-                <div class="section-icon">⚡</div>
-                <div>
-                    <h2 class="section-title">Funciones Principales</h2>
-                    <p class="section-subtitle">Todo lo que puedes hacer con BRIK</p>
-                </div>
+        <div class="feature-grid">
+            <div class="feature-card">
+                <div class="feature-icon">📱</div>
+                <h3>Registro Instantáneo</h3>
+                <p>Entrada y salida en segundos con búsqueda inteligente por nombre o CI.</p>
             </div>
-            
-            <div class="feature-grid">
-                <div class="feature-card">
-                    <h4>📱 Registro de Entrada/Salida</h4>
-                    <p>Registra accesos en segundos con búsqueda inteligente por nombre o CI.</p>
-                </div>
-                
-                <div class="feature-card">
-                    <h4>👷 Gestión de Personal</h4>
-                    <p>Administra trabajadores, contratistas, visitantes y sus documentos.</p>
-                </div>
-                
-                <div class="feature-card">
-                    <h4>📊 Dashboard en Tiempo Real</h4>
-                    <p>Ve quién está adentro, horas acumuladas y alertas activas.</p>
-                </div>
-                
-                <div class="feature-card">
-                    <h4>🔔 Sistema de Alertas</h4>
-                    <p>Seguros por vencer, exceso de horas, e inducción pendiente.</p>
-                </div>
-                
-                <div class="feature-card">
-                    <h4>📈 Estadísticas Avanzadas</h4>
-                    <p>Reportes de asistencia, contratistas, y tendencias mensuales.</p>
-                </div>
-                
-                <div class="feature-card">
-                    <h4>🔐 Roles y Permisos</h4>
-                    <p>Guardias, supervisores y administradores con accesos diferenciados.</p>
-                </div>
+
+            <div class="feature-card">
+                <div class="feature-icon">👷</div>
+                <h3>Gestión de Personal</h3>
+                <p>Administra trabajadores, contratistas, visitantes y toda su documentación.</p>
+            </div>
+
+            <div class="feature-card">
+                <div class="feature-icon">📊</div>
+                <h3>Dashboard en Vivo</h3>
+                <p>Ve quién está adentro, horas acumuladas y alertas activas en tiempo real.</p>
+            </div>
+
+            <div class="feature-card">
+                <div class="feature-icon">🔔</div>
+                <h3>Alertas Inteligentes</h3>
+                <p>Seguros por vencer, exceso de horas, e inducción pendiente automáticamente.</p>
+            </div>
+
+            <div class="feature-card">
+                <div class="feature-icon">📈</div>
+                <h3>Estadísticas Avanzadas</h3>
+                <p>Reportes de asistencia, análisis por contratista, y tendencias mensuales.</p>
+            </div>
+
+            <div class="feature-card">
+                <div class="feature-icon">🔐</div>
+                <h3>Roles y Permisos</h3>
+                <p>Guardias, supervisores y administradores con accesos diferenciados.</p>
             </div>
         </div>
+    </section>
 
-        <!-- Guía Paso a Paso -->
-        <div class="section">
-            <div class="section-header">
-                <div class="section-icon">🎯</div>
-                <div>
-                    <h2 class="section-title">Guía Paso a Paso</h2>
-                    <p class="section-subtitle">Explora todas las funciones en 10 minutos</p>
-                </div>
-            </div>
-            
+    <!-- Steps Section -->
+    <section class="section container" id="pasos">
+        <div class="section-header">
+            <h2>Guía en 8 pasos</h2>
+            <p>Explora todas las funciones en solo 10 minutos</p>
+        </div>
+
+        <div class="steps-container">
             <div class="step">
                 <div class="step-number">1</div>
                 <div class="step-content">
                     <h4>Explora el Dashboard</h4>
-                    <p>Observa los <strong>trabajadores actualmente adentro</strong>, sus horas acumuladas y el semáforo de colores (verde, amarillo, rojo).</p>
+                    <p>Observa los trabajadores actualmente adentro, sus horas y el semáforo de colores.</p>
                 </div>
             </div>
-            
+
             <div class="step">
                 <div class="step-number">2</div>
                 <div class="step-content">
                     <h4>Registra una Salida</h4>
-                    <p>Haz clic en un trabajador que esté adentro y selecciona <strong>"Registrar Salida"</strong>. Verás cómo cambia el contador.</p>
+                    <p>Haz clic en un trabajador y selecciona "Registrar Salida". Observa cómo cambia el contador.</p>
                 </div>
             </div>
-            
+
             <div class="step">
                 <div class="step-number">3</div>
                 <div class="step-content">
                     <h4>Busca un Trabajador</h4>
-                    <p>Usa la barra de búsqueda para encontrar por <strong>nombre o CI</strong>. Prueba buscar "Mamani" o "Quispe".</p>
+                    <p>Usa la barra de búsqueda para encontrar por nombre o CI. Prueba buscar "Mamani" o "Quispe".</p>
                 </div>
             </div>
-            
+
             <div class="step">
                 <div class="step-number">4</div>
                 <div class="step-content">
                     <h4>Revisa las Estadísticas</h4>
-                    <p>Haz clic en el ícono de <strong>📊 gráficos</strong> para ver el Panel de Estadísticas con análisis del mes.</p>
+                    <p>Haz clic en el ícono de gráficos para ver el Panel de Estadísticas con análisis del mes.</p>
                 </div>
             </div>
-            
+
             <div class="step">
                 <div class="step-number">5</div>
                 <div class="step-content">
                     <h4>Filtra por Contratista</h4>
-                    <p>Usa las <strong>pestañas de contratistas</strong> para ver solo los trabajadores de una empresa específica.</p>
+                    <p>Usa las pestañas de contratistas para ver solo los trabajadores de una empresa específica.</p>
                 </div>
             </div>
-            
+
             <div class="step">
                 <div class="step-number">6</div>
                 <div class="step-content">
                     <h4>Revisa Alertas de Seguros</h4>
-                    <p>Observa los <strong>íconos de escudo</strong> junto a cada trabajador. Rojo = seguro vencido o ausente.</p>
+                    <p>Observa los íconos de escudo junto a cada trabajador. Rojo = seguro vencido o ausente.</p>
                 </div>
             </div>
-            
+
             <div class="step">
                 <div class="step-number">7</div>
                 <div class="step-content">
                     <h4>Edita un Trabajador</h4>
-                    <p>Haz clic en un trabajador y selecciona <strong>"Ver/Editar Perfil"</strong> para ver o modificar sus datos.</p>
+                    <p>Haz clic en un trabajador y selecciona "Ver/Editar Perfil" para ver o modificar sus datos.</p>
                 </div>
             </div>
-            
+
             <div class="step">
                 <div class="step-number">8</div>
                 <div class="step-content">
                     <h4>Exporta Datos</h4>
-                    <p>En el historial, usa el botón de <strong>exportar</strong> para descargar los registros en Excel.</p>
+                    <p>En el historial, usa el botón de exportar para descargar los registros en Excel.</p>
                 </div>
             </div>
         </div>
+    </section>
 
-        <!-- Datos de la Demo -->
-        <div class="section">
-            <div class="section-header">
-                <div class="section-icon">📋</div>
-                <div>
-                    <h2 class="section-title">Datos de la Demo</h2>
-                    <p class="section-subtitle">Contenido precargado para explorar</p>
-                </div>
-            </div>
-            
-            <table class="info-table">
+    <!-- Data Section -->
+    <section class="section container" id="datos">
+        <div class="section-header">
+            <h2>Datos del Demo</h2>
+            <p>Contenido precargado para que explores libremente</p>
+        </div>
+
+        <div class="data-card">
+            <table class="data-table">
                 <thead>
                     <tr>
                         <th>Elemento</th>
@@ -483,65 +793,58 @@
             </table>
         </div>
 
-        <!-- Prueba con tus Datos -->
-        <div class="section">
-            <div class="section-header">
-                <div class="section-icon">✨</div>
-                <div>
-                    <h2 class="section-title">¡Prueba con tus Propios Datos!</h2>
-                    <p class="section-subtitle">Registra trabajadores y contratistas reales</p>
-                </div>
-            </div>
-            
-            <p>La mejor forma de evaluar BRIK es probarlo con datos de tu propia obra. Te invitamos a:</p>
-            
+        <div class="tip-box">
+            <span class="tip-icon">💡</span>
+            <p><strong>Tip:</strong> Explora libremente. Esta demo se puede reiniciar a valores iniciales en cualquier
+                momento. Nada que hagas afecta otras obras.</p>
+        </div>
+    </section>
+
+    <!-- Try Your Data Section -->
+    <section class="section container">
+        <div class="section-header">
+            <h2>Prueba con tus datos</h2>
+            <p>La mejor forma de evaluar BRIK es probarlo con tu propia información</p>
+        </div>
+
+        <div class="steps-container">
             <ul class="checklist">
-                <li>Agregar un <strong>contratista real</strong> de tu obra</li>
-                <li>Registrar <strong>3-5 trabajadores</strong> de prueba</li>
-                <li>Simular <strong>entradas y salidas</strong> durante el día</li>
-                <li>Ver cómo se generan las <strong>estadísticas automáticamente</strong></li>
+                <li>
+                    <span class="check-icon">☐</span>
+                    Agrega un <strong>contratista real</strong> de tu obra
+                </li>
+                <li>
+                    <span class="check-icon">☐</span>
+                    Registra <strong>3-5 trabajadores</strong> de prueba
+                </li>
+                <li>
+                    <span class="check-icon">☐</span>
+                    Simula <strong>entradas y salidas</strong> durante el día
+                </li>
+                <li>
+                    <span class="check-icon">☐</span>
+                    Observa cómo se generan las <strong>estadísticas automáticamente</strong>
+                </li>
             </ul>
-            
-            <div class="tip-box">
-                <strong>🔒 Tranquilo:</strong> Todos los datos de esta demo se pueden reiniciar. Nada que hagas aquí afecta otras obras.
-            </div>
         </div>
+    </section>
 
-        <!-- CTA -->
-        <div class="cta-box">
+    <!-- CTA Section -->
+    <section class="container" id="contacto">
+        <div class="cta-section">
             <h3>¿Listo para digitalizar tu obra?</h3>
-            <p>Contacta a nuestro equipo para una demostración personalizada y conoce los planes disponibles.</p>
-            <a href="https://brik.pro/contacto" class="cta-button">Solicitar Demo Personalizada</a>
+            <p>Contacta a nuestro equipo para una demostración personalizada</p>
+            <a href="mailto:soporte@brik.pro" class="btn-primary">
+                Solicitar Demo Personalizada
+            </a>
         </div>
-
-        <!-- Soporte -->
-        <div class="section">
-            <div class="section-header">
-                <div class="section-icon">💬</div>
-                <div>
-                    <h2 class="section-title">¿Necesitas Ayuda?</h2>
-                    <p class="section-subtitle">Estamos aquí para asistirte</p>
-                </div>
-            </div>
-            
-            <div class="feature-grid">
-                <div class="feature-card">
-                    <h4>📧 Email</h4>
-                    <p>soporte@brik.pro</p>
-                </div>
-                
-                <div class="feature-card">
-                    <h4>📱 WhatsApp</h4>
-                    <p>+591 XXX XXX XXX</p>
-                </div>
-            </div>
-        </div>
-    </div>
+    </section>
 
     <!-- Footer -->
-    <div class="footer">
-        <p>© 2026 BRIK Pro. Control de Acceso Inteligente.</p>
-        <p style="margin-top: 8px; opacity: 0.7;">Esta guía es parte de la demo de evaluación.</p>
-    </div>
+    <footer class="footer">
+        <p>© 2026 BRIK Pro. Control de Acceso Inteligente para Obras.</p>
+        <p style="margin-top: 8px;">📧 soporte@brik.pro</p>
+    </footer>
 </body>
+
 </html>
