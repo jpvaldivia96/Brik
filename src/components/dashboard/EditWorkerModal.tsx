@@ -9,8 +9,9 @@ import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/contexts/AuthContext';
 import { useSite } from '@/contexts/SiteContext';
 import { logAuditEvent } from '@/lib/auditLog';
-import { Save, X, Pencil, User, Moon, Calendar } from 'lucide-react';
+import { Save, X, Pencil, User, Moon, Calendar, Tag } from 'lucide-react';
 import { ContractorAutocomplete } from '@/components/ui/contractor-autocomplete';
+import { TagAutocomplete, TagBadge } from '@/components/ui/tag-autocomplete';
 
 interface EditWorkerModalProps {
     open: boolean;
@@ -39,10 +40,17 @@ interface WorkerData {
     };
 }
 
+interface TagDefinition {
+    id: string;
+    name: string;
+    color: string;
+}
+
 // Extracted View Mode Component
 const ViewForm = ({ workerData, form, handleClose, setEditing }: any) => {
     const hasPermit = form.nightPermitPermanent || (form.nightPermitUntil && new Date(form.nightPermitUntil) > new Date());
     const isInspector = form.isInspector;
+    const tags: TagDefinition[] = form.tags || [];
 
     return (
         <div className="space-y-4">
@@ -77,6 +85,14 @@ const ViewForm = ({ workerData, form, handleClose, setEditing }: any) => {
                             <div className="inline-flex items-center gap-1.5 px-2 py-1 rounded-md bg-indigo-500/10 text-indigo-400 text-xs font-medium border border-indigo-500/20">
                                 <Moon className="w-3 h-3" />
                                 {form.nightPermitPermanent ? 'Nocturno Permanente' : `Nocturno hasta ${new Date(form.nightPermitUntil).toLocaleDateString()}`}
+                            </div>
+                        )}
+                        {/* Tags */}
+                        {tags.length > 0 && (
+                            <div className="flex flex-wrap gap-1 mt-1">
+                                {tags.map((tag: TagDefinition) => (
+                                    <TagBadge key={tag.id} name={tag.name} color={tag.color} />
+                                ))}
                             </div>
                         )}
                     </div>
@@ -267,6 +283,18 @@ const EditForm = ({ form, setForm, saving, handleSave, setEditing }: any) => (
             </div>
         </div>
 
+        {/* Tags Section */}
+        <div className="space-y-2">
+            <Label className="text-xs font-semibold uppercase text-muted-foreground tracking-wider flex items-center gap-2">
+                <Tag className="w-3 h-3" />
+                Etiquetas de personalidad
+            </Label>
+            <TagAutocomplete
+                selectedTags={form.tags || []}
+                onChange={(tags) => setForm({ ...form, tags })}
+            />
+        </div>
+
         <div className="flex items-center gap-3 p-3 bg-card/50 rounded-xl border border-border">
             <input
                 type="checkbox"
@@ -300,7 +328,22 @@ export function EditWorkerModal({ open, onClose, personId, onSaved }: EditWorker
     const [saving, setSaving] = useState(false);
     const [editing, setEditing] = useState(false);
     const [workerData, setWorkerData] = useState<WorkerData | null>(null);
-    const [form, setForm] = useState({
+    const [form, setForm] = useState<{
+        ci: string;
+        fullName: string;
+        contractor: string;
+        role: string;
+        insuranceNumber: string;
+        insuranceExpiry: string;
+        phone: string;
+        emergencyContact: string;
+        bloodType: string;
+        inductionCompleted: boolean;
+        nightPermitPermanent: boolean;
+        nightPermitUntil: string;
+        isInspector: boolean;
+        tags: TagDefinition[];
+    }>({
         ci: '',
         fullName: '',
         contractor: '',
@@ -314,6 +357,7 @@ export function EditWorkerModal({ open, onClose, personId, onSaved }: EditWorker
         nightPermitPermanent: false,
         nightPermitUntil: '',
         isInspector: false,
+        tags: [],
     });
     const { toast } = useToast();
 
@@ -341,6 +385,19 @@ export function EditWorkerModal({ open, onClose, personId, onSaved }: EditWorker
         const worker = data as unknown as WorkerData;
         const wp = worker.workers_profile;
 
+        // Load tags for this worker
+        // NOTE: Using 'as any' because worker_tags tables are new and not in generated types yet
+        const { data: tagsData } = await (supabase as any)
+            .from('worker_tags')
+            .select('tag_id, worker_tags_definitions(id, name, color)')
+            .eq('person_id', personId);
+
+        const tags: TagDefinition[] = (tagsData || []).map((t: any) => ({
+            id: t.worker_tags_definitions.id,
+            name: t.worker_tags_definitions.name,
+            color: t.worker_tags_definitions.color,
+        }));
+
         setWorkerData(worker);
         setForm({
             ci: worker.ci || '',
@@ -354,9 +411,9 @@ export function EditWorkerModal({ open, onClose, personId, onSaved }: EditWorker
             bloodType: wp?.blood_type || '',
             inductionCompleted: !!wp?.induction_date,
             nightPermitPermanent: wp?.night_permit_permanent || false,
-            // Handle null or date string
             nightPermitUntil: wp?.night_permit_until ? wp.night_permit_until.split('T')[0] : '',
             isInspector: wp?.is_inspector || false,
+            tags,
         });
         setLoading(false);
     };
@@ -392,6 +449,21 @@ export function EditWorkerModal({ open, onClose, personId, onSaved }: EditWorker
                 }, { onConflict: 'person_id' });
 
             if (profileError) throw profileError;
+
+            // Update tags: delete existing and insert new
+            // NOTE: Using 'as any' because worker_tags tables are new and not in generated types yet
+            await (supabase as any)
+                .from('worker_tags')
+                .delete()
+                .eq('person_id', personId);
+
+            if (form.tags.length > 0) {
+                const tagInserts = form.tags.map(t => ({
+                    person_id: personId,
+                    tag_id: t.id,
+                }));
+                await (supabase as any).from('worker_tags').insert(tagInserts);
+            }
 
             // Log audit event for person edit
             if (workerData && currentSite) {
