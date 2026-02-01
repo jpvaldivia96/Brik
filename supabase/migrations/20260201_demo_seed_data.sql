@@ -1,6 +1,7 @@
 -- =====================================================
--- BRIK Pro - Demo Seed Data
--- "Proyecto X" - ~130 trabajadores, 15 contratistas
+-- BRIK Pro - Demo Seed Data v2
+-- "Proyecto X" - ~130 trabajadores bolivianos
+-- Fotos RandomUser, Inducción 70%, Horarios 6am-6pm±4h
 -- =====================================================
 
 -- Función para generar datos de demo
@@ -11,13 +12,13 @@ DECLARE
   v_ci_base INTEGER := 10000000; -- Base para generar CIs únicos
   v_worker_count INTEGER := 0;
   
-  -- 15 Contratistas reales
+  -- 15 Contratistas
   v_contractors TEXT[] := ARRAY[
-    'Constructora Axis SpA',
+    'Constructora Axis SRL',
     'Instalaciones Eléctricas ProVolt',
     'Climatización Frío Sur Ltda',
     'Pinturas y Terminaciones Deco',
-    'Estructuras Metálicas ValSur',
+    'Estructuras Metálicas del Sur',
     'Servicios de Seguridad Shield',
     'Limpieza Industrial CleanPro',
     'Hormigones Ready Mix',
@@ -198,47 +199,38 @@ DECLARE
     'Supervisor de Áreas Verdes'
   ];
   
-  -- Nombres chilenos realistas (primeros nombres)
+  -- Nombres bolivianos comunes
   v_nombres TEXT[] := ARRAY[
-    'Juan Carlos', 'María José', 'Carlos Alberto', 'Ana María', 'Pedro Pablo',
-    'Laura Andrea', 'Miguel Ángel', 'Carmen Gloria', 'Francisco Javier', 'Isabel Cristina',
-    'Jorge Eduardo', 'Patricia Elena', 'Roberto Andrés', 'Marcela Alejandra', 'Antonio José',
-    'Claudia Valentina', 'Sergio Esteban', 'Francisca Belén', 'Mauricio Alejandro', 'Camila Fernanda',
-    'Rodrigo Ignacio', 'Valentina Paz', 'Felipe Andrés', 'Daniela Sofía', 'Gonzalo Patricio',
-    'Javiera Antonia', 'Cristián Nicolás', 'Carolina Andrea', 'Diego Fernando', 'Constanza María',
-    'Pablo Enrique', 'Macarena Isabel', 'Sebastián Felipe', 'Katalina Alejandra', 'Tomás Ignacio',
-    'Fernanda Paula', 'Maximiliano José', 'Isidora Paz', 'Martín Eduardo', 'Antonia Belén',
-    'Vicente Pablo', 'Josefina María', 'Ignacio Andrés', 'Trinidad Elena', 'Bastián Alonso',
-    'Agustina Rosa', 'Lucas Gabriel', 'Florencia Andrea', 'Matías Esteban', 'Renata Carolina',
-    'Alejandro David', 'Rocío Valentina', 'Nicolás Patricio', 'Catalina Paz', 'Andrés Benjamín',
-    'Sophia Isabella', 'Emiliano José', 'Victoria Esperanza', 'Santiago Alonso', 'Julieta Macarena',
-    'Leonardo Mateo', 'Emma Valentina', 'Gabriel Ignacio', 'Amanda Cristina', 'Samuel Esteban',
-    'Olivia Fernanda', 'Daniel Andrés', 'Mía Sofía', 'Fernando Javier', 'Luna Esperanza',
-    'Joaquín Pablo', 'Amparo María', 'Alan Ricardo', 'Blanca Elena', 'Héctor Manuel',
-    'Verónica Andrea', 'Raúl Enrique', 'Silvia Patricia', 'Óscar Eduardo', 'Mónica Isabel',
-    'Ramón Alejandro', 'Teresa Fernanda', 'Iván Nicolás', 'Lorena Alejandra', 'Arturo José',
-    'Gloria Esperanza', 'César Augusto', 'Adriana Beatriz', 'Hugo Leonardo', 'Sandra Paulina',
-    'Rafael Antonio', 'Pilar Constanza', 'Víctor Manuel', 'Elena Antonia', 'Julio César',
-    'Jimena Alejandra', 'Esteban Alonso', 'Paola Andrea', 'Marco Antonio', 'Natalia Fernanda',
-    'Luis Alberto', 'Javiera Belén', 'Claudio Enrique', 'Bernardita Paz', 'Eduardo José',
-    'Monserrat Andrea', 'Aldo Marcelo', 'Soledad María', 'Nelson Patricio', 'Ximena Carolina',
-    'Cristóbal Ignacio', 'Paz Valentina', 'Fabián Andrés', 'Dominga Elena', 'Alonso Felipe',
-    'Maite Antonia', 'Bruno Alejandro', 'Consuelo María', 'Luciano José', 'Esperanza Isabel',
-    'Franco Sebastián', 'Almendra Rosa', 'Damián Eduardo', 'Aurora Beatriz', 'Dante Gabriel'
+    'Juan Carlos', 'María', 'Carlos', 'Ana María', 'Pedro',
+    'Rosa', 'Miguel', 'Carmen', 'José', 'Isabel',
+    'Jorge', 'Patricia', 'Roberto', 'Marcela', 'Antonio',
+    'Claudia', 'Sergio', 'Francisca', 'Mauricio', 'Camila',
+    'Luis', 'Elena', 'Fernando', 'Silvia', 'Ramón',
+    'Verónica', 'Hernán', 'Mónica', 'Oscar', 'Teresa',
+    'Ricardo', 'Alejandra', 'Hugo', 'Sandra', 'Víctor',
+    'Carla', 'Gonzalo', 'Paola', 'Enrique', 'Lorena',
+    'Arturo', 'Gloria', 'Alberto', 'Beatriz', 'Marco',
+    'Adriana', 'Nelson', 'Ximena', 'Edgar', 'Sonia',
+    'Rubén', 'Liliana', 'Jaime', 'Cecilia', 'Rolando',
+    'Magaly', 'Milton', 'Rosario', 'Edwin', 'Norma',
+    'Freddy', 'Ruth', 'Iván', 'Miriam', 'Jhonny',
+    'Yolanda', 'Willy', 'Nancy', 'Ever', 'Marlene',
+    'Boris', 'Gladys', 'Limbert', 'Deysi', 'Grover',
+    'Elvira', 'Efraín', 'Juana', 'Zenón', 'Petrona'
   ];
   
-  -- Apellidos chilenos realistas
+  -- Apellidos bolivianos típicos
   v_apellidos TEXT[] := ARRAY[
-    'González', 'Muñoz', 'Rojas', 'Díaz', 'Pérez',
-    'Soto', 'Contreras', 'Silva', 'Martínez', 'Sepúlveda',
-    'Morales', 'Rodríguez', 'López', 'Fuentes', 'Hernández',
-    'García', 'Garrido', 'Bravo', 'Reyes', 'Núñez',
-    'Jara', 'Vera', 'Torres', 'Araya', 'Ruiz',
-    'Espinoza', 'Castillo', 'Tapia', 'Castro', 'Carrasco',
-    'Sánchez', 'Fernández', 'Figueroa', 'Flores', 'Valenzuela',
-    'Olivares', 'Campos', 'Vega', 'Ramírez', 'Riquelme',
-    'Aravena', 'Pizarro', 'Vargas', 'Sandoval', 'Salazar',
-    'Cárdenas', 'Vidal', 'Gutiérrez', 'Moya', 'Parra'
+    'Mamani', 'Quispe', 'Condori', 'Choque', 'Flores',
+    'Huanca', 'Limachi', 'Calle', 'Apaza', 'Marca',
+    'Poma', 'Vela', 'Yujra', 'Callisaya', 'Gemio',
+    'Nina', 'Tito', 'Ramos', 'Vargas', 'Fernández',
+    'Cruz', 'López', 'García', 'Ticona', 'Chambi',
+    'Churata', 'Copa', 'Tarqui', 'Alanoca', 'Layme',
+    'Colque', 'Suxo', 'Catari', 'Ayala', 'Morales',
+    'Rojas', 'Castro', 'Torrez', 'Aguilar', 'Chura',
+    'Villca', 'Mendoza', 'Paredes', 'Escobar', 'Gonzales',
+    'Gutiérrez', 'Herrera', 'Jiménez', 'Sánchez', 'Rivera'
   ];
   
   -- Grupos sanguíneos
@@ -253,9 +245,12 @@ DECLARE
   v_blood_type TEXT;
   v_insurance_expiry DATE;
   v_insurance_number TEXT;
+  v_induction_date DATE;
   v_roles_array TEXT[];
   v_workers_per_contractor INTEGER;
   v_photo_url TEXT;
+  v_is_female BOOLEAN;
+  v_photo_num INTEGER;
   
 BEGIN
   -- Iterar por cada contratista
@@ -288,21 +283,26 @@ BEGIN
     FOR w_idx IN 1..v_workers_per_contractor LOOP
       v_worker_count := v_worker_count + 1;
       
+      -- 15% mujeres en construcción
+      v_is_female := random() < 0.15;
+      
       -- Generar datos del trabajador
       v_full_name := v_nombres[1 + floor(random() * array_length(v_nombres, 1))::INTEGER] || ' ' ||
                      v_apellidos[1 + floor(random() * array_length(v_apellidos, 1))::INTEGER] || ' ' ||
                      v_apellidos[1 + floor(random() * array_length(v_apellidos, 1))::INTEGER];
       
       v_role := v_roles_array[1 + ((w_idx - 1) % array_length(v_roles_array, 1))];
-      v_phone := '+569' || (10000000 + floor(random() * 89999999)::INTEGER)::TEXT;
-      v_emergency_phone := '+569' || (10000000 + floor(random() * 89999999)::INTEGER)::TEXT;
+      v_phone := '+591' || (60000000 + floor(random() * 39999999)::INTEGER)::TEXT;
+      v_emergency_phone := '+591' || (60000000 + floor(random() * 39999999)::INTEGER)::TEXT;
       v_blood_type := v_blood_types[1 + floor(random() * array_length(v_blood_types, 1))::INTEGER];
       
-      -- Foto placeholder (usamos UI Avatars como URL de imagen)
-      v_photo_url := 'https://ui-avatars.com/api/?name=' || 
-                     replace(split_part(v_full_name, ' ', 1), ' ', '+') || '+' ||
-                     replace(split_part(v_full_name, ' ', 2), ' ', '+') ||
-                     '&size=200&background=random&color=fff&bold=true';
+      -- Foto usando RandomUser.me (fotos reales variadas)
+      v_photo_num := floor(random() * 99)::INTEGER;
+      IF v_is_female THEN
+        v_photo_url := 'https://randomuser.me/api/portraits/women/' || v_photo_num || '.jpg';
+      ELSE
+        v_photo_url := 'https://randomuser.me/api/portraits/men/' || v_photo_num || '.jpg';
+      END IF;
       
       -- Seguro: mayoría vigente, algunos por vencer, 5% sin seguro
       IF random() < 0.05 THEN
@@ -323,6 +323,14 @@ BEGIN
         v_insurance_number := 'SEG-' || LPAD(v_worker_count::TEXT, 6, '0');
       END IF;
       
+      -- Inducción: 70% completada, 30% pendiente
+      IF random() < 0.70 THEN
+        -- Inducción completada en los últimos 6 meses
+        v_induction_date := CURRENT_DATE - floor(random() * 180)::INTEGER;
+      ELSE
+        v_induction_date := NULL;
+      END IF;
+      
       -- Insertar persona
       INSERT INTO people (
         site_id, ci, full_name, type, contractor, photo_url
@@ -335,21 +343,25 @@ BEGIN
         v_photo_url
       ) RETURNING id INTO v_person_id;
       
-      -- Insertar perfil de trabajador con rol en observations/phone
+      -- Insertar perfil de trabajador
       INSERT INTO workers_profile (
         person_id, 
         insurance_number, 
         insurance_expiry,
         phone,
         emergency_contact,
-        blood_type
+        blood_type,
+        induction_date,
+        role
       ) VALUES (
         v_person_id,
         v_insurance_number,
         v_insurance_expiry,
-        v_phone || ' - ' || v_role,  -- Incluimos el rol en el teléfono
+        v_phone,
         v_emergency_phone,
-        v_blood_type
+        v_blood_type,
+        v_induction_date,
+        v_role
       );
       
     END LOOP;
@@ -357,13 +369,16 @@ BEGIN
   
   -- Generar 15 visitantes
   FOR v_idx IN 1..15 LOOP
+    v_is_female := random() < 0.40; -- 40% mujeres visitantes
     v_full_name := v_nombres[1 + floor(random() * array_length(v_nombres, 1))::INTEGER] || ' ' ||
                    v_apellidos[1 + floor(random() * array_length(v_apellidos, 1))::INTEGER];
     
-    v_photo_url := 'https://ui-avatars.com/api/?name=' || 
-                   replace(split_part(v_full_name, ' ', 1), ' ', '+') || '+' ||
-                   replace(split_part(v_full_name, ' ', 2), ' ', '+') ||
-                   '&size=200&background=6366f1&color=fff&bold=true';
+    v_photo_num := floor(random() * 99)::INTEGER;
+    IF v_is_female THEN
+      v_photo_url := 'https://randomuser.me/api/portraits/women/' || v_photo_num || '.jpg';
+    ELSE
+      v_photo_url := 'https://randomuser.me/api/portraits/men/' || v_photo_num || '.jpg';
+    END IF;
     
     INSERT INTO people (
       site_id, ci, full_name, type, contractor, photo_url
@@ -381,21 +396,22 @@ BEGIN
       v_person_id,
       (ARRAY[
         'Inmobiliaria Norte Sur',
-        'Banco de Chile',
-        'Municipalidad',
+        'Banco Unión',
+        'Alcaldía Municipal',
         'Inspección Técnica de Obra',
         'Proveedor de Materiales',
         'Arquitecto Supervisor',
         'Ingeniero Estructural',
         'Cliente Final',
         'Auditoría de Calidad',
-        'Seguro Industrial SpA'
+        'Seguros Illimani'
       ])[1 + (v_idx % 10)]
     );
   END LOOP;
   
   -- =========================================
   -- Generar registros de acceso del último mes
+  -- Horario: 6am entrada, 6pm±4h salida (2pm-10pm)
   -- =========================================
   DECLARE
     v_day DATE;
@@ -404,12 +420,12 @@ BEGIN
     v_worker RECORD;
     v_attendance_rate NUMERIC;
   BEGIN
-    -- Iterar por los últimos 30 días (excluyendo fines de semana)
+    -- Iterar por los últimos 30 días (excluyendo domingos)
     FOR day_offset IN 0..29 LOOP
       v_day := CURRENT_DATE - day_offset;
       
-      -- Saltar fines de semana
-      CONTINUE WHEN EXTRACT(DOW FROM v_day) IN (0, 6);
+      -- Saltar solo domingos (sábado trabajan en construcción boliviana)
+      CONTINUE WHEN EXTRACT(DOW FROM v_day) = 0;
       
       -- Asistencia variable por día (70-95%)
       v_attendance_rate := 0.70 + (random() * 0.25);
@@ -424,21 +440,20 @@ BEGIN
         -- Verificar si asiste hoy
         CONTINUE WHEN random() > v_attendance_rate;
         
-        -- Hora de entrada variada (6:30 - 9:00)
+        -- Hora de entrada: 5:00 - 7:00 AM (centrado en 6am)
         v_entry_time := v_day + 
-          (6 * INTERVAL '1 hour') + 
-          (30 * INTERVAL '1 minute') +
-          (floor(random() * 150) * INTERVAL '1 minute');
+          (5 * INTERVAL '1 hour') + 
+          (floor(random() * 120) * INTERVAL '1 minute');  -- 5:00 a 7:00
         
-        -- Hora de salida variada (16:00 - 19:30)
-        -- Si es hoy y la hora actual es antes de las 17:00, algunos pueden no tener salida
-        IF day_offset = 0 AND random() < 0.3 THEN
-          -- 30% de entradas del día de hoy sin salida (aún adentro)
+        -- Hora de salida: 14:00 - 22:00 (6pm ± 4 horas)
+        -- Permanencia variable de 8 a 14+ horas
+        IF day_offset = 0 AND random() < 0.4 THEN
+          -- 40% de entradas del día de hoy sin salida (aún adentro)
           v_exit_time := NULL;
         ELSE
           v_exit_time := v_day + 
-            (16 * INTERVAL '1 hour') +
-            (floor(random() * 210) * INTERVAL '1 minute');
+            (14 * INTERVAL '1 hour') +
+            (floor(random() * 480) * INTERVAL '1 minute');  -- 2pm a 10pm
         END IF;
         
         INSERT INTO access_logs (
@@ -482,7 +497,7 @@ BEGIN
     END LOOP;
   END;
   
-  RAISE NOTICE 'Demo data seeded: % workers, 15 visitors, ~22 days of access logs', v_worker_count;
+  RAISE NOTICE 'Demo data seeded: % workers, 15 visitors, ~26 days of access logs', v_worker_count;
   
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
@@ -524,7 +539,7 @@ $$ LANGUAGE plpgsql SECURITY DEFINER;
 -- Comentarios para documentación
 -- =====================================================
 COMMENT ON FUNCTION seed_demo_data(UUID) IS 
-'Genera datos de demo para un site: ~130 trabajadores de 15 contratistas, 15 visitantes, 1 mes de registros de acceso';
+'Genera datos de demo bolivianos: ~130 trabajadores, 15 contratistas, 15 visitantes, 1 mes de registros. Fotos RandomUser, 70% con inducción, horarios 6am-6pm±4h';
 
 COMMENT ON FUNCTION reset_demo_site(UUID) IS 
 'Elimina todos los datos de un site demo y regenera datos frescos usando seed_demo_data';

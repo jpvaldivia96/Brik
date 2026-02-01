@@ -1,0 +1,547 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Guía de Demo - BRIK Pro</title>
+    <style>
+        :root {
+            --brik-purple: #9333ea;
+            --brik-purple-light: #a855f7;
+            --brik-purple-dark: #7c3aed;
+            --brik-gradient: linear-gradient(135deg, #667eea 0%, #764ba2 50%, #9333ea 100%);
+            --text-primary: #1f2937;
+            --text-secondary: #6b7280;
+            --bg-light: #f9fafb;
+            --success: #10b981;
+            --warning: #f59e0b;
+        }
+        
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+            color: var(--text-primary);
+            line-height: 1.6;
+            background: var(--bg-light);
+        }
+        
+        /* Header */
+        .header {
+            background: var(--brik-gradient);
+            color: white;
+            padding: 60px 40px;
+            text-align: center;
+        }
+        
+        .logo {
+            font-size: 48px;
+            font-weight: 700;
+            margin-bottom: 10px;
+            letter-spacing: -1px;
+        }
+        
+        .logo span {
+            opacity: 0.9;
+        }
+        
+        .tagline {
+            font-size: 20px;
+            opacity: 0.9;
+            margin-bottom: 20px;
+        }
+        
+        .badge {
+            display: inline-block;
+            background: rgba(255,255,255,0.2);
+            padding: 8px 20px;
+            border-radius: 50px;
+            font-size: 14px;
+            backdrop-filter: blur(10px);
+        }
+        
+        /* Content */
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+            padding: 40px 20px;
+        }
+        
+        /* Section */
+        .section {
+            background: white;
+            border-radius: 16px;
+            padding: 32px;
+            margin-bottom: 24px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        }
+        
+        .section-header {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            margin-bottom: 24px;
+        }
+        
+        .section-icon {
+            width: 48px;
+            height: 48px;
+            background: var(--brik-gradient);
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 24px;
+        }
+        
+        .section-title {
+            font-size: 24px;
+            font-weight: 600;
+            color: var(--text-primary);
+        }
+        
+        .section-subtitle {
+            font-size: 14px;
+            color: var(--text-secondary);
+        }
+        
+        /* Feature Cards */
+        .feature-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 16px;
+            margin-top: 20px;
+        }
+        
+        .feature-card {
+            background: var(--bg-light);
+            border-radius: 12px;
+            padding: 20px;
+            border-left: 4px solid var(--brik-purple);
+        }
+        
+        .feature-card h4 {
+            font-size: 16px;
+            margin-bottom: 8px;
+            color: var(--brik-purple-dark);
+        }
+        
+        .feature-card p {
+            font-size: 14px;
+            color: var(--text-secondary);
+        }
+        
+        /* Steps */
+        .step {
+            display: flex;
+            gap: 16px;
+            padding: 20px 0;
+            border-bottom: 1px solid #e5e7eb;
+        }
+        
+        .step:last-child {
+            border-bottom: none;
+        }
+        
+        .step-number {
+            width: 36px;
+            height: 36px;
+            background: var(--brik-purple);
+            color: white;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 600;
+            flex-shrink: 0;
+        }
+        
+        .step-content h4 {
+            font-size: 16px;
+            margin-bottom: 4px;
+        }
+        
+        .step-content p {
+            font-size: 14px;
+            color: var(--text-secondary);
+        }
+        
+        /* Checklist */
+        .checklist {
+            list-style: none;
+            margin-top: 16px;
+        }
+        
+        .checklist li {
+            padding: 12px 16px;
+            background: var(--bg-light);
+            border-radius: 8px;
+            margin-bottom: 8px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+        
+        .checklist li::before {
+            content: "☐";
+            font-size: 18px;
+            color: var(--brik-purple);
+        }
+        
+        /* CTA Box */
+        .cta-box {
+            background: var(--brik-gradient);
+            color: white;
+            border-radius: 16px;
+            padding: 32px;
+            text-align: center;
+        }
+        
+        .cta-box h3 {
+            font-size: 24px;
+            margin-bottom: 12px;
+        }
+        
+        .cta-box p {
+            opacity: 0.9;
+            margin-bottom: 20px;
+        }
+        
+        .cta-button {
+            display: inline-block;
+            background: white;
+            color: var(--brik-purple);
+            padding: 14px 32px;
+            border-radius: 50px;
+            text-decoration: none;
+            font-weight: 600;
+            transition: transform 0.2s;
+        }
+        
+        .cta-button:hover {
+            transform: scale(1.05);
+        }
+        
+        /* Tips */
+        .tip-box {
+            background: #fef3c7;
+            border-left: 4px solid var(--warning);
+            padding: 16px 20px;
+            border-radius: 8px;
+            margin: 16px 0;
+        }
+        
+        .tip-box strong {
+            color: #92400e;
+        }
+        
+        /* Table */
+        .info-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 16px;
+        }
+        
+        .info-table th,
+        .info-table td {
+            padding: 12px 16px;
+            text-align: left;
+            border-bottom: 1px solid #e5e7eb;
+        }
+        
+        .info-table th {
+            background: var(--bg-light);
+            font-weight: 600;
+            color: var(--text-secondary);
+            font-size: 12px;
+            text-transform: uppercase;
+        }
+        
+        .info-table td {
+            font-size: 14px;
+        }
+        
+        /* Footer */
+        .footer {
+            text-align: center;
+            padding: 40px 20px;
+            color: var(--text-secondary);
+            font-size: 14px;
+        }
+        
+        @media print {
+            .header { padding: 30px 20px; }
+            .section { break-inside: avoid; }
+        }
+    </style>
+</head>
+<body>
+    <!-- Header -->
+    <div class="header">
+        <div class="logo">✦ brik</div>
+        <p class="tagline">Control de Acceso Inteligente para Obras</p>
+        <span class="badge">📖 Guía de Demo Interactiva</span>
+    </div>
+
+    <div class="container">
+        <!-- Bienvenida -->
+        <div class="section">
+            <div class="section-header">
+                <div class="section-icon">👋</div>
+                <div>
+                    <h2 class="section-title">Bienvenido a BRIK Pro</h2>
+                    <p class="section-subtitle">Tu plataforma de control de acceso para la construcción</p>
+                </div>
+            </div>
+            
+            <p>Esta demo incluye datos realistas de una obra ficticia llamada <strong>"Proyecto X"</strong> con:</p>
+            
+            <ul class="checklist">
+                <li>~130 trabajadores de 15 contratistas diferentes</li>
+                <li>1 mes de registros de entrada y salida</li>
+                <li>Estadísticas y análisis en tiempo real</li>
+                <li>Sistema de alertas de seguros e inducción</li>
+            </ul>
+            
+            <div class="tip-box">
+                <strong>💡 Tip:</strong> Explora libremente. Esta demo se puede reiniciar a valores iniciales en cualquier momento.
+            </div>
+        </div>
+
+        <!-- Funciones Principales -->
+        <div class="section">
+            <div class="section-header">
+                <div class="section-icon">⚡</div>
+                <div>
+                    <h2 class="section-title">Funciones Principales</h2>
+                    <p class="section-subtitle">Todo lo que puedes hacer con BRIK</p>
+                </div>
+            </div>
+            
+            <div class="feature-grid">
+                <div class="feature-card">
+                    <h4>📱 Registro de Entrada/Salida</h4>
+                    <p>Registra accesos en segundos con búsqueda inteligente por nombre o CI.</p>
+                </div>
+                
+                <div class="feature-card">
+                    <h4>👷 Gestión de Personal</h4>
+                    <p>Administra trabajadores, contratistas, visitantes y sus documentos.</p>
+                </div>
+                
+                <div class="feature-card">
+                    <h4>📊 Dashboard en Tiempo Real</h4>
+                    <p>Ve quién está adentro, horas acumuladas y alertas activas.</p>
+                </div>
+                
+                <div class="feature-card">
+                    <h4>🔔 Sistema de Alertas</h4>
+                    <p>Seguros por vencer, exceso de horas, e inducción pendiente.</p>
+                </div>
+                
+                <div class="feature-card">
+                    <h4>📈 Estadísticas Avanzadas</h4>
+                    <p>Reportes de asistencia, contratistas, y tendencias mensuales.</p>
+                </div>
+                
+                <div class="feature-card">
+                    <h4>🔐 Roles y Permisos</h4>
+                    <p>Guardias, supervisores y administradores con accesos diferenciados.</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Guía Paso a Paso -->
+        <div class="section">
+            <div class="section-header">
+                <div class="section-icon">🎯</div>
+                <div>
+                    <h2 class="section-title">Guía Paso a Paso</h2>
+                    <p class="section-subtitle">Explora todas las funciones en 10 minutos</p>
+                </div>
+            </div>
+            
+            <div class="step">
+                <div class="step-number">1</div>
+                <div class="step-content">
+                    <h4>Explora el Dashboard</h4>
+                    <p>Observa los <strong>trabajadores actualmente adentro</strong>, sus horas acumuladas y el semáforo de colores (verde, amarillo, rojo).</p>
+                </div>
+            </div>
+            
+            <div class="step">
+                <div class="step-number">2</div>
+                <div class="step-content">
+                    <h4>Registra una Salida</h4>
+                    <p>Haz clic en un trabajador que esté adentro y selecciona <strong>"Registrar Salida"</strong>. Verás cómo cambia el contador.</p>
+                </div>
+            </div>
+            
+            <div class="step">
+                <div class="step-number">3</div>
+                <div class="step-content">
+                    <h4>Busca un Trabajador</h4>
+                    <p>Usa la barra de búsqueda para encontrar por <strong>nombre o CI</strong>. Prueba buscar "Mamani" o "Quispe".</p>
+                </div>
+            </div>
+            
+            <div class="step">
+                <div class="step-number">4</div>
+                <div class="step-content">
+                    <h4>Revisa las Estadísticas</h4>
+                    <p>Haz clic en el ícono de <strong>📊 gráficos</strong> para ver el Panel de Estadísticas con análisis del mes.</p>
+                </div>
+            </div>
+            
+            <div class="step">
+                <div class="step-number">5</div>
+                <div class="step-content">
+                    <h4>Filtra por Contratista</h4>
+                    <p>Usa las <strong>pestañas de contratistas</strong> para ver solo los trabajadores de una empresa específica.</p>
+                </div>
+            </div>
+            
+            <div class="step">
+                <div class="step-number">6</div>
+                <div class="step-content">
+                    <h4>Revisa Alertas de Seguros</h4>
+                    <p>Observa los <strong>íconos de escudo</strong> junto a cada trabajador. Rojo = seguro vencido o ausente.</p>
+                </div>
+            </div>
+            
+            <div class="step">
+                <div class="step-number">7</div>
+                <div class="step-content">
+                    <h4>Edita un Trabajador</h4>
+                    <p>Haz clic en un trabajador y selecciona <strong>"Ver/Editar Perfil"</strong> para ver o modificar sus datos.</p>
+                </div>
+            </div>
+            
+            <div class="step">
+                <div class="step-number">8</div>
+                <div class="step-content">
+                    <h4>Exporta Datos</h4>
+                    <p>En el historial, usa el botón de <strong>exportar</strong> para descargar los registros en Excel.</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Datos de la Demo -->
+        <div class="section">
+            <div class="section-header">
+                <div class="section-icon">📋</div>
+                <div>
+                    <h2 class="section-title">Datos de la Demo</h2>
+                    <p class="section-subtitle">Contenido precargado para explorar</p>
+                </div>
+            </div>
+            
+            <table class="info-table">
+                <thead>
+                    <tr>
+                        <th>Elemento</th>
+                        <th>Cantidad</th>
+                        <th>Características</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>👷 Trabajadores</td>
+                        <td>~130</td>
+                        <td>Nombres bolivianos, fotos, roles variados</td>
+                    </tr>
+                    <tr>
+                        <td>🏢 Contratistas</td>
+                        <td>15</td>
+                        <td>Construcción, eléctrica, climatización, etc.</td>
+                    </tr>
+                    <tr>
+                        <td>👔 Visitantes</td>
+                        <td>15</td>
+                        <td>Inspectores, arquitectos, proveedores</td>
+                    </tr>
+                    <tr>
+                        <td>📆 Registros</td>
+                        <td>~2,000+</td>
+                        <td>Último mes de entradas/salidas</td>
+                    </tr>
+                    <tr>
+                        <td>✅ Inducción</td>
+                        <td>~70%</td>
+                        <td>Trabajadores con inducción completa</td>
+                    </tr>
+                    <tr>
+                        <td>⚠️ Seguros</td>
+                        <td>Variado</td>
+                        <td>Algunos vencidos o por vencer</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Prueba con tus Datos -->
+        <div class="section">
+            <div class="section-header">
+                <div class="section-icon">✨</div>
+                <div>
+                    <h2 class="section-title">¡Prueba con tus Propios Datos!</h2>
+                    <p class="section-subtitle">Registra trabajadores y contratistas reales</p>
+                </div>
+            </div>
+            
+            <p>La mejor forma de evaluar BRIK es probarlo con datos de tu propia obra. Te invitamos a:</p>
+            
+            <ul class="checklist">
+                <li>Agregar un <strong>contratista real</strong> de tu obra</li>
+                <li>Registrar <strong>3-5 trabajadores</strong> de prueba</li>
+                <li>Simular <strong>entradas y salidas</strong> durante el día</li>
+                <li>Ver cómo se generan las <strong>estadísticas automáticamente</strong></li>
+            </ul>
+            
+            <div class="tip-box">
+                <strong>🔒 Tranquilo:</strong> Todos los datos de esta demo se pueden reiniciar. Nada que hagas aquí afecta otras obras.
+            </div>
+        </div>
+
+        <!-- CTA -->
+        <div class="cta-box">
+            <h3>¿Listo para digitalizar tu obra?</h3>
+            <p>Contacta a nuestro equipo para una demostración personalizada y conoce los planes disponibles.</p>
+            <a href="https://brik.pro/contacto" class="cta-button">Solicitar Demo Personalizada</a>
+        </div>
+
+        <!-- Soporte -->
+        <div class="section">
+            <div class="section-header">
+                <div class="section-icon">💬</div>
+                <div>
+                    <h2 class="section-title">¿Necesitas Ayuda?</h2>
+                    <p class="section-subtitle">Estamos aquí para asistirte</p>
+                </div>
+            </div>
+            
+            <div class="feature-grid">
+                <div class="feature-card">
+                    <h4>📧 Email</h4>
+                    <p>soporte@brik.pro</p>
+                </div>
+                
+                <div class="feature-card">
+                    <h4>📱 WhatsApp</h4>
+                    <p>+591 XXX XXX XXX</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Footer -->
+    <div class="footer">
+        <p>© 2026 BRIK Pro. Control de Acceso Inteligente.</p>
+        <p style="margin-top: 8px; opacity: 0.7;">Esta guía es parte de la demo de evaluación.</p>
+    </div>
+</body>
+</html>
