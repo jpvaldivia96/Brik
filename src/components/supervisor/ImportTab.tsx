@@ -9,6 +9,7 @@ import { Spinner } from '@/components/ui/spinner';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Upload, FileSpreadsheet, CheckCircle, XCircle } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import * as XLSX from 'xlsx';
 
 type ImportType = 'workers' | 'visitors' | 'records';
 
@@ -284,8 +285,37 @@ export default function ImportTab() {
     setResult(null);
 
     try {
-      const text = await file.text();
-      const rows = parseCSV(text);
+      let rows: string[][];
+      const fileName = file.name.toLowerCase();
+
+      // Parse Excel or CSV based on file extension
+      if (fileName.endsWith('.xlsx') || fileName.endsWith('.xls')) {
+        // Parse Excel file
+        const buffer = await file.arrayBuffer();
+        const workbook = XLSX.read(buffer, { type: 'array' });
+        const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
+        const rawData = XLSX.utils.sheet_to_json<any[]>(firstSheet, { header: 1, defval: '' });
+
+        // Find the header row (skip empty rows and logo rows at top)
+        let headerRowIndex = 0;
+        for (let i = 0; i < rawData.length; i++) {
+          const row = rawData[i] as any[];
+          const firstCell = String(row[0] || '').toLowerCase().trim();
+          if (firstCell === 'ci') {
+            headerRowIndex = i;
+            break;
+          }
+        }
+
+        // Extract data starting from header row
+        rows = (rawData as any[][]).slice(headerRowIndex).map(row =>
+          row.map((cell: any) => String(cell ?? '').trim())
+        );
+      } else {
+        // Parse CSV file
+        const text = await file.text();
+        rows = parseCSV(text);
+      }
 
       let importResult: ImportResult;
       switch (importType) {
@@ -341,7 +371,7 @@ export default function ImportTab() {
     <div className="space-y-6">
       <div className="flex items-center gap-3">
         <Upload className="w-6 h-6 text-primary" />
-        <h3 className="text-lg font-medium">Importar CSV</h3>
+        <h3 className="text-lg font-medium">Importar CSV o Excel</h3>
       </div>
 
       <div className="card-cosmos p-6 space-y-6">
@@ -359,11 +389,11 @@ export default function ImportTab() {
           </div>
 
           <div className="space-y-2">
-            <Label>Archivo CSV</Label>
+            <Label>Archivo CSV o Excel</Label>
             <Input
               ref={fileInputRef}
               type="file"
-              accept=".csv"
+              accept=".csv,.xlsx,.xls"
               onChange={(e) => setFile(e.target.files?.[0] || null)}
             />
           </div>

@@ -12,6 +12,7 @@ import { logAuditEvent } from '@/lib/auditLog';
 import { Save, X, Pencil, User, Moon, Calendar, Tag } from 'lucide-react';
 import { ContractorAutocomplete } from '@/components/ui/contractor-autocomplete';
 import { TagAutocomplete, TagBadge } from '@/components/ui/tag-autocomplete';
+import { PhotoEditor } from './PhotoEditor';
 
 interface EditWorkerModalProps {
     open: boolean;
@@ -26,6 +27,8 @@ interface WorkerData {
     full_name: string;
     contractor: string | null;
     photo_url: string | null;
+    ci_front_url?: string | null;
+    ci_back_url?: string | null;
     workers_profile?: {
         role: string | null;
         insurance_number: string | null;
@@ -54,48 +57,33 @@ const ViewForm = ({ workerData, form, handleClose, setEditing }: any) => {
 
     return (
         <div className="space-y-4">
-            {/* Photo and basic info */}
-            <div className="flex gap-4 items-start">
-                <div className="w-24 h-24 rounded-xl overflow-hidden bg-muted flex-shrink-0">
-                    {workerData?.photo_url ? (
-                        <img
-                            src={workerData.photo_url}
-                            alt={workerData.full_name}
-                            className="w-full h-full object-cover"
-                        />
-                    ) : (
-                        <div className="w-full h-full flex items-center justify-center bg-primary/10">
-                            <User className="w-10 h-10 text-muted-foreground" />
+            {/* Basic info - photo is now in PhotoEditor above */}
+            <div className="space-y-1">
+                <h3 className="text-lg font-semibold">{workerData?.full_name}</h3>
+                <p className="text-muted-foreground">CI: {workerData?.ci}</p>
+                <p className="text-sm text-muted-foreground">{workerData?.contractor || 'Sin contratista'}</p>
+
+                <div className="flex flex-wrap gap-1 mt-2">
+                    {isInspector && (
+                        <div className="inline-flex items-center gap-1.5 px-2 py-1 rounded-md bg-purple-500/10 text-purple-400 text-xs font-medium border border-purple-500/20">
+                            <UserCheck className="w-3 h-3" />
+                            Inspector
                         </div>
                     )}
-                </div>
-                <div className="flex-1 min-w-0">
-                    <h3 className="text-lg font-semibold truncate">{workerData?.full_name}</h3>
-                    <p className="text-muted-foreground">CI: {workerData?.ci}</p>
-                    <p className="text-sm text-muted-foreground">{workerData?.contractor || 'Sin contratista'}</p>
-
-                    <div className="flex flex-wrap gap-1 mt-2">
-                        {isInspector && (
-                            <div className="inline-flex items-center gap-1.5 px-2 py-1 rounded-md bg-purple-500/10 text-purple-400 text-xs font-medium border border-purple-500/20">
-                                <UserCheck className="w-3 h-3" />
-                                Inspector
-                            </div>
-                        )}
-                        {hasPermit && (
-                            <div className="inline-flex items-center gap-1.5 px-2 py-1 rounded-md bg-indigo-500/10 text-indigo-400 text-xs font-medium border border-indigo-500/20">
-                                <Moon className="w-3 h-3" />
-                                {form.nightPermitPermanent ? 'Nocturno Permanente' : `Nocturno hasta ${new Date(form.nightPermitUntil).toLocaleDateString()}`}
-                            </div>
-                        )}
-                        {/* Tags */}
-                        {tags.length > 0 && (
-                            <div className="flex flex-wrap gap-1 mt-1">
-                                {tags.map((tag: TagDefinition) => (
-                                    <TagBadge key={tag.id} name={tag.name} color={tag.color} />
-                                ))}
-                            </div>
-                        )}
-                    </div>
+                    {hasPermit && (
+                        <div className="inline-flex items-center gap-1.5 px-2 py-1 rounded-md bg-indigo-500/10 text-indigo-400 text-xs font-medium border border-indigo-500/20">
+                            <Moon className="w-3 h-3" />
+                            {form.nightPermitPermanent ? 'Nocturno Permanente' : `Nocturno hasta ${new Date(form.nightPermitUntil).toLocaleDateString()}`}
+                        </div>
+                    )}
+                    {/* Tags */}
+                    {tags.length > 0 && (
+                        <div className="flex flex-wrap gap-1 mt-1">
+                            {tags.map((tag: TagDefinition) => (
+                                <TagBadge key={tag.id} name={tag.name} color={tag.color} />
+                            ))}
+                        </div>
+                    )}
                 </div>
             </div>
 
@@ -515,21 +503,39 @@ export function EditWorkerModal({ open, onClose, personId, onSaved }: EditWorker
                     <div className="flex justify-center py-8">
                         <Spinner size="lg" />
                     </div>
-                ) : editing ? (
-                    <EditForm
-                        form={form}
-                        setForm={setForm}
-                        saving={saving}
-                        handleSave={handleSave}
-                        setEditing={setEditing}
-                    />
                 ) : (
-                    <ViewForm
-                        workerData={workerData}
-                        form={form}
-                        handleClose={handleClose}
-                        setEditing={setEditing}
-                    />
+                    <div className="space-y-4">
+                        {/* Photos Section - always visible */}
+                        <PhotoEditor
+                            personId={personId}
+                            currentPhotoUrl={workerData?.photo_url || null}
+                            ciFrontUrl={(workerData as any)?.ci_front_url || null}
+                            ciBackUrl={(workerData as any)?.ci_back_url || null}
+                            editing={editing}
+                            onPhotosUpdated={(photos) => {
+                                // Update local workerData state with new photos
+                                setWorkerData(prev => prev ? { ...prev, ...photos } : null);
+                            }}
+                        />
+
+                        {/* Form content */}
+                        {editing ? (
+                            <EditForm
+                                form={form}
+                                setForm={setForm}
+                                saving={saving}
+                                handleSave={handleSave}
+                                setEditing={setEditing}
+                            />
+                        ) : (
+                            <ViewForm
+                                workerData={workerData}
+                                form={form}
+                                handleClose={handleClose}
+                                setEditing={setEditing}
+                            />
+                        )}
+                    </div>
                 )}
             </DialogContent>
         </Dialog>
