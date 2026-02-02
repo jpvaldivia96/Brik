@@ -19,6 +19,9 @@ const SUPER_USER_EMAILS = [
   'admin@brik.pro',
 ];
 
+// ID de la obra demo - único sitio donde Reset Demo está habilitado
+const DEMO_SITE_ID = 'd67ff32e-5094-4d2a-ad3c-8d6f7ae07e37';
+
 type SettingsSubTab = 'obra' | 'users' | 'alerts' | 'import';
 
 const subTabs = [
@@ -38,8 +41,9 @@ export default function SettingsTab() {
   const [isOwner, setIsOwner] = useState(false);
   const [resettingDemo, setResettingDemo] = useState(false);
 
-  // Verificar si es super usuario
+  // Verificar si es super usuario Y está en la obra demo
   const isSuperUser = user?.email && SUPER_USER_EMAILS.includes(user.email);
+  const isDemoSite = currentSite?.id === DEMO_SITE_ID;
   const [form, setForm] = useState({
     warn_hours: 10,
     crit_hours: 12,
@@ -357,8 +361,8 @@ export default function SettingsTab() {
             </div>
           )}
 
-          {/* Super User Demo Reset */}
-          {isSuperUser && (
+          {/* Super User Demo Reset - SOLO visible en la obra demo */}
+          {isSuperUser && isDemoSite && (
             <div className="card-cosmos p-6 border-2 border-amber-500/50">
               <div className="flex items-center gap-2 mb-4">
                 <AlertTriangle className="w-5 h-5 text-amber-400" />
