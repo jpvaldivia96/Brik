@@ -416,6 +416,19 @@ export function EditWorkerModal({ open, onClose, personId, onSaved }: EditWorker
             tags,
         });
         setLoading(false);
+
+        // 4. Audit Log: Registrar acceso de inspector externo
+        if (isExternalInspector && currentSite && user) {
+            logAuditEvent({
+                siteId: currentSite.id,
+                userId: user.id,
+                action: 'EXTERNAL_INSPECTOR_VIEW',
+                entityType: 'people',
+                entityId: personId,
+                note: `Inspector externo visualizó ficha de ${worker.full_name} (CI: ${worker.ci})`,
+                roleSnapshot: 'external_inspector',
+            });
+        }
     };
 
     const handleSave = async () => {
