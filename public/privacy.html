@@ -1,0 +1,235 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Política de Privacidad - BRIK Pro</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+            line-height: 1.6;
+            color: #1e293b;
+            background: linear-gradient(135deg, #0f172a 0%, #1e3a5f 100%);
+            min-height: 100vh;
+            padding: 2rem;
+        }
+
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 16px;
+            padding: 3rem;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+        }
+
+        h1 {
+            color: #0f172a;
+            font-size: 2rem;
+            margin-bottom: 0.5rem;
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+        }
+
+        .logo {
+            width: 48px;
+            height: 48px;
+            background: linear-gradient(135deg, #3b82f6, #1d4ed8);
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: bold;
+            font-size: 1.25rem;
+        }
+
+        .updated {
+            color: #64748b;
+            font-size: 0.875rem;
+            margin-bottom: 2rem;
+            padding-bottom: 1rem;
+            border-bottom: 1px solid #e2e8f0;
+        }
+
+        h2 {
+            color: #1e40af;
+            font-size: 1.25rem;
+            margin: 2rem 0 1rem;
+            padding-top: 1rem;
+            border-top: 1px solid #e2e8f0;
+        }
+
+        h2:first-of-type {
+            border-top: none;
+            padding-top: 0;
+        }
+
+        p,
+        li {
+            color: #475569;
+            margin-bottom: 0.75rem;
+        }
+
+        ul {
+            margin-left: 1.5rem;
+            margin-bottom: 1rem;
+        }
+
+        li {
+            margin-bottom: 0.5rem;
+        }
+
+        .highlight {
+            background: #eff6ff;
+            border-left: 4px solid #3b82f6;
+            padding: 1rem;
+            border-radius: 0 8px 8px 0;
+            margin: 1rem 0;
+        }
+
+        .contact {
+            background: #f1f5f9;
+            padding: 1.5rem;
+            border-radius: 12px;
+            margin-top: 2rem;
+        }
+
+        .contact h3 {
+            color: #1e293b;
+            margin-bottom: 0.5rem;
+        }
+
+        .contact a {
+            color: #2563eb;
+            text-decoration: none;
+        }
+
+        .contact a:hover {
+            text-decoration: underline;
+        }
+
+        footer {
+            text-align: center;
+            margin-top: 2rem;
+            padding-top: 1rem;
+            border-top: 1px solid #e2e8f0;
+            color: #94a3b8;
+            font-size: 0.875rem;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <h1>
+            <div class="logo">B</div>
+            Política de Privacidad
+        </h1>
+        <p class="updated">Última actualización: 5 de febrero de 2026</p>
+
+        <p>BRIK Pro ("nosotros", "nuestro" o "la aplicación") se compromete a proteger la privacidad de nuestros
+            usuarios. Esta política describe cómo recopilamos, usamos y protegemos su información personal.</p>
+
+        <h2>1. Información que Recopilamos</h2>
+        <p>Para proporcionar nuestros servicios de control de acceso, recopilamos:</p>
+        <ul>
+            <li><strong>Datos de identificación:</strong> Nombre completo, cédula de identidad (CI), cargo laboral,
+                empresa contratista</li>
+            <li><strong>Datos de contacto:</strong> Número de teléfono, contacto de emergencia (visibles solo para
+                supervisores)</li>
+            <li><strong>Datos laborales:</strong> Número de seguro, fecha de vencimiento, fecha de inducción, tipo de
+                sangre</li>
+            <li><strong>Fotografías:</strong> Foto de perfil y fotos de cédula de identidad (opcional)</li>
+            <li><strong>Registros de acceso:</strong> Fecha, hora y ubicación de entradas y salidas</li>
+        </ul>
+
+        <h2>2. Uso de la Información</h2>
+        <p>Utilizamos su información exclusivamente para:</p>
+        <ul>
+            <li>Gestionar el control de acceso a las instalaciones</li>
+            <li>Verificar la vigencia de documentación laboral (seguros, inducciones)</li>
+            <li>Generar reportes de asistencia y libro de obra</li>
+            <li>Enviar notificaciones sobre documentos próximos a vencer</li>
+            <li>Facilitar la comunicación en casos de emergencia</li>
+        </ul>
+
+        <h2>3. Compartición de Datos</h2>
+        <div class="highlight">
+            <strong>No vendemos ni comercializamos sus datos personales.</strong>
+        </div>
+        <p>Solo compartimos información con:</p>
+        <ul>
+            <li>Administradores y supervisores autorizados del sitio/obra</li>
+            <li>Autoridades competentes cuando sea requerido por ley</li>
+            <li>Proveedores de servicios técnicos (hosting, base de datos) bajo estrictos acuerdos de confidencialidad
+            </li>
+        </ul>
+
+        <h2>4. Almacenamiento y Seguridad</h2>
+        <p>Implementamos medidas de seguridad robustas:</p>
+        <ul>
+            <li>Datos almacenados en servidores seguros de Supabase (infraestructura AWS)</li>
+            <li>Encriptación en tránsito (TLS 1.3) y en reposo</li>
+            <li>Políticas de seguridad a nivel de fila (RLS) para aislar datos entre organizaciones</li>
+            <li>Autenticación segura con tokens JWT</li>
+            <li>Auditoría de todas las acciones sensibles</li>
+        </ul>
+
+        <h2>5. Retención de Datos</h2>
+        <p>Conservamos sus datos mientras:</p>
+        <ul>
+            <li>Mantenga una relación activa con el sitio/obra</li>
+            <li>Sea requerido por obligaciones legales (registros laborales)</li>
+            <li>El administrador del sitio no solicite su eliminación</li>
+        </ul>
+
+        <h2>6. Sus Derechos</h2>
+        <p>Usted tiene derecho a:</p>
+        <ul>
+            <li><strong>Acceso:</strong> Solicitar una copia de sus datos personales</li>
+            <li><strong>Rectificación:</strong> Corregir datos inexactos o incompletos</li>
+            <li><strong>Eliminación:</strong> Solicitar la eliminación de sus datos (sujeto a requisitos legales)</li>
+            <li><strong>Oposición:</strong> Oponerse al procesamiento de sus datos en ciertos casos</li>
+        </ul>
+        <p>Para ejercer estos derechos, contacte al administrador de su sitio o a nosotros directamente.</p>
+
+        <h2>7. Uso de Cámara y Permisos</h2>
+        <p>La aplicación solicita acceso a:</p>
+        <ul>
+            <li><strong>Cámara:</strong> Para capturar fotos de perfil y documentos de identidad</li>
+            <li><strong>Notificaciones:</strong> Para alertas de documentos vencidos y accesos</li>
+        </ul>
+        <p>Estos permisos son opcionales y pueden revocarse en cualquier momento desde la configuración del dispositivo.
+        </p>
+
+        <h2>8. Menores de Edad</h2>
+        <p>BRIK Pro está diseñado para uso empresarial y laboral. No recopilamos intencionalmente información de menores
+            de 18 años.</p>
+
+        <h2>9. Cambios a Esta Política</h2>
+        <p>Podemos actualizar esta política ocasionalmente. Notificaremos cambios significativos a través de la
+            aplicación o por correo electrónico.</p>
+
+        <div class="contact">
+            <h3>Contacto</h3>
+            <p>Para consultas sobre privacidad o ejercer sus derechos:</p>
+            <p>📧 Email: <a href="mailto:soporte@brikpro.app">soporte@brikpro.app</a></p>
+            <p>🌐 Web: <a href="https://brikpro.app">https://brikpro.app</a></p>
+        </div>
+
+        <footer>
+            © 2026 BRIK Pro. Todos los derechos reservados.
+        </footer>
+    </div>
+</body>
+
+</html>
