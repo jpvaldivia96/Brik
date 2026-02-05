@@ -1,6 +1,6 @@
 // BRIK Types
 
-export type RoleEnum = 'guard' | 'supervisor' | 'inspector' | 'owner';
+export type RoleEnum = 'guard' | 'supervisor' | 'inspector' | 'external_inspector' | 'owner' | 'admin';
 export type PersonType = 'worker' | 'visitor';
 
 export interface Site {

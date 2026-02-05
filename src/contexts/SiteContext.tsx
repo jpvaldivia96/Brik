@@ -18,6 +18,7 @@ interface SiteContextType {
   refreshSites: () => Promise<void>;
   isSupervisor: boolean;
   isInspector: boolean;
+  isExternalInspector: boolean;
   // Super Admin features
   isPlatformAdmin: boolean;
   isInAdminMode: boolean;
@@ -227,7 +228,8 @@ export function SiteProvider({ children }: { children: React.ReactNode }) {
 
   // Supervisor is true when role is supervisor, owner, admin OR when in admin mode
   const isSupervisor = ['supervisor', 'owner', 'admin'].includes(currentRole || '') || isInAdminMode;
-  const isInspector = currentRole === 'inspector';
+  const isInspector = currentRole === 'inspector' || currentRole === 'external_inspector';
+  const isExternalInspector = currentRole === 'external_inspector';
 
   return (
     <SiteContext.Provider
@@ -242,6 +244,7 @@ export function SiteProvider({ children }: { children: React.ReactNode }) {
         refreshSites,
         isSupervisor,
         isInspector,
+        isExternalInspector,
         // Super Admin features
         isPlatformAdmin,
         isInAdminMode,

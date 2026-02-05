@@ -50,10 +50,16 @@ interface TagDefinition {
 }
 
 // Extracted View Mode Component
-const ViewForm = ({ workerData, form, handleClose, setEditing }: any) => {
+const ViewForm = ({ workerData, form, handleClose, setEditing, isExternalInspector }: any) => {
     const hasPermit = form.nightPermitPermanent || (form.nightPermitUntil && new Date(form.nightPermitUntil) > new Date());
     const isInspector = form.isInspector;
     const tags: TagDefinition[] = form.tags || [];
+
+    // Mask phone numbers for external inspectors
+    const maskPhone = (phone: string | null) => {
+        if (!phone || !isExternalInspector) return phone || '-';
+        return '******';
+    };
 
     return (
         <div className="space-y-4">
@@ -95,7 +101,7 @@ const ViewForm = ({ workerData, form, handleClose, setEditing }: any) => {
                 </div>
                 <div className="p-3 bg-card/50 rounded-lg">
                     <p className="text-muted-foreground text-xs">Teléfono</p>
-                    <p className="font-medium">{form.phone || '-'}</p>
+                    <p className="font-medium">{maskPhone(form.phone)}</p>
                 </div>
                 <div className="p-3 bg-card/50 rounded-lg">
                     <p className="text-muted-foreground text-xs">Nº Seguro</p>
@@ -111,7 +117,7 @@ const ViewForm = ({ workerData, form, handleClose, setEditing }: any) => {
                 </div>
                 <div className="p-3 bg-card/50 rounded-lg">
                     <p className="text-muted-foreground text-xs">Contacto Emergencia</p>
-                    <p className="font-medium truncate">{form.emergencyContact || '-'}</p>
+                    <p className="font-medium truncate">{maskPhone(form.emergencyContact)}</p>
                 </div>
             </div>
 
@@ -120,7 +126,13 @@ const ViewForm = ({ workerData, form, handleClose, setEditing }: any) => {
                 <span className="text-sm">{form.inductionCompleted ? 'Inducción completada' : 'Inducción pendiente'}</span>
             </div>
 
-            <div className="flex justify-end pt-2">
+            <div className="flex justify-end gap-2 pt-2">
+                {!isExternalInspector && (
+                    <Button onClick={() => setEditing(true)}>
+                        <Pencil className="w-4 h-4 mr-2" />
+                        Editar
+                    </Button>
+                )}
                 <Button variant="outline" onClick={handleClose}>
                     Cerrar
                 </Button>
@@ -311,7 +323,7 @@ const EditForm = ({ form, setForm, saving, handleSave, setEditing }: any) => (
 
 export function EditWorkerModal({ open, onClose, personId, onSaved }: EditWorkerModalProps) {
     const { user } = useAuth();
-    const { currentSite } = useSite();
+    const { currentSite, isExternalInspector } = useSite();
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
     const [editing, setEditing] = useState(false);
@@ -533,6 +545,7 @@ export function EditWorkerModal({ open, onClose, personId, onSaved }: EditWorker
                                 form={form}
                                 handleClose={handleClose}
                                 setEditing={setEditing}
+                                isExternalInspector={isExternalInspector}
                             />
                         )}
                     </div>

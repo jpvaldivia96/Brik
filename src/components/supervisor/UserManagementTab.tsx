@@ -374,6 +374,10 @@ export default function UserManagementTab() {
             bgColor = "bg-orange-500/20";
             textColor = "text-orange-300";
             label = "Inspector";
+        } else if (role === 'external_inspector') {
+            bgColor = "bg-cyan-500/20";
+            textColor = "text-cyan-300";
+            label = "Insp. Externo";
         }
 
         return (
@@ -449,6 +453,12 @@ export default function UserManagementTab() {
                                         <div className="flex items-center gap-2">
                                             <Shield className="w-4 h-4 text-orange-400" />
                                             Inspector
+                                        </div>
+                                    </SelectItem>
+                                    <SelectItem value="external_inspector" className="text-white">
+                                        <div className="flex items-center gap-2">
+                                            <Shield className="w-4 h-4 text-cyan-400" />
+                                            Inspector Externo
                                         </div>
                                     </SelectItem>
                                     <SelectItem value="supervisor" className="text-white">
@@ -538,6 +548,12 @@ export default function UserManagementTab() {
                                                     <div className="flex items-center gap-2">
                                                         <Shield className="w-4 h-4 text-orange-400" />
                                                         Inspector
+                                                    </div>
+                                                </SelectItem>
+                                                <SelectItem value="external_inspector" className="text-white">
+                                                    <div className="flex items-center gap-2">
+                                                        <Shield className="w-4 h-4 text-cyan-400" />
+                                                        Insp. Externo
                                                     </div>
                                                 </SelectItem>
                                                 <SelectItem value="supervisor" className="text-white">
