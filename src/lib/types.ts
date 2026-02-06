@@ -8,6 +8,7 @@ export interface Site {
   name: string;
   timezone: string;
   created_at: string;
+  enhanced_face_recognition?: boolean;
 }
 
 export interface SiteSettings {

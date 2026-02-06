@@ -1,10 +1,15 @@
 import { useState, useCallback, useEffect } from 'react';
 import { faceService } from '@/services/FaceService';
+import { useSite } from '@/contexts/SiteContext';
 
 export function useFace() {
+    const { currentSite } = useSite();
     const [modelLoaded, setModelLoaded] = useState(faceService.isModelsLoaded());
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(faceService.getLoadError());
+
+    // Check if enhanced mode is enabled for this site
+    const enhancedMode = currentSite?.enhanced_face_recognition ?? false;
 
     // Check initial state
     useEffect(() => {
@@ -13,46 +18,67 @@ export function useFace() {
     }, []);
 
     const loadModels = useCallback(async () => {
-        if (faceService.isModelsLoaded()) {
-            setModelLoaded(true);
-            return true;
+        // Load appropriate models based on mode
+        if (enhancedMode) {
+            if (faceService.isEnhancedModelsLoaded()) {
+                setModelLoaded(true);
+                return true;
+            }
+        } else {
+            if (faceService.isModelsLoaded()) {
+                setModelLoaded(true);
+                return true;
+            }
         }
 
         setLoading(true);
         setError(null);
 
         try {
-            console.log('useFace: Loading models...');
-            await faceService.loadModels();
+            if (enhancedMode) {
+                console.log('useFace: Loading ENHANCED models (SsdMobilenetv1)...');
+                await faceService.loadEnhancedModels();
+            } else {
+                console.log('useFace: Loading STANDARD models (TinyFaceDetector)...');
+                await faceService.loadModels();
+            }
             setModelLoaded(true);
             console.log('useFace: Models loaded successfully');
             return true;
-        } catch (err: any) {
-            const errorMsg = err?.message || 'Error cargando modelos de IA';
+        } catch (err: unknown) {
+            const errorMsg = err instanceof Error ? err.message : 'Error cargando modelos de IA';
             setError(errorMsg);
             console.error('useFace: Load failed:', errorMsg);
             return false;
         } finally {
             setLoading(false);
         }
-    }, []);
+    }, [enhancedMode]);
 
     const getDescriptor = useCallback(async (imageElement: HTMLImageElement | HTMLVideoElement | HTMLCanvasElement) => {
         try {
+            if (enhancedMode) {
+                return await faceService.getEnhancedDescriptor(imageElement);
+            }
             return await faceService.getDescriptor(imageElement);
-        } catch (err: any) {
-            console.error('useFace: getDescriptor error:', err);
-            setError(err?.message || 'Error obteniendo descriptor facial');
+        } catch (err: unknown) {
+            const errorMsg = err instanceof Error ? err.message : 'Error obteniendo descriptor facial';
+            console.error('useFace: getDescriptor error:', errorMsg);
+            setError(errorMsg);
             return undefined;
         }
-    }, []);
+    }, [enhancedMode]);
 
     const findMatch = useCallback(async (
         imageElement: HTMLImageElement | HTMLVideoElement | HTMLCanvasElement,
         people: { id: string; face_descriptor: string | null }[]
     ): Promise<{ id: string; distance: number } | null> => {
         // Ensure models are loaded first
-        if (!faceService.isModelsLoaded()) {
+        const isLoaded = enhancedMode
+            ? faceService.isEnhancedModelsLoaded()
+            : faceService.isModelsLoaded();
+
+        if (!isLoaded) {
             console.log('useFace: Models not loaded, loading now...');
             const loaded = await loadModels();
             if (!loaded) {
@@ -65,14 +91,15 @@ export function useFace() {
 
         try {
             await faceService.loadLabeledDescriptors(people);
-            return await faceService.findMatch(imageElement);
-        } catch (err: any) {
-            const errorMsg = err?.message || 'Error en reconocimiento facial';
+            // Pass enhancedMode flag to findMatch
+            return await faceService.findMatch(imageElement, enhancedMode);
+        } catch (err: unknown) {
+            const errorMsg = err instanceof Error ? err.message : 'Error en reconocimiento facial';
             console.error('useFace: findMatch error:', errorMsg);
             setError(errorMsg);
             throw err;
         }
-    }, [loadModels]);
+    }, [loadModels, enhancedMode]);
 
     return {
         loadModels,
@@ -81,6 +108,7 @@ export function useFace() {
         modelLoaded,
         loading,
         error,
+        enhancedMode, // Expose so UI can show indicator if needed
         clearError: () => setError(null)
     };
 }
