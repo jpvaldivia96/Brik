@@ -19,6 +19,7 @@ import {
 } from '@/components/ui/dialog';
 import { Wrench, LogOut, Edit, Trash2, Search } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { formatSiteDateTime } from '@/lib/dateUtils';
 
 interface AccessLogResult {
   id: string;
@@ -209,14 +210,9 @@ export default function ToolsTab() {
     }
   };
 
-  const formatDateTime = (isoString: string) => {
-    return new Date(isoString).toLocaleString('es-BO', {
-      day: '2-digit',
-      month: 'short',
-      hour: '2-digit',
-      minute: '2-digit',
-    });
-  };
+  // Use site timezone for date formatting
+  const timezone = currentSite?.timezone || 'America/La_Paz';
+  const formatDateTime = (isoString: string) => formatSiteDateTime(isoString, timezone);
 
   return (
     <div className="space-y-6">

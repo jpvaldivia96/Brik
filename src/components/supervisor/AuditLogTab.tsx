@@ -8,6 +8,7 @@ import { Spinner } from '@/components/ui/spinner';
 import { History, Search, ChevronDown, ChevronUp, Download, Wrench } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import ToolsTab from './ToolsTab';
+import { formatSiteDateTime } from '@/lib/dateUtils';
 
 type AuditSubTab = 'history' | 'tools';
 
@@ -150,15 +151,9 @@ export default function AuditLogTab() {
 
   useEffect(() => { fetchEvents(); }, [currentSite]);
 
-  const formatDate = (isoString: string) => {
-    return new Date(isoString).toLocaleString('es-BO', {
-      day: '2-digit',
-      month: 'short',
-      year: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit',
-    });
-  };
+  // Use site timezone for date formatting
+  const timezone = currentSite?.timezone || 'America/La_Paz';
+  const formatDate = (isoString: string) => formatSiteDateTime(isoString, timezone);
 
   const getActionColor = (action: string) => {
     if (action.includes('VOIDED') || action.includes('DELETE')) return 'text-status-crit';

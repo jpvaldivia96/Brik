@@ -33,12 +33,17 @@ import WelcomeModal from '@/components/onboarding/WelcomeModal';
 import SubscribeModal from '@/components/subscription/SubscribeModal';
 import { SuspendedOverlay } from '@/components/subscription/SuspendedOverlay';
 import { SpotlightTutorial } from '@/components/tutorial/SpotlightTutorial';
+import { getCountryFlag, formatSiteDateShort, formatSiteTime, getSiteCurrentTime } from '@/lib/dateUtils';
 
-// Live Date/Time Display Component with Weather
+// Live Date/Time Display Component with Weather and Country Flag
 function DateTimeDisplay() {
   const [now, setNow] = useState(new Date());
   const [weatherStatus, setWeatherStatus] = useState<string | null>(null);
   const { currentSite } = useSite();
+
+  // Get timezone from site or default to Bolivia
+  const timezone = currentSite?.timezone || 'America/La_Paz';
+  const countryFlag = getCountryFlag(timezone);
 
   useEffect(() => {
     const timer = setInterval(() => setNow(new Date()), 60000); // Update every minute
@@ -69,13 +74,14 @@ function DateTimeDisplay() {
     }
   };
 
-  const formatDate = () => now.toLocaleDateString('es-BO', { weekday: 'short', day: 'numeric', month: 'short' });
-  const formatTime = () => now.toLocaleTimeString('es-BO', { hour: '2-digit', minute: '2-digit' });
+  // Format date/time in SITE's timezone (not user's local)
+  const formatDate = () => formatSiteDateShort(now, timezone);
+  const formatTime = () => formatSiteTime(now, timezone);
 
   return (
     <div className="flex items-center gap-2">
       <span className="text-xs text-white/50 mt-0.5">
-        {formatDate()} · {formatTime()}
+        {formatDate()} · {formatTime()} {countryFlag}
       </span>
       {weatherStatus && (
         <span className="text-xs bg-orange-500/20 text-orange-300 px-2 py-0.5 rounded-full border border-orange-500/30">
