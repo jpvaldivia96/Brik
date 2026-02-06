@@ -6,13 +6,28 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Spinner } from '@/components/ui/spinner';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
 import { z } from 'zod';
-import { Building2, ArrowRight, LogOut } from 'lucide-react';
+import { Building2, ArrowRight, LogOut, Globe } from 'lucide-react';
+
+// Country options with timezone
+const COUNTRIES = [
+  { code: 'BO', name: 'Bolivia', flag: '🇧🇴', timezone: 'America/La_Paz' },
+  { code: 'PY', name: 'Paraguay', flag: '🇵🇾', timezone: 'America/Asuncion' },
+  { code: 'CL', name: 'Chile', flag: '🇨🇱', timezone: 'America/Santiago' },
+  { code: 'PE', name: 'Perú', flag: '🇵🇪', timezone: 'America/Lima' },
+  { code: 'AR', name: 'Argentina', flag: '🇦🇷', timezone: 'America/Buenos_Aires' },
+  { code: 'CO', name: 'Colombia', flag: '🇨🇴', timezone: 'America/Bogota' },
+  { code: 'EC', name: 'Ecuador', flag: '🇪🇨', timezone: 'America/Guayaquil' },
+  { code: 'UY', name: 'Uruguay', flag: '🇺🇾', timezone: 'America/Montevideo' },
+  { code: 'BR', name: 'Brasil', flag: '🇧🇷', timezone: 'America/Sao_Paulo' },
+  { code: 'MX', name: 'México', flag: '🇲🇽', timezone: 'America/Mexico_City' },
+];
 
 const siteSchema = z.object({
   name: z.string().trim().min(2, 'El nombre debe tener al menos 2 caracteres').max(100, 'Máximo 100 caracteres'),
-  timezone: z.string().default('America/La_Paz'),
+  timezone: z.string().min(1, 'Selecciona un país'),
 });
 
 export default function OnboardingPage() {
@@ -21,7 +36,10 @@ export default function OnboardingPage() {
   const { toast } = useToast();
   const [loading, setLoading] = useState(false);
   const [siteName, setSiteName] = useState('');
+  const [selectedCountry, setSelectedCountry] = useState('BO'); // Default to Bolivia
   const [error, setError] = useState('');
+
+  const selectedCountryData = COUNTRIES.find(c => c.code === selectedCountry);
 
   const handleCreateSite = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -36,7 +54,8 @@ export default function OnboardingPage() {
       return;
     }
 
-    const result = siteSchema.safeParse({ name: siteName });
+    const timezone = selectedCountryData?.timezone || 'America/La_Paz';
+    const result = siteSchema.safeParse({ name: siteName, timezone });
     if (!result.success) {
       setError(result.error.errors[0].message);
       return;
@@ -129,8 +148,41 @@ export default function OnboardingPage() {
                 className="h-12 rounded-xl"
                 disabled={loading}
               />
-              {error && <p className="text-sm text-destructive">{error}</p>}
             </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="country" className="flex items-center gap-2">
+                <Globe className="w-4 h-4" />
+                País de la obra
+              </Label>
+              <Select value={selectedCountry} onValueChange={setSelectedCountry} disabled={loading}>
+                <SelectTrigger className="h-12 rounded-xl">
+                  <SelectValue>
+                    {selectedCountryData && (
+                      <span className="flex items-center gap-2">
+                        <span className="text-lg">{selectedCountryData.flag}</span>
+                        {selectedCountryData.name}
+                      </span>
+                    )}
+                  </SelectValue>
+                </SelectTrigger>
+                <SelectContent>
+                  {COUNTRIES.map(country => (
+                    <SelectItem key={country.code} value={country.code}>
+                      <span className="flex items-center gap-2">
+                        <span className="text-lg">{country.flag}</span>
+                        {country.name}
+                      </span>
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <p className="text-xs text-muted-foreground">
+                Define la zona horaria para los registros de acceso
+              </p>
+            </div>
+
+            {error && <p className="text-sm text-destructive">{error}</p>}
 
             <Button
               type="submit"
@@ -156,3 +208,4 @@ export default function OnboardingPage() {
     </div>
   );
 }
+
