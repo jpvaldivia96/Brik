@@ -8,8 +8,8 @@ export function useFace() {
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(faceService.getLoadError());
 
-    // Check if enhanced mode is enabled for this site
-    const enhancedMode = currentSite?.enhanced_face_recognition ?? false;
+    // Check if enhanced mode is enabled for this site (default: TRUE for all sites)
+    const enhancedMode = currentSite?.enhanced_face_recognition ?? true;
 
     // Check initial state
     useEffect(() => {
