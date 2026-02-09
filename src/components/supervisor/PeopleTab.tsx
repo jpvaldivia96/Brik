@@ -426,18 +426,20 @@ export default function PeopleTab() {
                                         </td>
                                         <td className="text-white/70">{p.contractor || '-'}</td>
                                         <td className="text-right">
-                                            <Button
-                                                variant="ghost"
-                                                size="sm"
-                                                className="text-red-400 hover:bg-red-500/10 hover:text-red-300"
-                                                onClick={(e) => {
-                                                    e.stopPropagation();
-                                                    setSelectedPerson(p);
-                                                    setDeleteOpen(true);
-                                                }}
-                                            >
-                                                <Trash2 className="w-4 h-4" />
-                                            </Button>
+                                            {!isInspector && (
+                                                <Button
+                                                    variant="ghost"
+                                                    size="sm"
+                                                    className="text-red-400 hover:bg-red-500/10 hover:text-red-300"
+                                                    onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        setSelectedPerson(p);
+                                                        setDeleteOpen(true);
+                                                    }}
+                                                >
+                                                    <Trash2 className="w-4 h-4" />
+                                                </Button>
+                                            )}
                                         </td>
                                     </tr>
                                 ))}
@@ -470,18 +472,20 @@ export default function PeopleTab() {
                                             </StatusBadge>
                                         </div>
                                     </div>
-                                    <Button
-                                        variant="ghost"
-                                        size="sm"
-                                        className="text-red-400 hover:bg-red-500/10"
-                                        onClick={(e) => {
-                                            e.stopPropagation();
-                                            setSelectedPerson(p);
-                                            setDeleteOpen(true);
-                                        }}
-                                    >
-                                        <Trash2 className="w-4 h-4" />
-                                    </Button>
+                                    {!isInspector && (
+                                        <Button
+                                            variant="ghost"
+                                            size="sm"
+                                            className="text-red-400 hover:bg-red-500/10"
+                                            onClick={(e) => {
+                                                e.stopPropagation();
+                                                setSelectedPerson(p);
+                                                setDeleteOpen(true);
+                                            }}
+                                        >
+                                            <Trash2 className="w-4 h-4" />
+                                        </Button>
+                                    )}
                                 </div>
                             </div>
                         ))}
