@@ -40,7 +40,7 @@ interface TagDefinition {
 }
 
 export default function PeopleTab() {
-    const { currentSite } = useSite();
+    const { currentSite, isInspector } = useSite();
     const { toast } = useToast();
     const [query, setQuery] = useState('');
     const [loading, setLoading] = useState(true);
@@ -402,8 +402,8 @@ export default function PeopleTab() {
                                 {filteredPeople.map((p) => (
                                     <tr
                                         key={p.id}
-                                        onClick={() => setEditingPersonId(p.id)}
-                                        className="hover:bg-white/5 cursor-pointer transition-colors"
+                                        onClick={!isInspector ? () => setEditingPersonId(p.id) : undefined}
+                                        className={`hover:bg-white/5 transition-colors ${!isInspector ? 'cursor-pointer' : ''}`}
                                     >
                                         <td>
                                             <div className="flex items-center gap-3">
@@ -450,8 +450,8 @@ export default function PeopleTab() {
                         {filteredPeople.map((p) => (
                             <div
                                 key={p.id}
-                                className="bg-white/5 border border-white/10 rounded-xl p-4 flex justify-between items-start cursor-pointer active:bg-white/10 transition-colors"
-                                onClick={() => setEditingPersonId(p.id)}
+                                className={`bg-white/5 border border-white/10 rounded-xl p-4 flex justify-between items-start transition-colors ${!isInspector ? 'cursor-pointer active:bg-white/10' : ''}`}
+                                onClick={!isInspector ? () => setEditingPersonId(p.id) : undefined}
                             >
                                 <div className="flex items-start gap-3">
                                     <Avatar className="w-12 h-12">

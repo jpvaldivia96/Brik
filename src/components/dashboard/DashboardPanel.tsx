@@ -43,7 +43,7 @@ interface ContractorStat {
 }
 
 export default function DashboardPanel() {
-  const { currentSite, currentSettings } = useSite();
+  const { currentSite, currentSettings, isInspector } = useSite();
 
   // Use local date instead of UTC to ensure "Today" matches user's local timezone
   const d = new Date();
@@ -515,7 +515,7 @@ export default function DashboardPanel() {
                         photoUrl={log.photo_url}
                         insuranceExpiry={log.insurance_expiry}
                         inductionDate={log.induction_date}
-                        onClick={() => setEditingPersonId(log.person_id)}
+                        onClick={!isInspector ? () => setEditingPersonId(log.person_id) : undefined}
                       />
                     ))}
                     {filteredList.length === 0 && (
@@ -539,7 +539,7 @@ export default function DashboardPanel() {
                         photoUrl={log.photo_url}
                         insuranceExpiry={log.insurance_expiry}
                         inductionDate={log.induction_date}
-                        onClick={() => setEditingPersonId(log.person_id)}
+                        onClick={!isInspector ? () => setEditingPersonId(log.person_id) : undefined}
                       />
                     ))}
                     {filteredList.length === 0 && (
@@ -604,7 +604,7 @@ export default function DashboardPanel() {
                             {contractorWorkers.map((worker) => (
                               <div
                                 key={worker.id}
-                                onClick={() => setEditingPersonId(worker.person_id)}
+                                onClick={!isInspector ? () => setEditingPersonId(worker.person_id) : undefined}
                                 className="flex items-center justify-between p-2 bg-card/20 rounded-lg cursor-pointer hover:bg-card/40 transition-colors"
                               >
                                 <div className="flex items-center gap-2">
