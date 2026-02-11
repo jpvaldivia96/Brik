@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Spinner } from '@/components/ui/spinner';
-import { Settings, Save, Building2, LogOut, UserCog, Bell, Upload, Sliders, RotateCcw, AlertTriangle } from 'lucide-react';
+import { Settings, Save, Building2, LogOut, UserCog, Bell, Upload, Sliders, RotateCcw, AlertTriangle, Play } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
 import UserManagementTab from './UserManagementTab';
@@ -40,6 +40,7 @@ export default function SettingsTab() {
   const [saving, setSaving] = useState(false);
   const [isOwner, setIsOwner] = useState(false);
   const [resettingDemo, setResettingDemo] = useState(false);
+  const [simulating, setSimulating] = useState(false);
 
   // Verificar si es super usuario Y está en la obra demo
   const isSuperUser = user?.email && SUPER_USER_EMAILS.includes(user.email);
@@ -416,6 +417,51 @@ export default function SettingsTab() {
                 )}
                 Reset Demo a Valores Iniciales
               </Button>
+
+              <div className="mt-4 pt-4 border-t border-white/10">
+                <p className="text-white/60 text-sm mb-4">
+                  Generar actividad artificial para hoy (Backfill de días vacíos + entradas/salidas actuales).
+                </p>
+                <Button
+                  variant="outline"
+                  onClick={async () => {
+                    if (!currentSite) return;
+                    setSimulating(true);
+                    try {
+                      // @ts-ignore -Function exists in DB but not in types yet
+                      const { data, error } = await supabase.rpc('simulate_demo_activity' as any, {
+                        p_site_id: currentSite.id
+                      });
+
+                      if (error) throw error;
+
+                      console.log('Simulation result:', data);
+
+                      const result = data as any;
+                      toast({
+                        title: '✅ Actividad Simulada',
+                        description: `Backfill: ${result?.backfill_days} días. Hoy: ${result?.entries_created} entradas.`
+                      });
+
+                      // Refrescar para ver nuevos datos
+                      await refreshSites();
+                    } catch (err: any) {
+                      toast({ title: 'Error', description: err.message, variant: 'destructive' });
+                    } finally {
+                      setSimulating(false);
+                    }
+                  }}
+                  disabled={simulating}
+                  className="bg-green-500/20 border-green-500/50 text-green-400 hover:bg-green-500/30 hover:text-green-300 w-full"
+                >
+                  {simulating ? (
+                    <Spinner size="sm" className="mr-2" />
+                  ) : (
+                    <Play className="w-4 h-4 mr-2" />
+                  )}
+                  Simular Actividad (Rellenar Datos)
+                </Button>
+              </div>
             </div>
           )}
 
@@ -454,12 +500,13 @@ export default function SettingsTab() {
             </div>
           </div>
         </>
-      )}
+      )
+      }
 
       {activeSubTab === 'users' && <UserManagementTab />}
       {activeSubTab === 'alerts' && <PersonalNotificationSettings />}
       {activeSubTab === 'import' && <ImportTab />}
-    </div>
+    </div >
   );
 }
 
