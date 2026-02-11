@@ -20,7 +20,7 @@ const SUPER_USER_EMAILS = [
 ];
 
 // ID de la obra demo - único sitio donde Reset Demo está habilitado
-const DEMO_SITE_ID = 'd67ff32e-5094-4d2a-ad3c-8d6f7ae07e37';
+const DEMO_SITE_ID = 'a838f172-736d-48b5-8eee-5b83c74ac37c';
 
 type SettingsSubTab = 'obra' | 'users' | 'alerts' | 'import';
 

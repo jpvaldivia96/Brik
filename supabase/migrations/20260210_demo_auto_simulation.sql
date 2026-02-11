@@ -28,8 +28,9 @@ BEGIN
   -- Workers que quedaron "dentro" de días anteriores
   -- =========================================
   UPDATE access_logs
-  SET exit_at = (entry_at::DATE + 1) * INTERVAL '1 day' - INTERVAL '6 hours' 
-                + (floor(random() * 120) * INTERVAL '1 minute')
+  SET exit_at = ((entry_at AT TIME ZONE v_tz)::DATE + INTERVAL '18 hours' 
+                + (floor(random() * 120) * INTERVAL '1 minute'))
+                AT TIME ZONE v_tz
                 -- Salida entre 6pm-8pm del mismo día
   WHERE site_id = p_site_id
     AND exit_at IS NULL
