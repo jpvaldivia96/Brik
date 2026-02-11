@@ -6,8 +6,8 @@ on:
   schedule:
     # Cada 30 minutos, 9-23 UTC = 5am-7pm Bolivia, Lunes-Sábado
     - cron: '*/30 9-23 * * 1-6'
-    # Cada 30 minutos, 0-2 UTC = 8pm-10pm Bolivia, Lunes-Sábado
-    - cron: '*/30 0-2 * * 2-7'
+    # Cada 30 minutos, 0-2 UTC = 8pm-10pm Bolivia, Lunes-Sábado (Martes a Domingo UTC)
+    - cron: '*/30 0-2 * * 0,2-6'
   workflow_dispatch: {}  # Permite ejecutar manualmente
 
 jobs:
