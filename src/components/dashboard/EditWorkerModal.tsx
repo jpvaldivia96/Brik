@@ -50,14 +50,14 @@ interface TagDefinition {
 }
 
 // Extracted View Mode Component
-const ViewForm = ({ workerData, form, handleClose, setEditing, isExternalInspector }: any) => {
+const ViewForm = ({ workerData, form, handleClose, setEditing, isExternalInspector, shouldMaskPhone, canEdit }: any) => {
     const hasPermit = form.nightPermitPermanent || (form.nightPermitUntil && new Date(form.nightPermitUntil) > new Date());
-    const isInspector = form.isInspector;
+    const isInspectorWorker = form.isInspector;
     const tags: TagDefinition[] = form.tags || [];
 
-    // Mask phone numbers for external inspectors
+    // Mask phone numbers for external inspectors AND guards
     const maskPhone = (phone: string | null) => {
-        if (!phone || !isExternalInspector) return phone || '-';
+        if (!phone || !shouldMaskPhone) return phone || '-';
         return '******';
     };
 
@@ -70,7 +70,7 @@ const ViewForm = ({ workerData, form, handleClose, setEditing, isExternalInspect
                 <p className="text-sm text-muted-foreground">{workerData?.contractor || 'Sin contratista'}</p>
 
                 <div className="flex flex-wrap gap-1 mt-2">
-                    {isInspector && (
+                    {isInspectorWorker && (
                         <div className="inline-flex items-center gap-1.5 px-2 py-1 rounded-md bg-purple-500/10 text-purple-400 text-xs font-medium border border-purple-500/20">
                             <UserCheck className="w-3 h-3" />
                             Inspector
@@ -127,7 +127,7 @@ const ViewForm = ({ workerData, form, handleClose, setEditing, isExternalInspect
             </div>
 
             <div className="flex justify-end gap-2 pt-2">
-                {!isExternalInspector && (
+                {canEdit && (
                     <Button onClick={() => setEditing(true)}>
                         <Pencil className="w-4 h-4 mr-2" />
                         Editar
@@ -144,7 +144,7 @@ const ViewForm = ({ workerData, form, handleClose, setEditing, isExternalInspect
 // Extracted Edit Mode Component
 import { UserCheck } from 'lucide-react';
 
-const EditForm = ({ form, setForm, saving, handleSave, setEditing }: any) => (
+const EditForm = ({ form, setForm, saving, handleSave, setEditing, shouldMaskPhone }: any) => (
     <div className="space-y-4">
         <div className="grid grid-cols-2 gap-3">
             <div className="col-span-2 space-y-2">
@@ -183,8 +183,10 @@ const EditForm = ({ form, setForm, saving, handleSave, setEditing }: any) => (
             <div className="space-y-2">
                 <Label>Teléfono</Label>
                 <Input
-                    value={form.phone}
+                    value={shouldMaskPhone ? '******' : form.phone}
                     onChange={(e) => setForm({ ...form, phone: e.target.value })}
+                    readOnly={shouldMaskPhone}
+                    className={shouldMaskPhone ? 'opacity-50 cursor-not-allowed' : ''}
                 />
             </div>
 
@@ -217,8 +219,10 @@ const EditForm = ({ form, setForm, saving, handleSave, setEditing }: any) => (
             <div className="space-y-2">
                 <Label>Contacto Emergencia</Label>
                 <Input
-                    value={form.emergencyContact}
+                    value={shouldMaskPhone ? '******' : form.emergencyContact}
                     onChange={(e) => setForm({ ...form, emergencyContact: e.target.value })}
+                    readOnly={shouldMaskPhone}
+                    className={shouldMaskPhone ? 'opacity-50 cursor-not-allowed' : ''}
                 />
             </div>
         </div>
@@ -323,7 +327,7 @@ const EditForm = ({ form, setForm, saving, handleSave, setEditing }: any) => (
 
 export function EditWorkerModal({ open, onClose, personId, onSaved }: EditWorkerModalProps) {
     const { user } = useAuth();
-    const { currentSite, isExternalInspector } = useSite();
+    const { currentSite, isExternalInspector, isSupervisor, isInspector, currentRole } = useSite();
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
     const [editing, setEditing] = useState(false);
@@ -431,75 +435,167 @@ export function EditWorkerModal({ open, onClose, personId, onSaved }: EditWorker
         }
     };
 
+    // Determine if guard needs approval flow
+    const needsApproval = !isSupervisor; // Guards need approval, supervisors/owners/admins don't
+    // Can edit: not inspector (internal or external)
+    const canEdit = !isInspector && !isExternalInspector;
+    // Should mask phone: guards and inspectors
+    const shouldMaskPhone = !isSupervisor;
+
     const handleSave = async () => {
         setSaving(true);
         try {
-            const { error: personError } = await supabase
-                .from('people')
-                .update({
-                    ci: form.ci.trim(),
-                    full_name: form.fullName.trim(),
-                    contractor: form.contractor.trim() || null,
-                })
-                .eq('id', personId);
-
-            if (personError) throw personError;
-
-            const { error: profileError } = await supabase
-                .from('workers_profile')
-                .upsert({
-                    person_id: personId,
-                    role: form.role.trim() || null,
-                    insurance_number: form.insuranceNumber.trim() || null,
-                    insurance_expiry: form.insuranceExpiry || null,
-                    phone: form.phone.trim() || null,
-                    emergency_contact: form.emergencyContact.trim() || null,
-                    blood_type: form.bloodType.trim() || null,
-                    induction_date: form.inductionCompleted ? new Date().toISOString().split('T')[0] : null,
-                    night_permit_permanent: form.nightPermitPermanent,
-                    night_permit_until: form.nightPermitUntil || null,
-                    is_inspector: form.isInspector,
-                }, { onConflict: 'person_id' });
-
-            if (profileError) throw profileError;
-
-            // Update tags: delete existing and insert new
-            // NOTE: Using 'as any' because worker_tags tables are new and not in generated types yet
-            await (supabase as any)
-                .from('worker_tags')
-                .delete()
-                .eq('person_id', personId);
-
-            if (form.tags.length > 0) {
-                const tagInserts = form.tags.map(t => ({
-                    person_id: personId,
-                    tag_id: t.id,
-                }));
-                await (supabase as any).from('worker_tags').insert(tagInserts);
+            if (needsApproval && currentSite) {
+                // GUARD FLOW: Create pending_edits instead of direct update
+                await handleGuardSave();
+            } else {
+                // SUPERVISOR/OWNER/ADMIN FLOW: Direct update (unchanged)
+                await handleDirectSave();
             }
-
-            // Log audit event for person edit
-            if (workerData && currentSite) {
-                logAuditEvent({
-                    siteId: currentSite.id,
-                    userId: user?.id || null,
-                    action: 'PERSON_EDITED',
-                    entityType: 'person',
-                    entityId: personId,
-                    before: { ci: workerData.ci, full_name: workerData.full_name, contractor: workerData.contractor },
-                    after: { ci: form.ci.trim(), full_name: form.fullName.trim(), contractor: form.contractor.trim() },
-                    note: `Editado por guardia (Inspector: ${form.isInspector ? 'Sí' : 'No'})`,
-                });
-            }
-
-            toast({ title: 'Guardado', description: 'Datos actualizados correctamente.' });
-            setEditing(false);
-            onSaved();
         } catch (err: any) {
             toast({ title: 'Error', description: err.message, variant: 'destructive' });
         } finally {
             setSaving(false);
         }
+    };
+
+    // Guard save: compare fields and create pending_edits
+    const handleGuardSave = async () => {
+        if (!currentSite || !workerData) return;
+        const wp = workerData.workers_profile;
+
+        // Field mapping: { formKey, dbFieldName, tableName, oldValue, newValue }
+        const fieldChanges = [
+            { field: 'ci', dbField: 'ci', table: 'people', old: workerData.ci || '', new: form.ci.trim() },
+            { field: 'fullName', dbField: 'full_name', table: 'people', old: workerData.full_name || '', new: form.fullName.trim() },
+            { field: 'contractor', dbField: 'contractor', table: 'people', old: workerData.contractor || '', new: form.contractor.trim() },
+            { field: 'role', dbField: 'role', table: 'workers_profile', old: wp?.role || '', new: form.role.trim() },
+            { field: 'phone', dbField: 'phone', table: 'workers_profile', old: wp?.phone || '', new: form.phone.trim() },
+            { field: 'insuranceNumber', dbField: 'insurance_number', table: 'workers_profile', old: wp?.insurance_number || '', new: form.insuranceNumber.trim() },
+            { field: 'insuranceExpiry', dbField: 'insurance_expiry', table: 'workers_profile', old: wp?.insurance_expiry || '', new: form.insuranceExpiry },
+            { field: 'bloodType', dbField: 'blood_type', table: 'workers_profile', old: wp?.blood_type || '', new: form.bloodType.trim() },
+            { field: 'emergencyContact', dbField: 'emergency_contact', table: 'workers_profile', old: wp?.emergency_contact || '', new: form.emergencyContact.trim() },
+        ];
+
+        // Find fields that actually changed
+        const changedFields = fieldChanges.filter(f => f.old !== f.new);
+
+        if (changedFields.length === 0) {
+            toast({ title: 'Sin cambios', description: 'No se detectaron modificaciones.' });
+            setEditing(false);
+            return;
+        }
+
+        // Cancel any previous pending edits for the same person/fields
+        for (const change of changedFields) {
+            await (supabase as any)
+                .from('pending_edits')
+                .update({ status: 'rejected', reviewed_at: new Date().toISOString(), review_note: 'Reemplazado por nueva solicitud' })
+                .eq('person_id', personId)
+                .eq('site_id', currentSite.id)
+                .eq('field_name', change.dbField)
+                .eq('status', 'pending');
+        }
+
+        // Insert new pending edits
+        const pendingInserts = changedFields.map(change => ({
+            site_id: currentSite.id,
+            person_id: personId,
+            requested_by: user?.id,
+            field_name: change.dbField,
+            table_name: change.table,
+            old_value: change.old || null,
+            new_value: change.new,
+            status: 'pending',
+        }));
+
+        const { error } = await (supabase as any)
+            .from('pending_edits')
+            .insert(pendingInserts);
+
+        if (error) throw error;
+
+        // Audit log
+        logAuditEvent({
+            siteId: currentSite.id,
+            userId: user?.id || null,
+            action: 'EDIT_REQUESTED',
+            entityType: 'person',
+            entityId: personId,
+            after: { fields_changed: changedFields.map(f => f.dbField) },
+            note: `Solicitud de edición por ${currentRole} (${changedFields.length} campo${changedFields.length > 1 ? 's' : ''})`,
+        });
+
+        toast({
+            title: '📋 Solicitud enviada',
+            description: `${changedFields.length} cambio${changedFields.length > 1 ? 's' : ''} pendiente${changedFields.length > 1 ? 's' : ''} de aprobación`,
+        });
+        setEditing(false);
+        onSaved();
+    };
+
+    // Direct save for supervisors/owners/admins (original logic)
+    const handleDirectSave = async () => {
+        const { error: personError } = await supabase
+            .from('people')
+            .update({
+                ci: form.ci.trim(),
+                full_name: form.fullName.trim(),
+                contractor: form.contractor.trim() || null,
+            })
+            .eq('id', personId);
+
+        if (personError) throw personError;
+
+        const { error: profileError } = await supabase
+            .from('workers_profile')
+            .upsert({
+                person_id: personId,
+                role: form.role.trim() || null,
+                insurance_number: form.insuranceNumber.trim() || null,
+                insurance_expiry: form.insuranceExpiry || null,
+                phone: form.phone.trim() || null,
+                emergency_contact: form.emergencyContact.trim() || null,
+                blood_type: form.bloodType.trim() || null,
+                induction_date: form.inductionCompleted ? new Date().toISOString().split('T')[0] : null,
+                night_permit_permanent: form.nightPermitPermanent,
+                night_permit_until: form.nightPermitUntil || null,
+                is_inspector: form.isInspector,
+            }, { onConflict: 'person_id' });
+
+        if (profileError) throw profileError;
+
+        // Update tags
+        await (supabase as any)
+            .from('worker_tags')
+            .delete()
+            .eq('person_id', personId);
+
+        if (form.tags.length > 0) {
+            const tagInserts = form.tags.map(t => ({
+                person_id: personId,
+                tag_id: t.id,
+            }));
+            await (supabase as any).from('worker_tags').insert(tagInserts);
+        }
+
+        // Audit log
+        if (workerData && currentSite) {
+            logAuditEvent({
+                siteId: currentSite.id,
+                userId: user?.id || null,
+                action: 'PERSON_EDITED',
+                entityType: 'person',
+                entityId: personId,
+                before: { ci: workerData.ci, full_name: workerData.full_name, contractor: workerData.contractor },
+                after: { ci: form.ci.trim(), full_name: form.fullName.trim(), contractor: form.contractor.trim() },
+                note: `Editado por ${currentRole}`,
+            });
+        }
+
+        toast({ title: 'Guardado', description: 'Datos actualizados correctamente.' });
+        setEditing(false);
+        onSaved();
     };
 
     const handleClose = () => {
@@ -511,8 +607,8 @@ export function EditWorkerModal({ open, onClose, personId, onSaved }: EditWorker
         <Dialog open={open} onOpenChange={(o) => !o && handleClose()}>
             <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto">
                 <DialogHeader className="flex flex-row items-center justify-between">
-                    <DialogTitle>{editing ? 'Editar Trabajador' : 'Ver Trabajador'}</DialogTitle>
-                    {!editing && !loading && (
+                    <DialogTitle>{editing ? (needsApproval ? 'Solicitar Cambios' : 'Editar Trabajador') : 'Ver Trabajador'}</DialogTitle>
+                    {!editing && !loading && canEdit && (
                         <Button
                             variant="ghost"
                             size="icon"
@@ -551,6 +647,7 @@ export function EditWorkerModal({ open, onClose, personId, onSaved }: EditWorker
                                 saving={saving}
                                 handleSave={handleSave}
                                 setEditing={setEditing}
+                                shouldMaskPhone={shouldMaskPhone}
                             />
                         ) : (
                             <ViewForm
@@ -559,6 +656,8 @@ export function EditWorkerModal({ open, onClose, personId, onSaved }: EditWorker
                                 handleClose={handleClose}
                                 setEditing={setEditing}
                                 isExternalInspector={isExternalInspector}
+                                shouldMaskPhone={shouldMaskPhone}
+                                canEdit={canEdit}
                             />
                         )}
                     </div>

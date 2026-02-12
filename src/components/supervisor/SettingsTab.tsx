@@ -6,12 +6,13 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Spinner } from '@/components/ui/spinner';
-import { Settings, Save, Building2, LogOut, UserCog, Bell, Upload, Sliders, RotateCcw, AlertTriangle, Play } from 'lucide-react';
+import { Settings, Save, Building2, LogOut, UserCog, Bell, Upload, Sliders, RotateCcw, AlertTriangle, Play, ClipboardCheck } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
 import UserManagementTab from './UserManagementTab';
 import { PersonalNotificationSettings } from '../settings/PersonalNotificationSettings';
 import ImportTab from './ImportTab';
+import ApprovalsTab from './ApprovalsTab';
 
 // Super usuarios que pueden resetear demos
 const SUPER_USER_EMAILS = [
@@ -22,17 +23,18 @@ const SUPER_USER_EMAILS = [
 // ID de la obra demo - único sitio donde Reset Demo está habilitado
 const DEMO_SITE_ID = 'a838f172-736d-48b5-8eee-5b83c74ac37c';
 
-type SettingsSubTab = 'obra' | 'users' | 'alerts' | 'import';
+type SettingsSubTab = 'obra' | 'users' | 'alerts' | 'import' | 'approvals';
 
 const subTabs = [
   { id: 'obra' as const, icon: Sliders, label: 'Obra' },
   { id: 'users' as const, icon: UserCog, label: 'Usuarios' },
   { id: 'alerts' as const, icon: Bell, label: 'Alertas' },
   { id: 'import' as const, icon: Upload, label: 'Importar' },
+  { id: 'approvals' as const, icon: ClipboardCheck, label: 'Aprobaciones', supervisorOnly: true },
 ];
 
 export default function SettingsTab() {
-  const { currentSite, currentSettings, refreshSites, selectSite } = useSite();
+  const { currentSite, currentSettings, refreshSites, selectSite, isSupervisor: isSupervisorRole } = useSite();
   const { signOut, user } = useAuth();
   const { toast } = useToast();
   const [activeSubTab, setActiveSubTab] = useState<SettingsSubTab>('obra');
@@ -41,6 +43,7 @@ export default function SettingsTab() {
   const [isOwner, setIsOwner] = useState(false);
   const [resettingDemo, setResettingDemo] = useState(false);
   const [simulating, setSimulating] = useState(false);
+  const [pendingCount, setPendingCount] = useState(0);
 
   // Verificar si es super usuario Y está en la obra demo
   const isSuperUser = user?.email && SUPER_USER_EMAILS.includes(user.email);
@@ -69,6 +72,24 @@ export default function SettingsTab() {
       checkIfOwner();
     }
   }, [currentSettings, currentSite]);
+
+  // Fetch pending approvals count
+  useEffect(() => {
+    if (!currentSite || !isSupervisorRole) return;
+    const fetchPendingCount = async () => {
+      try {
+        const { count, error } = await (supabase as any)
+          .from('pending_edits')
+          .select('*', { count: 'exact', head: true })
+          .eq('site_id', currentSite.id)
+          .eq('status', 'pending');
+        if (!error) setPendingCount(count || 0);
+      } catch (e) {
+        // Silently ignore if table doesn't exist yet
+      }
+    };
+    fetchPendingCount();
+  }, [currentSite, isSupervisorRole]);
 
   const checkIfOwner = async () => {
     if (!currentSite || !user) return;
@@ -281,24 +302,31 @@ export default function SettingsTab() {
 
       {/* Sub-tab navigation */}
       <div className="flex gap-2 overflow-x-auto pb-2">
-        {subTabs.map((tab) => {
-          const Icon = tab.icon;
-          return (
-            <button
-              key={tab.id}
-              onClick={() => setActiveSubTab(tab.id)}
-              className={cn(
-                "flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium whitespace-nowrap transition-all",
-                activeSubTab === tab.id
-                  ? "bg-purple-500 text-white shadow-lg"
-                  : "bg-white/10 text-white/70 hover:bg-white/20 hover:text-white"
-              )}
-            >
-              <Icon className="w-4 h-4" />
-              {tab.label}
-            </button>
-          );
-        })}
+        {subTabs
+          .filter((tab) => !(tab as any).supervisorOnly || isSupervisorRole)
+          .map((tab) => {
+            const Icon = tab.icon;
+            return (
+              <button
+                key={tab.id}
+                onClick={() => setActiveSubTab(tab.id)}
+                className={cn(
+                  "flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium whitespace-nowrap transition-all relative",
+                  activeSubTab === tab.id
+                    ? "bg-purple-500 text-white shadow-lg"
+                    : "bg-white/10 text-white/70 hover:bg-white/20 hover:text-white"
+                )}
+              >
+                <Icon className="w-4 h-4" />
+                {tab.label}
+                {tab.id === 'approvals' && pendingCount > 0 && (
+                  <span className="absolute -top-1 -right-1 bg-amber-500 text-white text-[10px] font-bold rounded-full w-5 h-5 flex items-center justify-center">
+                    {pendingCount > 9 ? '9+' : pendingCount}
+                  </span>
+                )}
+              </button>
+            );
+          })}
       </div>
 
       {/* Sub-tab content */}
@@ -506,6 +534,7 @@ export default function SettingsTab() {
       {activeSubTab === 'users' && <UserManagementTab />}
       {activeSubTab === 'alerts' && <PersonalNotificationSettings />}
       {activeSubTab === 'import' && <ImportTab />}
+      {activeSubTab === 'approvals' && <ApprovalsTab />}
     </div >
   );
 }

@@ -52,13 +52,16 @@ export function PhotoEditor({
 
     // PASO 1: Verificar si es supervisor/owner (isSupervisor ya incluye supervisor, owner, admin)
     const isSupervisorOrAbove = isSupervisor;
+    const isInspectorRole = currentRole === 'inspector' || currentRole === 'external_inspector';
 
     // PASO 2 & 3: Verificar permiso para cada foto
     const canEditPhoto = (photoUrl: string | null): boolean => {
+        // Inspectors cannot edit any photo
+        if (isInspectorRole) return false;
         // Sin foto = cualquiera puede agregar primera
         if (!photoUrl) return true;
-        // Con foto = solo supervisor/owner puede cambiar
-        return isSupervisorOrAbove;
+        // Con foto = todos pueden, pero guardias van por flujo de aprobación
+        return true;
     };
 
     const canEditProfilePhoto = canEditPhoto(currentPhotoUrl);
@@ -155,7 +158,7 @@ export function PhotoEditor({
                 activePhotoType === 'ci_front' ? 'ci_front' : 'ci_back';
             const filename = `${currentSite.id}/${personId}_${typePrefix}_${Date.now()}.jpg`;
 
-            // Upload to storage
+            // Upload to storage (always upload, even for pending)
             const { error: uploadError } = await supabase.storage
                 .from('worker-photos')
                 .upload(filename, blob, { contentType: 'image/jpeg', upsert: true });
@@ -169,36 +172,81 @@ export function PhotoEditor({
 
             const publicUrl = urlData.publicUrl;
 
-            // Update person record
+            // Determine the update field and current URL
             const updateField = activePhotoType === 'profile' ? 'photo_url' :
                 activePhotoType === 'ci_front' ? 'ci_front_url' : 'ci_back_url';
+            const currentUrl = activePhotoType === 'profile' ? currentPhotoUrl :
+                activePhotoType === 'ci_front' ? ciFrontUrl : ciBackUrl;
 
-            const { error: updateError } = await supabase
-                .from('people')
-                .update({ [updateField]: publicUrl })
-                .eq('id', personId);
+            // GUARD with EXISTING photo → pending approval
+            if (!isSupervisorOrAbove && currentUrl) {
+                // Cancel previous pending photo edit for same field
+                await (supabase as any)
+                    .from('pending_edits')
+                    .update({ status: 'rejected', reviewed_at: new Date().toISOString(), review_note: 'Reemplazado por nueva solicitud' })
+                    .eq('person_id', personId)
+                    .eq('site_id', currentSite.id)
+                    .eq('field_name', updateField)
+                    .eq('status', 'pending');
 
-            if (updateError) throw updateError;
+                // Insert pending edit with photo URLs
+                const { error: pendingError } = await (supabase as any)
+                    .from('pending_edits')
+                    .insert({
+                        site_id: currentSite.id,
+                        person_id: personId,
+                        requested_by: user?.id,
+                        field_name: updateField,
+                        table_name: 'people',
+                        old_value: currentUrl,
+                        new_value: publicUrl,
+                        status: 'pending',
+                    });
 
-            // PASO 4: Audit log
-            logAuditEvent({
-                siteId: currentSite.id,
-                userId: user?.id || null,
-                action: 'PHOTO_UPDATED',
-                entityType: 'person',
-                entityId: personId,
-                after: {
-                    photo_type: activePhotoType,
-                    was_first_photo: activePhotoType === 'profile' ? !currentPhotoUrl :
-                        activePhotoType === 'ci_front' ? !ciFrontUrl : !ciBackUrl
-                },
-                note: `Foto ${activePhotoType} actualizada por ${currentRole}`,
-            });
+                if (pendingError) throw pendingError;
 
-            // Notify parent
-            onPhotosUpdated({ [updateField]: publicUrl });
+                // Audit log
+                logAuditEvent({
+                    siteId: currentSite.id,
+                    userId: user?.id || null,
+                    action: 'PHOTO_EDIT_REQUESTED',
+                    entityType: 'person',
+                    entityId: personId,
+                    after: { photo_type: activePhotoType, new_url: publicUrl },
+                    note: `Solicitud de cambio de foto ${activePhotoType} por ${currentRole}`,
+                });
 
-            toast({ title: 'Foto guardada', description: 'La foto se actualizó correctamente' });
+                toast({
+                    title: '📋 Solicitud de foto enviada',
+                    description: 'Un supervisor revisará el cambio de foto',
+                });
+            } else {
+                // SUPERVISOR or FIRST PHOTO → direct update
+                const { error: updateError } = await supabase
+                    .from('people')
+                    .update({ [updateField]: publicUrl })
+                    .eq('id', personId);
+
+                if (updateError) throw updateError;
+
+                // PASO 4: Audit log
+                logAuditEvent({
+                    siteId: currentSite.id,
+                    userId: user?.id || null,
+                    action: 'PHOTO_UPDATED',
+                    entityType: 'person',
+                    entityId: personId,
+                    after: {
+                        photo_type: activePhotoType,
+                        was_first_photo: !currentUrl
+                    },
+                    note: `Foto ${activePhotoType} actualizada por ${currentRole}`,
+                });
+
+                // Notify parent
+                onPhotosUpdated({ [updateField]: publicUrl });
+                toast({ title: 'Foto guardada', description: 'La foto se actualizó correctamente' });
+            }
         } catch (err: any) {
             toast({ title: 'Error', description: err.message, variant: 'destructive' });
         } finally {
@@ -269,9 +317,14 @@ export function PhotoEditor({
                         <CreditCard className="w-8 h-8 rotate-180" />)}
                 </div>
 
-                {editing && !isSupervisorOrAbove && (currentPhotoUrl || ciFrontUrl || ciBackUrl) && (
-                    <p className="text-xs text-yellow-500">
-                        ⚠️ Solo puedes agregar fotos faltantes. Para cambiar fotos existentes, contacta a un supervisor.
+                {editing && !isSupervisorOrAbove && !isInspectorRole && (currentPhotoUrl || ciFrontUrl || ciBackUrl) && (
+                    <p className="text-xs text-amber-500">
+                        📋 Los cambios de fotos existentes serán revisados por un supervisor.
+                    </p>
+                )}
+                {editing && isInspectorRole && (
+                    <p className="text-xs text-red-400">
+                        🔒 Los inspectores no pueden modificar fotografías.
                     </p>
                 )}
             </div>
