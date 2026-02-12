@@ -1,71 +1,64 @@
 ---
-description: Protocolo para implementar nuevas funciones en BRIK Pro
+description: Protocolo para implementar nuevas funciones (usar con /nueva-funcion)
 ---
 
 # 🚀 Protocolo de Nueva Función
 
-Este protocolo se activa automáticamente cuando el usuario solicita una nueva función.
+Este protocolo se activa cuando el usuario solicita una nueva función o cambio.
 
 ## Paso 1: Entender el Objetivo
 - Confirmar qué funcionalidad se quiere agregar
 - Identificar qué problema resuelve para el usuario
+- Preguntar si hay algo que NO quiere que cambie
 
 ## Paso 2: Consultar Reglas
-- Leer `.cursorrules` antes de cualquier cambio
+- Leer `.cursorrules` si existe
 - Verificar que la función no viole:
-  - ❌ Regla #1: No Regresión
-  - ❌ Regla #2: Seguridad Primero
-  - ❌ Regla #3: Tipado Estricto
-  - ❌ Regla #4: Validación con Zod
+  - ❌ No Regresión — no romper funcionalidad existente
+  - ❌ Seguridad — RLS en Supabase, roles verificados
+  - ❌ Tipado — usar `as any` solo cuando sea necesario para tablas no tipadas
+  - ❌ Validación — Zod + React Hook Form en formularios
 
 ## Paso 3: Presentar Plan (ANTES de codificar)
-- Listar archivos que se van a modificar
-- Listar archivos nuevos que se van a crear
-- Explicar cómo se verificará que no se rompió nada:
-  - Tests existentes pasan (`npm run test:e2e`)
-  - Build exitoso (`npm run build`)
-  - Sin errores de TypeScript
+- Crear `implementation_plan.md` con:
+  - Archivos a modificar y archivos nuevos
+  - Cambios de base de datos (migraciones SQL)
+  - Riesgos identificados y mitigaciones
+- Esperar aprobación del usuario
 
 ## Paso 4: Implementar
-- Escribir código siguiendo los patrones de CONTRIBUTING.md
-- Si hay formularios: usar Zod + React Hook Form
-- Si hay datos sensibles: verificar RLS en Supabase
+- Seguir patrones existentes del proyecto
+- Migraciones SQL → `supabase/migrations/YYYYMMDD_nombre.sql`
+- Componentes React → respetar estructura de carpetas existente
+- RLS siempre que se cree tabla nueva
+- Audit logging para operaciones sensibles
 
 ## Paso 5: Verificar
-- Ejecutar `npm run build` ✅
-- Ejecutar `npm run test:e2e` ✅
-- Probar manualmente en localhost
+// turbo
+- Ejecutar `npm run build` — debe pasar sin errores
+- Revisar lint errors en la salida
+- Si hay errores, corregir antes de continuar
 
-## Paso 6: Entregar con Test
-- Crear nuevo test Playwright que demuestre la función
-- Ubicación: `tests/[nombre-funcion].spec.ts`
-- El test debe verificar el "happy path" mínimo
+## Paso 6: Test Manual
+- Probar en localhost que funciona
+- Si el usuario quiere probar, esperar su feedback
+- Corregir bugs reportados
 
-## Paso 7: Commit y Deploy
-- Commit con mensaje descriptivo
-- Push a GitHub
-- Verificar que CI/CD pasa (verde)
-- Opcional: Deploy a Vercel si se requiere
+## Paso 7: Deploy
+- `git add -A && git status` — revisar qué se incluye
+- `git commit -m "feat: descripción clara del cambio"`
+- `git push origin main` — Vercel deploya automáticamente
+- Si piden APK, ejecutar el workflow `/deploy`
 
 ---
 
-## Ejemplo de Entrega
+## Checklist Rápido
 
 ```
-✅ Nueva función implementada: [Nombre]
-
-### Archivos modificados:
-- src/components/xxx.tsx
-- src/lib/xxx.ts
-
-### Archivos nuevos:
-- tests/xxx.spec.ts
-
-### Verificación:
-- ✅ Build exitoso
-- ✅ Tests existentes pasan
-- ✅ Nuevo test agregado
-
-### Siguiente paso:
-- Probar en http://localhost:8080
+✅ Nueva función: [Nombre]
+📁 Archivos modificados: [lista]
+📁 Archivos nuevos: [lista]
+🗄️ SQL ejecutado: [sí/no]
+🔨 Build: ✅
+🚀 Push: ✅
 ```
