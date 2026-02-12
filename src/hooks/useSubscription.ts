@@ -71,7 +71,8 @@ export function useSubscription() {
             const monthlyLimit = data.monthly_limit || 100;
             const currentUsage = data.current_month_usage || 0;
             const usagePercentage = monthlyLimit > 0 ? Math.round((currentUsage / monthlyLimit) * 100) : 0;
-            const isInTrial = data.status === 'trial' && data.trial_ends_at;
+            const isPaidPlan = ['starter', 'pro', 'enterprise'].includes(data.plan);
+            const isInTrial = data.status === 'trial' && data.trial_ends_at && !isPaidPlan;
             let daysLeftInTrial = null;
 
             if (isInTrial && data.trial_ends_at) {
