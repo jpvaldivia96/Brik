@@ -7,7 +7,7 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { AlertCosmos } from '@/components/ui/alert-cosmos';
 import { Spinner } from '@/components/ui/spinner';
-import { FileText, Download, MessageSquare, Filter, Calendar, Building2, User, Users } from 'lucide-react';
+import { FileText, Download, MessageSquare, Filter, Calendar, Building2, User, Users, Search, CheckSquare, Square, X } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 
 type FilterType = 'all' | 'contractor' | 'worker' | 'visitor';
@@ -31,7 +31,9 @@ export default function ReportsTab() {
   // Filter type
   const [filterType, setFilterType] = useState<FilterType>('all');
   const [selectedContractor, setSelectedContractor] = useState<string>('');
-  const [selectedPersonId, setSelectedPersonId] = useState<string>('all');
+  const [selectedPersonIds, setSelectedPersonIds] = useState<Set<string>>(new Set());
+  const [showPeopleSelector, setShowPeopleSelector] = useState(false);
+  const [peopleSearchQuery, setPeopleSearchQuery] = useState('');
 
   // Data
   const [people, setPeople] = useState<Person[]>([]);
@@ -98,7 +100,7 @@ export default function ReportsTab() {
       dateTo: endDate.toISOString(),
       filterType,
       selectedContractor,
-      selectedPersonId
+      selectedPersonIds: Array.from(selectedPersonIds)
     });
 
     // First, let's check if there are ANY logs for this site
@@ -127,8 +129,8 @@ export default function ReportsTab() {
       query = query.eq('type_snapshot', 'visitor');
     }
 
-    if (selectedPersonId && selectedPersonId !== 'all') {
-      query = query.eq('person_id', selectedPersonId);
+    if (selectedPersonIds.size > 0) {
+      query = query.in('person_id', Array.from(selectedPersonIds));
     }
 
     const { data: logs, error } = await query.order('entry_at', { ascending: true });
@@ -176,9 +178,14 @@ export default function ReportsTab() {
     } else if (filterType === 'visitor') {
       filterDescription = 'Solo Visitas';
     }
-    if (selectedPersonId && selectedPersonId !== 'all') {
-      const person = people.find(p => p.id === selectedPersonId);
-      filterDescription = `Persona: ${person?.full_name || 'N/A'}`;
+    if (selectedPersonIds.size > 0) {
+      const names = Array.from(selectedPersonIds).map(id => {
+        const person = people.find(p => p.id === id);
+        return person?.full_name || 'N/A';
+      });
+      filterDescription = selectedPersonIds.size === 1
+        ? `Persona: ${names[0]}`
+        : `${selectedPersonIds.size} personas seleccionadas`;
     }
 
     // Get inspection notes for relevant workers in the date range
@@ -477,6 +484,47 @@ export default function ReportsTab() {
               </div>
             </div>
 
+            ${selectedPersonIds.size > 1 ? (() => {
+              // Per-person breakdown section
+              const personGroups: Record<string, { name: string; ci: string; contractor: string; entries: number; exits: number; hours: number }> = {};
+              data.logs.forEach((log: any) => {
+                const pid = log.person_id || 'unknown';
+                if (!personGroups[pid]) {
+                  personGroups[pid] = {
+                    name: log.name_snapshot || 'Sin nombre',
+                    ci: log.ci_snapshot || '-',
+                    contractor: log.contractor_snapshot || '-',
+                    entries: 0,
+                    exits: 0,
+                    hours: 0,
+                  };
+                }
+                personGroups[pid].entries++;
+                if (log.exit_at) {
+                  personGroups[pid].exits++;
+                  personGroups[pid].hours += (new Date(log.exit_at).getTime() - new Date(log.entry_at).getTime()) / (1000 * 60 * 60);
+                }
+              });
+              const rows = Object.values(personGroups)
+                .sort((a, b) => b.hours - a.hours)
+                .map(p =>
+                  '<tr>' +
+                  '<td><span style="font-weight:600;color:#1f2937;">' + p.name + '</span></td>' +
+                  '<td>' + p.ci + '</td>' +
+                  '<td>' + p.contractor + '</td>' +
+                  '<td style="text-align:center;">' + p.entries + '</td>' +
+                  '<td style="text-align:center;">' + p.exits + '</td>' +
+                  '<td style="text-align:center;font-weight:600;color:#7c3aed;">' + p.hours.toFixed(1) + 'h</td>' +
+                  '</tr>'
+                ).join('');
+              return '<h2>Resumen por Persona</h2>' +
+                '<div style="overflow-x:auto;border:1px solid #e5e7eb;border-radius:12px;margin-bottom:32px;">' +
+                '<table><thead><tr>' +
+                '<th>Nombre</th><th>CI</th><th>Contratista</th>' +
+                '<th style="text-align:center;">Entradas</th><th style="text-align:center;">Salidas</th><th style="text-align:center;">Horas</th>' +
+                '</tr></thead><tbody>' + rows + '</tbody></table></div>';
+            })() : ''}
+
             <h2>Detalle de Accesos</h2>
             <div style="overflow-x: auto; border: 1px solid #e5e7eb; border-radius: 12px;">
             <table>
@@ -495,7 +543,7 @@ export default function ReportsTab() {
               <tbody>
                 ${data.logs.length === 0 ?
           '<tr><td colspan="8" style="text-align: center; padding: 40px; color: #9ca3af;">No hay registros en el período seleccionado</td></tr>' :
-          data.logs.map(log => {
+          data.logs.map((log: any) => {
             const entry = new Date(log.entry_at);
             const exit = log.exit_at ? new Date(log.exit_at) : null;
             const hours = exit ? ((exit.getTime() - entry.getTime()) / (1000 * 60 * 60)).toFixed(1) : '-';
@@ -635,7 +683,7 @@ _Generado el ${new Date().toLocaleString('es-BO')}_`;
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
           <Button
             variant={filterType === 'all' ? 'default' : 'outline'}
-            onClick={() => { setFilterType('all'); setSelectedContractor(''); setSelectedPersonId(''); }}
+            onClick={() => { setFilterType('all'); setSelectedContractor(''); setSelectedPersonIds(new Set()); }}
             className={filterType === 'all'
               ? 'bg-gradient-to-r from-purple-500 to-blue-500'
               : 'bg-white/10 border-white/20 text-white/80 hover:bg-white/20'}
@@ -645,7 +693,7 @@ _Generado el ${new Date().toLocaleString('es-BO')}_`;
           </Button>
           <Button
             variant={filterType === 'contractor' ? 'default' : 'outline'}
-            onClick={() => { setFilterType('contractor'); setSelectedPersonId(''); }}
+            onClick={() => { setFilterType('contractor'); setSelectedPersonIds(new Set()); }}
             className={filterType === 'contractor'
               ? 'bg-gradient-to-r from-purple-500 to-blue-500'
               : 'bg-white/10 border-white/20 text-white/80 hover:bg-white/20'}
@@ -655,7 +703,7 @@ _Generado el ${new Date().toLocaleString('es-BO')}_`;
           </Button>
           <Button
             variant={filterType === 'worker' ? 'default' : 'outline'}
-            onClick={() => { setFilterType('worker'); setSelectedContractor(''); setSelectedPersonId(''); }}
+            onClick={() => { setFilterType('worker'); setSelectedContractor(''); setSelectedPersonIds(new Set()); }}
             className={filterType === 'worker'
               ? 'bg-gradient-to-r from-purple-500 to-blue-500'
               : 'bg-white/10 border-white/20 text-white/80 hover:bg-white/20'}
@@ -665,7 +713,7 @@ _Generado el ${new Date().toLocaleString('es-BO')}_`;
           </Button>
           <Button
             variant={filterType === 'visitor' ? 'default' : 'outline'}
-            onClick={() => { setFilterType('visitor'); setSelectedContractor(''); setSelectedPersonId(''); }}
+            onClick={() => { setFilterType('visitor'); setSelectedContractor(''); setSelectedPersonIds(new Set()); }}
             className={filterType === 'visitor'
               ? 'bg-gradient-to-r from-purple-500 to-blue-500'
               : 'bg-white/10 border-white/20 text-white/80 hover:bg-white/20'}
@@ -691,20 +739,156 @@ _Generado el ${new Date().toLocaleString('es-BO')}_`;
           </div>
         )}
 
+        {/* Multi-Person Selector */}
         {(filterType === 'worker' || filterType === 'visitor' || (filterType === 'contractor' && selectedContractor)) && (
-          <div className="pt-2 animate-in fade-in slide-in-from-top-2">
-            <Label className="text-white/70 mb-2 block">Persona Específica (Opcional)</Label>
-            <Select value={selectedPersonId} onValueChange={setSelectedPersonId}>
-              <SelectTrigger className="bg-white/10 border-white/20 text-white">
-                <SelectValue placeholder="Todas" />
-              </SelectTrigger>
-              <SelectContent className="bg-slate-800/95 backdrop-blur-xl border-white/10 max-h-[200px]">
-                <SelectItem value="all" className="text-white/80 focus:bg-white/10">Todas</SelectItem>
-                {filteredPeople.map(p => (
-                  <SelectItem key={p.id} value={p.id} className="text-white/80 focus:bg-white/10">{p.full_name}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+          <div className="pt-2 animate-in fade-in slide-in-from-top-2 space-y-3">
+            <button
+              type="button"
+              onClick={() => setShowPeopleSelector(!showPeopleSelector)}
+              className="w-full flex items-center justify-between px-4 py-3 rounded-lg border bg-white/10 border-white/20 text-white hover:bg-white/15 transition-colors"
+            >
+              <span className="flex items-center gap-2 text-sm">
+                <Users className="w-4 h-4 text-purple-400" />
+                {selectedPersonIds.size === 0
+                  ? 'Seleccionar Personas (Opcional)'
+                  : `${selectedPersonIds.size} persona${selectedPersonIds.size > 1 ? 's' : ''} seleccionada${selectedPersonIds.size > 1 ? 's' : ''}`}
+              </span>
+              <span className={`text-xs text-white/50 transition-transform ${showPeopleSelector ? 'rotate-180' : ''}`}>▼</span>
+            </button>
+
+            {/* Selected People Chips */}
+            {selectedPersonIds.size > 0 && (
+              <div className="flex flex-wrap gap-1.5">
+                {Array.from(selectedPersonIds).map(id => {
+                  const person = filteredPeople.find(p => p.id === id);
+                  if (!person) return null;
+                  return (
+                    <span
+                      key={id}
+                      className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium bg-purple-500/30 text-purple-200 border border-purple-400/20 cursor-pointer hover:bg-purple-500/40 transition-colors"
+                      onClick={() => {
+                        const next = new Set(selectedPersonIds);
+                        next.delete(id);
+                        setSelectedPersonIds(next);
+                      }}
+                    >
+                      {person.full_name}
+                      <X className="w-3 h-3" />
+                    </span>
+                  );
+                })}
+                <button
+                  type="button"
+                  onClick={() => setSelectedPersonIds(new Set())}
+                  className="text-xs text-red-400 hover:text-red-300 px-2 py-1 transition-colors"
+                >
+                  Limpiar todo
+                </button>
+              </div>
+            )}
+
+            {/* Expandable People Panel */}
+            {showPeopleSelector && (
+              <div className="border border-white/10 rounded-lg bg-white/5 overflow-hidden animate-in fade-in slide-in-from-top-2">
+                {/* Search inside panel */}
+                <div className="p-3 border-b border-white/10">
+                  <div className="relative">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-white/40" />
+                    <input
+                      type="text"
+                      placeholder="Buscar por nombre o CI..."
+                      value={peopleSearchQuery}
+                      onChange={(e) => setPeopleSearchQuery(e.target.value)}
+                      className="w-full pl-10 pr-3 py-2 bg-white/10 border border-white/20 rounded-md text-sm text-white placeholder:text-white/40 outline-none focus:border-purple-400/50 transition-colors"
+                    />
+                  </div>
+                </div>
+
+                {/* Quick Actions */}
+                <div className="px-3 py-2 flex items-center justify-between border-b border-white/10 bg-white/[0.03]">
+                  <span className="text-xs text-white/50">
+                    {filteredPeople.filter(p => !peopleSearchQuery.trim() || p.full_name.toLowerCase().includes(peopleSearchQuery.toLowerCase()) || p.ci.includes(peopleSearchQuery)).length} personas
+                  </span>
+                  <div className="flex gap-3">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const visible = filteredPeople.filter(p => !peopleSearchQuery.trim() || p.full_name.toLowerCase().includes(peopleSearchQuery.toLowerCase()) || p.ci.includes(peopleSearchQuery));
+                        const next = new Set(selectedPersonIds);
+                        visible.forEach(p => next.add(p.id));
+                        setSelectedPersonIds(next);
+                      }}
+                      className="text-xs text-purple-400 hover:text-purple-300 transition-colors"
+                    >
+                      Seleccionar todos
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setSelectedPersonIds(new Set())}
+                      className="text-xs text-red-400 hover:text-red-300 transition-colors"
+                    >
+                      Limpiar
+                    </button>
+                  </div>
+                </div>
+
+                {/* People List with Checkboxes */}
+                <div className="max-h-[250px] overflow-y-auto">
+                  {filteredPeople
+                    .filter(p => {
+                      if (!peopleSearchQuery.trim()) return true;
+                      const q = peopleSearchQuery.toLowerCase();
+                      return p.full_name.toLowerCase().includes(q) || p.ci.includes(q);
+                    })
+                    .map(p => {
+                      const isSelected = selectedPersonIds.has(p.id);
+                      return (
+                        <button
+                          key={p.id}
+                          type="button"
+                          onClick={() => {
+                            const next = new Set(selectedPersonIds);
+                            if (isSelected) {
+                              next.delete(p.id);
+                            } else {
+                              next.add(p.id);
+                            }
+                            setSelectedPersonIds(next);
+                          }}
+                          className={`w-full flex items-center gap-3 px-3 py-2.5 text-left hover:bg-white/10 transition-colors ${
+                            isSelected ? 'bg-purple-500/10' : ''
+                          }`}
+                        >
+                          {isSelected
+                            ? <CheckSquare className="w-4 h-4 text-purple-400 shrink-0" />
+                            : <Square className="w-4 h-4 text-white/30 shrink-0" />
+                          }
+                          <div className="flex items-center gap-2 min-w-0 flex-1">
+                            <div className="w-7 h-7 rounded-full bg-purple-500/30 flex items-center justify-center text-xs font-medium text-white shrink-0">
+                              {p.full_name.split(' ').map(n => n[0]).slice(0, 2).join('')}
+                            </div>
+                            <div className="min-w-0">
+                              <div className={`text-sm truncate ${isSelected ? 'text-white font-medium' : 'text-white/80'}`}>
+                                {p.full_name}
+                              </div>
+                              <div className="text-xs text-white/40 truncate">
+                                CI: {p.ci}{p.contractor ? ` • ${p.contractor}` : ''}
+                              </div>
+                            </div>
+                          </div>
+                        </button>
+                      );
+                    })}
+                  {filteredPeople.filter(p => {
+                    if (!peopleSearchQuery.trim()) return true;
+                    const q = peopleSearchQuery.toLowerCase();
+                    return p.full_name.toLowerCase().includes(q) || p.ci.includes(q);
+                  }).length === 0 && (
+                    <div className="text-center text-white/40 text-sm py-6">No se encontraron personas</div>
+                  )}
+                </div>
+              </div>
+            )}
           </div>
         )}
       </div>
