@@ -259,6 +259,35 @@ async function sendTeamsWebhook(webhookUrl: string, title: string, body: string,
     }
 }
 
+// Send to Telegram Bot
+async function sendTelegram(botToken: string, chatId: string, title: string, body: string, siteName: string, alertType: string): Promise<boolean> {
+    try {
+        const emoji = getAlertEmoji(alertType)
+        const timestamp = new Date().toLocaleTimeString('es-BO', { timeZone: 'America/La_Paz' })
+        const text = `${emoji} *${title}*\n\n${body}\n\n📍 _${siteName}_ • ${timestamp}`
+
+        const response = await fetch(`https://api.telegram.org/bot${botToken}/sendMessage`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                chat_id: chatId,
+                text,
+                parse_mode: 'Markdown',
+                disable_web_page_preview: true,
+            }),
+        })
+
+        const result = await response.json()
+        if (!result.ok) {
+            console.error('Telegram error:', result)
+        }
+        return result.ok === true
+    } catch (err) {
+        console.error('Telegram send error:', err)
+        return false
+    }
+}
+
 serve(async (req) => {
     // Handle CORS
     if (req.method === 'OPTIONS') {
@@ -452,7 +481,7 @@ serve(async (req) => {
         // ─── CHANNEL 3: Slack/Teams Webhooks ─────────────────────────────
         const { data: notifSettings } = await supabase
             .from('notification_settings')
-            .select('slack_webhook_url, teams_webhook_url')
+            .select('slack_webhook_url, teams_webhook_url, telegram_bot_token, telegram_chat_id')
             .eq('site_id', site_id)
             .maybeSingle()
 
@@ -464,6 +493,16 @@ serve(async (req) => {
         if (notifSettings?.teams_webhook_url) {
             const ok = await sendTeamsWebhook(notifSettings.teams_webhook_url, title, body, siteName, alert_type)
             if (ok) channels.push('teams')
+        }
+
+        // ─── CHANNEL 4: Telegram Bot ─────────────────────────────────────
+        if (notifSettings?.telegram_bot_token && notifSettings?.telegram_chat_id) {
+            const ok = await sendTelegram(
+                notifSettings.telegram_bot_token,
+                notifSettings.telegram_chat_id,
+                title, body, siteName, alert_type
+            )
+            if (ok) channels.push('telegram')
         }
 
         // ─── Log to alert_history ────────────────────────────────────────

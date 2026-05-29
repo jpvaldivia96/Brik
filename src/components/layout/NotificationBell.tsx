@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { useSite } from '@/contexts/SiteContext';
+import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import { Bell, X, AlertTriangle, Star, Users, Clock, Megaphone, TrendingUp, TrendingDown, Shield, ChevronDown } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -51,7 +52,6 @@ function formatTime(dateStr: string): string {
   return new Date(dateStr).toLocaleTimeString('es-BO', { hour: '2-digit', minute: '2-digit' });
 }
 
-// Group alerts by date → alert_type
 interface AlertGroup {
   alertType: string;
   meta: ReturnType<typeof getAlertMeta>;
@@ -65,7 +65,6 @@ interface DateSection {
 }
 
 function groupAlerts(alerts: AlertHistoryItem[]): DateSection[] {
-  // 1. Group by date
   const dateMap = new Map<string, AlertHistoryItem[]>();
   for (const alert of alerts) {
     const dateLabel = getDateGroup(alert.sent_at);
@@ -73,7 +72,6 @@ function groupAlerts(alerts: AlertHistoryItem[]): DateSection[] {
     dateMap.get(dateLabel)!.push(alert);
   }
 
-  // 2. Within each date, group by alert_type
   const sections: DateSection[] = [];
   for (const [label, items] of dateMap) {
     const typeMap = new Map<string, AlertHistoryItem[]>();
@@ -92,7 +90,6 @@ function groupAlerts(alerts: AlertHistoryItem[]): DateSection[] {
       });
     }
 
-    // Sort groups by latest time (most recent first)
     groups.sort((a, b) => new Date(b.latestTime).getTime() - new Date(a.latestTime).getTime());
     sections.push({ label, groups });
   }
@@ -100,22 +97,77 @@ function groupAlerts(alerts: AlertHistoryItem[]): DateSection[] {
   return sections;
 }
 
+// All known alert_type keys that can be toggled
+const KNOWN_ALERT_TYPES = [
+  'contractor_attendance', 'favorite_entry', 'blocked_entry',
+  'min_capacity', 'max_capacity', 'overtime',
+  'unusual_rotation', 'mass_entry', 'night_activity',
+  'first_entry', 'exit_without_entry', 'low_weekly_attendance',
+  'attendance_record', 'contractor_inactive', 'exponential_growth',
+  'accident_reported', 'safety_milestone', 'weather_alert',
+  'attendance_prediction', 'birthday', 'worker_of_month',
+  'meeting_reminder', 'announcement', 'inspector_visit',
+];
+
 export function NotificationBell() {
   const { currentSite } = useSite();
-  const [alerts, setAlerts] = useState<AlertHistoryItem[]>([]);
+  const { user } = useAuth();
+  const [allAlerts, setAllAlerts] = useState<AlertHistoryItem[]>([]);
+  const [enabledTypes, setEnabledTypes] = useState<Set<string> | null>(null); // null = loading/default all
   const [open, setOpen] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
   const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set());
   const panelRef = useRef<HTMLDivElement>(null);
   const lastSeenRef = useRef<string | null>(null);
 
-  // Load last seen timestamp from localStorage
+  // Load last seen timestamp
   useEffect(() => {
     if (currentSite) {
       const key = `brik_alerts_seen_${currentSite.id}`;
       lastSeenRef.current = localStorage.getItem(key);
     }
   }, [currentSite]);
+
+  // Load user notification preferences
+  useEffect(() => {
+    if (!currentSite || !user) return;
+
+    const loadPrefs = async () => {
+      try {
+        const { data, error } = await (supabase as any)
+          .from('user_notification_preferences')
+          .select('*')
+          .eq('user_id', user.id)
+          .eq('site_id', currentSite.id)
+          .maybeSingle();
+
+        if (error) {
+          console.error('Error loading notification prefs:', error);
+          setEnabledTypes(new Set(KNOWN_ALERT_TYPES)); // default: all enabled
+          return;
+        }
+
+        if (!data) {
+          // No preferences saved yet → show all
+          setEnabledTypes(new Set(KNOWN_ALERT_TYPES));
+          return;
+        }
+
+        // Build set of enabled types from the preferences row
+        const enabled = new Set<string>();
+        for (const key of KNOWN_ALERT_TYPES) {
+          if (data[key] === true || data[key] === undefined) {
+            enabled.add(key);
+          }
+        }
+        setEnabledTypes(enabled);
+      } catch {
+        setEnabledTypes(new Set(KNOWN_ALERT_TYPES));
+      }
+    };
+
+    loadPrefs();
+  }, [currentSite, user]);
 
   // Fetch alerts
   useEffect(() => {
@@ -135,17 +187,7 @@ export function NotificationBell() {
           return;
         }
 
-        const items = (data || []) as AlertHistoryItem[];
-        setAlerts(items);
-
-        // Count unread
-        const lastSeen = lastSeenRef.current;
-        if (lastSeen) {
-          const count = items.filter(a => new Date(a.sent_at) > new Date(lastSeen)).length;
-          setUnreadCount(count);
-        } else {
-          setUnreadCount(Math.min(items.length, 9));
-        }
+        setAllAlerts((data || []) as AlertHistoryItem[]);
       } catch (err) {
         console.error('Error fetching alerts:', err);
       }
@@ -166,8 +208,7 @@ export function NotificationBell() {
         },
         (payload: any) => {
           const newAlert = payload.new as AlertHistoryItem;
-          setAlerts(prev => [newAlert, ...prev].slice(0, 50));
-          setUnreadCount(prev => prev + 1);
+          setAllAlerts(prev => [newAlert, ...prev].slice(0, 50));
         }
       )
       .subscribe();
@@ -177,23 +218,35 @@ export function NotificationBell() {
     };
   }, [currentSite]);
 
+  // Filter alerts by user preferences and compute unread count
+  const filteredAlerts = enabledTypes
+    ? allAlerts.filter(a => enabledTypes.has(a.alert_type))
+    : allAlerts;
+
+  useEffect(() => {
+    const lastSeen = lastSeenRef.current;
+    if (lastSeen) {
+      const count = filteredAlerts.filter(a => new Date(a.sent_at) > new Date(lastSeen)).length;
+      setUnreadCount(count);
+    } else {
+      setUnreadCount(Math.min(filteredAlerts.length, 9));
+    }
+  }, [filteredAlerts]);
+
   // Close on outside click
   useEffect(() => {
     if (!open) return;
-
     const handleClickOutside = (e: MouseEvent) => {
       if (panelRef.current && !panelRef.current.contains(e.target as Node)) {
         setOpen(false);
       }
     };
-
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, [open]);
 
   const handleOpen = () => {
     setOpen(!open);
-
     if (!open && currentSite) {
       const now = new Date().toISOString();
       const key = `brik_alerts_seen_${currentSite.id}`;
@@ -212,7 +265,7 @@ export function NotificationBell() {
     });
   };
 
-  const sections = groupAlerts(alerts);
+  const sections = groupAlerts(filteredAlerts);
 
   return (
     <div className="relative" ref={panelRef}>
@@ -228,8 +281,6 @@ export function NotificationBell() {
         title="Alertas"
       >
         <Bell className={cn("w-5 h-5", open ? "text-purple-400" : "text-white/70")} />
-
-        {/* Badge */}
         {unreadCount > 0 && (
           <span className="absolute -top-1 -right-1 min-w-[18px] h-[18px] flex items-center justify-center rounded-full bg-red-500 text-white text-[10px] font-bold px-1 animate-pulse shadow-lg shadow-red-500/50">
             {unreadCount > 9 ? '9+' : unreadCount}
@@ -260,7 +311,7 @@ export function NotificationBell() {
               <div className="px-4 py-12 text-center">
                 <Bell className="w-8 h-8 text-white/20 mx-auto mb-3" />
                 <p className="text-sm text-white/40">Sin notificaciones aún</p>
-                <p className="text-xs text-white/20 mt-1">Las alertas aparecerán aquí cuando se disparen</p>
+                <p className="text-xs text-white/20 mt-1">Las alertas aparecerán aquí según tus preferencias</p>
               </div>
             ) : (
               sections.map((section) => (
@@ -281,7 +332,6 @@ export function NotificationBell() {
 
                     return (
                       <div key={groupKey} className="border-b border-white/5">
-                        {/* Group Header (collapsible if multiple) */}
                         <button
                           onClick={() => hasMultiple && toggleGroup(groupKey)}
                           className={cn(
@@ -289,12 +339,10 @@ export function NotificationBell() {
                             hasMultiple ? "hover:bg-white/5 cursor-pointer" : "cursor-default"
                           )}
                         >
-                          {/* Icon */}
                           <div className={cn("w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0", group.meta.bg)}>
                             <Icon className={cn("w-[18px] h-[18px]", group.meta.color)} />
                           </div>
 
-                          {/* Content */}
                           <div className="flex-1 min-w-0">
                             <div className="flex items-center justify-between gap-2">
                               <div className="flex items-center gap-2 min-w-0">
@@ -322,7 +370,6 @@ export function NotificationBell() {
                             </p>
                           </div>
 
-                          {/* Expand indicator */}
                           {hasMultiple && (
                             <ChevronDown className={cn(
                               "w-4 h-4 text-white/20 flex-shrink-0 transition-transform duration-200",
@@ -331,7 +378,6 @@ export function NotificationBell() {
                           )}
                         </button>
 
-                        {/* Expanded items */}
                         {isExpanded && hasMultiple && (
                           <div className="bg-white/[0.02]">
                             {group.items.map((alert) => (
