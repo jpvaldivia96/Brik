@@ -50,31 +50,33 @@ export async function checkEntryAlerts(
     personName: string
 ): Promise<void> {
     try {
-        // Get worker profile to check favorite/blocked status
-        const { data: profile } = await (supabase as any)
-            .from('workers_profile')
-            .select('is_favorite, is_blocked')
+        // Check if person is in favorites/blocked list
+        // The app uses the `favorites` table (not workers_profile)
+        const { data: favRecord } = await (supabase as any)
+            .from('favorites')
+            .select('id, is_blocked, block_reason')
+            .eq('site_id', siteId)
             .eq('person_id', personId)
-            .single();
+            .maybeSingle();
 
-        if (!profile) return;
+        if (!favRecord) return; // Not a favorite and not blocked
 
-        if (profile.is_favorite) {
+        // If blocked → send blocked_entry alert
+        if (favRecord.is_blocked) {
+            await triggerAlert({
+                siteId,
+                alertType: 'blocked_entry',
+                title: '🚫 ALERTA: Bloqueado Ingresó',
+                body: `${personName} (BLOQUEADO) ha ingresado a la obra${favRecord.block_reason ? '. Motivo: ' + favRecord.block_reason : ''}`,
+                data: { person_id: personId, person_name: personName, block_reason: favRecord.block_reason },
+            });
+        } else {
+            // If favorite (not blocked) → send favorite_entry alert
             await triggerAlert({
                 siteId,
                 alertType: 'favorite_entry',
                 title: '⭐ Favorito Ingresó',
                 body: `${personName} ha ingresado a la obra`,
-                data: { person_id: personId, person_name: personName },
-            });
-        }
-
-        if (profile.is_blocked) {
-            await triggerAlert({
-                siteId,
-                alertType: 'blocked_entry',
-                title: '🚫 ALERTA: Bloqueado Ingresó',
-                body: `${personName} (BLOQUEADO) ha ingresado a la obra`,
                 data: { person_id: personId, person_name: personName },
             });
         }
