@@ -34,6 +34,7 @@ import SubscribeModal from '@/components/subscription/SubscribeModal';
 import { SuspendedOverlay } from '@/components/subscription/SuspendedOverlay';
 import { SpotlightTutorial } from '@/components/tutorial/SpotlightTutorial';
 import { getCountryFlag, formatSiteDateShort, formatSiteTime, getSiteCurrentTime } from '@/lib/dateUtils';
+import { NotificationBell } from '@/components/layout/NotificationBell';
 
 // Live Date/Time Display Component with Weather and Country Flag
 function DateTimeDisplay() {
@@ -261,9 +262,12 @@ export default function MainLayout() {
                   subscription?.plan === 'pro' ? 'Pro' :
                     subscription?.status === 'trial' ? 'Trial' : 'Free'}
               </span>
-              {/* Date/Time */}
+            {/* Date/Time */}
               <DateTimeDisplay />
             </div>
+
+            {/* Notification Bell - visible to all */}
+            <NotificationBell />
 
             {/* Platform Admin Button - only for juanpablovaldc@gmail.com */}
             {isPlatformAdmin && (
