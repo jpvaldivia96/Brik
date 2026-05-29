@@ -139,7 +139,7 @@ async function sendEmailViaResend(
                     'Content-Type': 'application/json',
                 },
                 body: JSON.stringify({
-                    from: 'BRIK Pro <alertas@brikpro.app>',
+                    from: Deno.env.get('RESEND_FROM_EMAIL') || 'BRIK Pro <onboarding@resend.dev>',
                     to: [email],
                     subject: `${emoji} ${alertTitle}`,
                     html: `
@@ -418,10 +418,16 @@ serve(async (req) => {
                 // Get supervisor emails from auth.users
                 const { data: { users }, error: usersError } = await supabase.auth.admin.listUsers()
 
+                console.log('Auth admin listUsers error:', usersError)
+                console.log('Total users found:', users?.length || 0)
+                console.log('Filtered user IDs:', filteredUserIds)
+
                 if (!usersError && users) {
                     const supervisorEmails = users
                         .filter(u => filteredUserIds.includes(u.id) && u.email)
                         .map(u => u.email!)
+
+                    console.log('Supervisor emails to send:', supervisorEmails)
 
                     if (supervisorEmails.length > 0) {
                         const emailResult = await sendEmailViaResend(
