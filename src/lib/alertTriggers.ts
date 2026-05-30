@@ -1,6 +1,9 @@
 // Alert triggering helpers - call these from entry/exit flows
 import { supabase } from '@/integrations/supabase/client';
 
+// Cooldown map to prevent spam (in-memory, resets on page reload)
+const capacityCooldowns = new Map<string, number>();
+
 interface AlertTriggerOptions {
     siteId: string;
     alertType: string;
@@ -117,24 +120,37 @@ export async function checkCapacityAlerts(siteId: string): Promise<void> {
         const settings = await getAlertSettings(siteId);
         if (!settings) return;
 
+        // Cooldown: don't send same capacity alert more than once every 30 min
+        const cooldownMs = 30 * 60 * 1000;
+
         if (settings.min_capacity_enabled && currentCount < settings.min_capacity_threshold) {
-            await triggerAlert({
-                siteId,
-                alertType: 'min_capacity',
-                title: '📉 Baja Asistencia',
-                body: `Solo hay ${currentCount} personas en obra (mínimo: ${settings.min_capacity_threshold})`,
-                data: { current_count: currentCount, threshold: settings.min_capacity_threshold },
-            });
+            const lastKey = `capacity_min_${siteId}`;
+            const lastSent = capacityCooldowns.get(lastKey);
+            if (!lastSent || Date.now() - lastSent > cooldownMs) {
+                capacityCooldowns.set(lastKey, Date.now());
+                await triggerAlert({
+                    siteId,
+                    alertType: 'min_capacity',
+                    title: '📉 Baja Asistencia',
+                    body: `Solo hay ${currentCount} personas en obra (mínimo: ${settings.min_capacity_threshold})`,
+                    data: { current_count: currentCount, threshold: settings.min_capacity_threshold },
+                });
+            }
         }
 
         if (settings.max_capacity_enabled && currentCount > settings.max_capacity_threshold) {
-            await triggerAlert({
-                siteId,
-                alertType: 'max_capacity',
-                title: '📈 Capacidad Máxima Excedida',
-                body: `Hay ${currentCount} personas en obra (máximo: ${settings.max_capacity_threshold})`,
-                data: { current_count: currentCount, threshold: settings.max_capacity_threshold },
-            });
+            const lastKey = `capacity_max_${siteId}`;
+            const lastSent = capacityCooldowns.get(lastKey);
+            if (!lastSent || Date.now() - lastSent > cooldownMs) {
+                capacityCooldowns.set(lastKey, Date.now());
+                await triggerAlert({
+                    siteId,
+                    alertType: 'max_capacity',
+                    title: '📈 Capacidad Máxima Excedida',
+                    body: `Hay ${currentCount} personas en obra (máximo: ${settings.max_capacity_threshold})`,
+                    data: { current_count: currentCount, threshold: settings.max_capacity_threshold },
+                });
+            }
         }
     } catch (err) {
         console.error('Error checking capacity alerts:', err);
@@ -453,5 +469,6 @@ export async function runExitTriggers(
 ): Promise<void> {
     await Promise.allSettled([
         checkCapacityAlerts(siteId),
+        checkExitWithoutEntry(siteId, personId, personName),
     ]);
 }

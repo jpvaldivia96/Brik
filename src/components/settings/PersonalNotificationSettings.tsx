@@ -97,7 +97,6 @@ const alertCategories = [
             { key: 'low_weekly_attendance', label: 'Baja Asistencia Semanal', icon: TrendingDown, description: 'Alerta basada en promedio semanal' },
             { key: 'attendance_record', label: 'Récord de Asistencia', icon: Trophy, description: 'Día con mayor asistencia histórica' },
             { key: 'contractor_inactive', label: 'Contratista Sin Actividad', icon: AlertCircle, description: 'Sin trabajadores por X días' },
-            { key: 'exponential_growth', label: 'Crecimiento Exponencial', icon: TrendingUp, description: 'Detección de aumento rápido' },
         ]
     },
     {
@@ -119,14 +118,6 @@ const alertCategories = [
         alerts: [
             { key: 'min_capacity', label: 'Capacidad Mínima', icon: TrendingDown, description: 'Alerta de baja ocupación' },
             { key: 'max_capacity', label: 'Capacidad Máxima', icon: TrendingUp, description: 'Alerta de sobrecupo' },
-        ]
-    },
-    {
-        name: 'Inteligentes & Predictivas',
-        icon: Brain,
-        alerts: [
-            { key: 'weather_alert', label: 'Alerta Climática', icon: Cloud, description: 'Lluvia/viento fuerte detectado' },
-            { key: 'attendance_prediction', label: 'Predicción de Asistencia', icon: Brain, description: 'IA predice baja asistencia mañana' },
         ]
     },
     {
