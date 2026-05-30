@@ -23,7 +23,11 @@ import {
     Megaphone,
     UserCheck,
     Save,
-    Key
+    Key,
+    Send,
+    CheckCircle2,
+    ExternalLink,
+    Unlink
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { Input } from '@/components/ui/input';
@@ -77,6 +81,7 @@ interface UserPreferences {
     safety_milestone_days?: number;
     birthday_alert_time?: string;
     meeting_reminder_minutes?: number;
+    telegram_chat_id?: string | null;
 }
 
 
@@ -573,6 +578,81 @@ export function PersonalNotificationSettings() {
                             )}
                         </Button>
                     </div>
+                </div>
+            </div>
+
+            {/* Telegram Personal */}
+            <div className="space-y-4 pt-6 border-t">
+                <div className="flex items-center gap-2 pb-2">
+                    <Send className="h-5 w-5 text-primary" />
+                    <h3 className="text-lg font-semibold">Telegram Personal</h3>
+                </div>
+
+                <div className="p-4 rounded-lg border bg-card">
+                    {(preferences as any)?.telegram_chat_id ? (
+                        <div className="space-y-3">
+                            <div className="flex items-center gap-2 text-green-600 dark:text-green-400">
+                                <CheckCircle2 className="h-5 w-5" />
+                                <span className="font-medium">Telegram conectado</span>
+                            </div>
+                            <p className="text-sm text-muted-foreground">
+                                Recibes alertas personalizadas en tu Telegram.
+                            </p>
+                            <Button
+                                variant="outline"
+                                size="sm"
+                                className="text-red-500 hover:text-red-600"
+                                onClick={async () => {
+                                    if (!user || !currentSite) return;
+                                    await (supabase as any)
+                                        .from('user_notification_preferences')
+                                        .update({ telegram_chat_id: null })
+                                        .eq('user_id', user.id)
+                                        .eq('site_id', currentSite.id);
+                                    setPreferences({ ...preferences, telegram_chat_id: null } as any);
+                                    toast.success('Telegram desconectado');
+                                }}
+                            >
+                                <Unlink className="h-4 w-4 mr-2" />
+                                Desconectar
+                            </Button>
+                        </div>
+                    ) : (
+                        <div className="space-y-3">
+                            <p className="text-sm text-muted-foreground">
+                                Conecta tu Telegram para recibir alertas personales directamente en tu celular.
+                            </p>
+                            <Button
+                                onClick={() => {
+                                    if (!user) return;
+                                    const botUrl = `https://t.me/BrikProBot?start=${user.id}`;
+                                    window.open(botUrl, '_blank');
+                                    toast.success('Abre Telegram y toca INICIAR en el bot');
+                                    // Poll to check if connected
+                                    const interval = setInterval(async () => {
+                                        const { data } = await (supabase as any)
+                                            .from('user_notification_preferences')
+                                            .select('telegram_chat_id')
+                                            .eq('user_id', user.id)
+                                            .eq('site_id', currentSite!.id)
+                                            .single();
+                                        if (data?.telegram_chat_id) {
+                                            clearInterval(interval);
+                                            setPreferences({ ...preferences, telegram_chat_id: data.telegram_chat_id } as any);
+                                            toast.success('¡Telegram conectado! 🎉');
+                                        }
+                                    }, 3000);
+                                    // Stop polling after 2 minutes
+                                    setTimeout(() => clearInterval(interval), 120000);
+                                }}
+                                className="bg-[#0088cc] hover:bg-[#006699] text-white"
+                            >
+                                <Send className="h-4 w-4 mr-2" />
+                                Conectar Telegram
+                                <ExternalLink className="h-3 w-3 ml-2" />
+                            </Button>
+                        </div>
+                    )}
                 </div>
             </div>
 

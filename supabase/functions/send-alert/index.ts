@@ -495,7 +495,10 @@ serve(async (req) => {
             if (ok) channels.push('teams')
         }
 
-        // ─── CHANNEL 4: Telegram Bot ─────────────────────────────────────
+        // ─── CHANNEL 4: Telegram Bot (site-wide + personal) ────────────────
+        const TELEGRAM_BOT_TOKEN = '8825992226:AAGHxy_dAXKo_FHOM6L46Sq4FvkUJ6zapdg'
+
+        // 4a. Site-wide Telegram (notification_settings)
         if (notifSettings?.telegram_bot_token && notifSettings?.telegram_chat_id) {
             const ok = await sendTelegram(
                 notifSettings.telegram_bot_token,
@@ -503,6 +506,31 @@ serve(async (req) => {
                 title, body, siteName, alert_type
             )
             if (ok) channels.push('telegram')
+        }
+
+        // 4b. Personal Telegram (per-user chat_id from user_notification_preferences)
+        const { data: userTgPrefs } = await supabase
+            .from('user_notification_preferences')
+            .select('telegram_chat_id')
+            .eq('site_id', site_id)
+            .in('user_id', filteredUserIds)
+            .not('telegram_chat_id', 'is', null)
+
+        if (userTgPrefs && userTgPrefs.length > 0) {
+            const personalChatIds = userTgPrefs
+                .map((p: any) => p.telegram_chat_id)
+                .filter((id: string) => id && id !== notifSettings?.telegram_chat_id) // avoid duplicate to site-wide
+
+            for (const chatId of personalChatIds) {
+                const ok = await sendTelegram(
+                    TELEGRAM_BOT_TOKEN,
+                    chatId,
+                    title, body, siteName, alert_type
+                )
+                if (ok && !channels.includes('telegram_personal')) {
+                    channels.push('telegram_personal')
+                }
+            }
         }
 
         // ─── Log to alert_history ────────────────────────────────────────
