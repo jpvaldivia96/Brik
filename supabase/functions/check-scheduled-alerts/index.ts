@@ -500,12 +500,29 @@ async function checkSafetyMilestone(supabase: any, siteId: string, settings: any
     return 0
 }
 
-// ─── Helper: Send alert via send-alert Edge Function ────────────────────────
+// ─── Helper: Send alert via send-alert Edge Function (HTTP) ─────────────────
 
-async function sendAlert(supabase: any, payload: any) {
+async function sendAlert(_supabase: any, payload: any) {
     try {
-        await supabase.functions.invoke('send-alert', { body: payload })
+        const supabaseUrl = Deno.env.get('SUPABASE_URL')!
+        const serviceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
+
+        const response = await fetch(`${supabaseUrl}/functions/v1/send-alert`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${serviceKey}`,
+            },
+            body: JSON.stringify(payload),
+        })
+
+        const result = await response.json()
+        if (!response.ok) {
+            console.error('send-alert error:', response.status, result)
+        } else {
+            console.log('send-alert OK:', result?.channels)
+        }
     } catch (err) {
-        console.error('Error sending alert:', err)
+        console.error('Error calling send-alert:', err)
     }
 }
