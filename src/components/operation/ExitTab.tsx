@@ -11,7 +11,7 @@ import { LogOut, Camera, SwitchCamera } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useFace } from '@/hooks/useFace';
 import { triggerDashboardRefresh } from '@/lib/dashboardRefresh';
-import { checkCapacityAlerts } from '@/lib/alertTriggers';
+import { runExitTriggers } from '@/lib/alertTriggers';
 
 export default function ExitTab() {
   const { currentSite } = useSite();
@@ -302,8 +302,8 @@ export default function ExitTab() {
       toast({ title: 'Salida registrada', description: `${selected.full_name} salió correctamente.` });
       triggerDashboardRefresh();
 
-      // Fire capacity alert check after exit (non-blocking)
-      checkCapacityAlerts(currentSite.id).catch(console.error);
+      // Fire exit triggers (non-blocking)
+      runExitTriggers(currentSite.id, selected.id, selected.full_name).catch(console.error);
 
       setSelected(null);
       setQuery('');

@@ -12,7 +12,7 @@ import { LogIn, Camera, SwitchCamera, ShieldAlert } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useFace } from '@/hooks/useFace';
 import { triggerDashboardRefresh } from '@/lib/dashboardRefresh';
-import { checkEntryAlerts, checkCapacityAlerts } from '@/lib/alertTriggers';
+import { runEntryTriggers } from '@/lib/alertTriggers';
 
 export default function EntryTab() {
   const { currentSite } = useSite();
@@ -359,9 +359,8 @@ export default function EntryTab() {
       toast({ title: 'Entrada registrada', description: `${selected.full_name} ingresó correctamente.` });
       triggerDashboardRefresh();
 
-      // Fire alert triggers (non-blocking)
-      checkEntryAlerts(currentSite.id, selected.id, selected.full_name).catch(console.error);
-      checkCapacityAlerts(currentSite.id).catch(console.error);
+      // Fire all alert triggers (non-blocking)
+      runEntryTriggers(currentSite.id, selected.id, selected.full_name).catch(console.error);
 
       setSelected(null);
       setQuery('');

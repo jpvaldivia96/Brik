@@ -14,7 +14,7 @@ import type { PersonSearchResult } from '@/lib/types';
 import { triggerDashboardRefresh } from '@/lib/dashboardRefresh';
 import { logAuditEvent } from '@/lib/auditLog';
 import { useAuth } from '@/contexts/AuthContext';
-import { checkEntryAlerts, checkCapacityAlerts } from '@/lib/alertTriggers';
+import { runEntryTriggers, runExitTriggers } from '@/lib/alertTriggers';
 
 interface BottomActionBarProps {
   activeAction: string;
@@ -245,9 +245,8 @@ export default function BottomActionBar({ activeAction, onActionChange }: Omit<B
                 toast({ title: '✓ Entrada registrada', description: personData.full_name });
                 triggerDashboardRefresh();
 
-                // Fire alert triggers (non-blocking)
-                checkEntryAlerts(currentSite.id, match.id, personData.full_name).catch(console.error);
-                checkCapacityAlerts(currentSite.id).catch(console.error);
+                // Fire all alert triggers (non-blocking)
+                runEntryTriggers(currentSite.id, match.id, personData.full_name).catch(console.error);
               }
             }
             setScanning(false);
@@ -283,8 +282,8 @@ export default function BottomActionBar({ activeAction, onActionChange }: Omit<B
               toast({ title: '✓ Salida registrada', description: (logToUpdate.people as any).full_name });
               triggerDashboardRefresh();
 
-              // Fire capacity check after exit (non-blocking)
-              checkCapacityAlerts(currentSite.id).catch(console.error);
+              // Fire exit triggers (non-blocking)
+              runExitTriggers(currentSite.id, match.id, (logToUpdate.people as any).full_name).catch(console.error);
             }
             setScanning(false);
           } else {
@@ -398,9 +397,8 @@ export default function BottomActionBar({ activeAction, onActionChange }: Omit<B
         toast({ title: '✓ Entrada registrada', description: selected.full_name });
         triggerDashboardRefresh();
 
-        // Fire alert triggers (non-blocking)
-        checkEntryAlerts(currentSite.id, selected.id, selected.full_name).catch(console.error);
-        checkCapacityAlerts(currentSite.id).catch(console.error);
+        // Fire all alert triggers (non-blocking)
+        runEntryTriggers(currentSite.id, selected.id, selected.full_name).catch(console.error);
         // Audit log for manual entry
         logAuditEvent({
           siteId: currentSite.id,
@@ -420,8 +418,8 @@ export default function BottomActionBar({ activeAction, onActionChange }: Omit<B
           toast({ title: '✓ Salida registrada', description: selected.full_name });
           triggerDashboardRefresh();
 
-          // Fire capacity check after exit (non-blocking)
-          checkCapacityAlerts(currentSite.id).catch(console.error);
+          // Fire exit triggers (non-blocking)
+          runExitTriggers(currentSite.id, selected.id, selected.full_name).catch(console.error);
           // Audit log for manual exit
           logAuditEvent({
             siteId: currentSite.id,

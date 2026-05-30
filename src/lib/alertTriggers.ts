@@ -3,7 +3,7 @@ import { supabase } from '@/integrations/supabase/client';
 
 interface AlertTriggerOptions {
     siteId: string;
-    alertType: 'contractor_attendance' | 'favorite_entry' | 'blocked_entry' | 'min_capacity' | 'max_capacity' | 'overtime';
+    alertType: string;
     title: string;
     body: string;
     data?: Record<string, any>;
@@ -40,6 +40,23 @@ export async function triggerAlert(options: AlertTriggerOptions): Promise<boolea
     }
 }
 
+// ─── Helper: get alert_settings for a site ─────────────────────────────────
+
+async function getAlertSettings(siteId: string): Promise<Record<string, any> | null> {
+    try {
+        const { data } = await (supabase as any)
+            .from('alert_settings')
+            .select('*')
+            .eq('site_id', siteId)
+            .single();
+        return data;
+    } catch {
+        return null;
+    }
+}
+
+// ─── TRIGGER 1: Favorite/Blocked Entry ──────────────────────────────────────
+
 /**
  * Check and trigger favorite/blocked entry alerts
  * Call this when someone enters
@@ -50,8 +67,6 @@ export async function checkEntryAlerts(
     personName: string
 ): Promise<void> {
     try {
-        // Check if person is in favorites/blocked list
-        // The app uses the `favorites` table (not workers_profile)
         const { data: favRecord } = await (supabase as any)
             .from('favorites')
             .select('id, is_blocked, block_reason')
@@ -59,9 +74,8 @@ export async function checkEntryAlerts(
             .eq('person_id', personId)
             .maybeSingle();
 
-        if (!favRecord) return; // Not a favorite and not blocked
+        if (!favRecord) return;
 
-        // If blocked → send blocked_entry alert
         if (favRecord.is_blocked) {
             await triggerAlert({
                 siteId,
@@ -71,7 +85,6 @@ export async function checkEntryAlerts(
                 data: { person_id: personId, person_name: personName, block_reason: favRecord.block_reason },
             });
         } else {
-            // If favorite (not blocked) → send favorite_entry alert
             await triggerAlert({
                 siteId,
                 alertType: 'favorite_entry',
@@ -85,13 +98,14 @@ export async function checkEntryAlerts(
     }
 }
 
+// ─── TRIGGER 2: Capacity Alerts ─────────────────────────────────────────────
+
 /**
  * Check capacity thresholds and trigger alerts if needed
  * Call this after any entry/exit
  */
 export async function checkCapacityAlerts(siteId: string): Promise<void> {
     try {
-        // Get current inside count
         const { count } = await supabase
             .from('access_logs')
             .select('*', { count: 'exact', head: true })
@@ -100,17 +114,9 @@ export async function checkCapacityAlerts(siteId: string): Promise<void> {
             .is('voided_at', null);
 
         const currentCount = count || 0;
-
-        // Get alert settings
-        const { data: settings } = await (supabase as any)
-            .from('alert_settings')
-            .select('*')
-            .eq('site_id', siteId)
-            .single();
-
+        const settings = await getAlertSettings(siteId);
         if (!settings) return;
 
-        // Check min capacity
         if (settings.min_capacity_enabled && currentCount < settings.min_capacity_threshold) {
             await triggerAlert({
                 siteId,
@@ -121,7 +127,6 @@ export async function checkCapacityAlerts(siteId: string): Promise<void> {
             });
         }
 
-        // Check max capacity
         if (settings.max_capacity_enabled && currentCount > settings.max_capacity_threshold) {
             await triggerAlert({
                 siteId,
@@ -136,26 +141,21 @@ export async function checkCapacityAlerts(siteId: string): Promise<void> {
     }
 }
 
+// ─── TRIGGER 3: Overtime ────────────────────────────────────────────────────
+
 /**
  * Check overtime alerts
  * Call this periodically or when viewing dashboard
  */
 export async function checkOvertimeAlerts(siteId: string): Promise<void> {
     try {
-        // Get alert settings
-        const { data: settings } = await (supabase as any)
-            .from('alert_settings')
-            .select('overtime_enabled, overtime_hours')
-            .eq('site_id', siteId)
-            .single();
-
+        const settings = await getAlertSettings(siteId);
         if (!settings?.overtime_enabled) return;
 
         const thresholdHours = settings.overtime_hours || 12;
         const thresholdMs = thresholdHours * 60 * 60 * 1000;
         const cutoffTime = new Date(Date.now() - thresholdMs).toISOString();
 
-        // Find people who entered before the cutoff and haven't exited
         const { data: overtime } = await supabase
             .from('access_logs')
             .select('id, name_snapshot, entry_at')
@@ -178,4 +178,280 @@ export async function checkOvertimeAlerts(siteId: string): Promise<void> {
     } catch (err) {
         console.error('Error checking overtime alerts:', err);
     }
+}
+
+// ─── TRIGGER 4: Unusual Rotation ────────────────────────────────────────────
+
+/**
+ * Detect when someone enters/exits multiple times in one day
+ * Call this on every entry
+ */
+export async function checkUnusualRotation(
+    siteId: string,
+    personId: string,
+    personName: string
+): Promise<void> {
+    try {
+        const settings = await getAlertSettings(siteId);
+        if (!settings?.unusual_rotation_enabled) return;
+
+        const threshold = settings.unusual_rotation_threshold || 3;
+        const todayStart = new Date();
+        todayStart.setHours(0, 0, 0, 0);
+
+        const { count } = await supabase
+            .from('access_logs')
+            .select('*', { count: 'exact', head: true })
+            .eq('site_id', siteId)
+            .eq('person_id', personId)
+            .gte('entry_at', todayStart.toISOString());
+
+        if (count && count >= threshold) {
+            await triggerAlert({
+                siteId,
+                alertType: 'unusual_rotation',
+                title: '🔄 Rotación Inusual Detectada',
+                body: `${personName} ha ingresado ${count} veces hoy (umbral: ${threshold})`,
+                data: { person_id: personId, person_name: personName, count, threshold },
+            });
+        }
+    } catch (err) {
+        console.error('Error checking unusual rotation:', err);
+    }
+}
+
+// ─── TRIGGER 5: Mass Entry ──────────────────────────────────────────────────
+
+/**
+ * Detect high volume of entries in short time
+ * Call this on every entry
+ */
+export async function checkMassEntry(siteId: string): Promise<void> {
+    try {
+        const settings = await getAlertSettings(siteId);
+        if (!settings?.mass_entry_enabled) return;
+
+        const threshold = settings.mass_entry_threshold || 20;
+        const minutes = settings.mass_entry_minutes || 15;
+        const cutoff = new Date(Date.now() - minutes * 60 * 1000).toISOString();
+
+        const { count } = await supabase
+            .from('access_logs')
+            .select('*', { count: 'exact', head: true })
+            .eq('site_id', siteId)
+            .gte('entry_at', cutoff);
+
+        if (count && count >= threshold) {
+            await triggerAlert({
+                siteId,
+                alertType: 'mass_entry',
+                title: '🏃 Entrada Masiva Detectada',
+                body: `${count} personas ingresaron en los últimos ${minutes} minutos (umbral: ${threshold})`,
+                data: { count, threshold, minutes },
+            });
+        }
+    } catch (err) {
+        console.error('Error checking mass entry:', err);
+    }
+}
+
+// ─── TRIGGER 6: Night Activity ──────────────────────────────────────────────
+
+/**
+ * Detect entry outside normal hours
+ * Call this on every entry
+ */
+export async function checkNightActivity(
+    siteId: string,
+    personName: string
+): Promise<void> {
+    try {
+        const settings = await getAlertSettings(siteId);
+        if (!settings?.night_activity_enabled) return;
+
+        const now = new Date();
+        const currentHour = now.getHours();
+        const currentMinutes = currentHour * 60 + now.getMinutes();
+
+        // Parse start/end times (default 22:00 - 06:00)
+        const startStr = settings.night_activity_start || '22:00';
+        const endStr = settings.night_activity_end || '06:00';
+        const [startH, startM] = startStr.split(':').map(Number);
+        const [endH, endM] = endStr.split(':').map(Number);
+        const startMinutes = startH * 60 + startM;
+        const endMinutes = endH * 60 + endM;
+
+        let isNight = false;
+        if (startMinutes > endMinutes) {
+            // Overnight range (e.g., 22:00 - 06:00)
+            isNight = currentMinutes >= startMinutes || currentMinutes < endMinutes;
+        } else {
+            // Same-day range
+            isNight = currentMinutes >= startMinutes && currentMinutes < endMinutes;
+        }
+
+        if (isNight) {
+            const timeStr = now.toLocaleTimeString('es-BO', { hour: '2-digit', minute: '2-digit' });
+            await triggerAlert({
+                siteId,
+                alertType: 'night_activity',
+                title: '🌙 Actividad Nocturna',
+                body: `${personName} ingresó a las ${timeStr} (fuera de horario: ${startStr}-${endStr})`,
+                data: { person_name: personName, time: timeStr },
+            });
+        }
+    } catch (err) {
+        console.error('Error checking night activity:', err);
+    }
+}
+
+// ─── TRIGGER 7: First Entry of the Day ──────────────────────────────────────
+
+/**
+ * Detect the first person to enter the site today
+ * Call this on every entry
+ */
+export async function checkFirstEntry(
+    siteId: string,
+    personName: string
+): Promise<void> {
+    try {
+        const settings = await getAlertSettings(siteId);
+        if (!settings?.first_entry_enabled) return;
+
+        const todayStart = new Date();
+        todayStart.setHours(0, 0, 0, 0);
+
+        // Count entries today (including this one)
+        const { count } = await supabase
+            .from('access_logs')
+            .select('*', { count: 'exact', head: true })
+            .eq('site_id', siteId)
+            .gte('entry_at', todayStart.toISOString());
+
+        // If this is the first (or only) entry of the day
+        if (count !== null && count <= 1) {
+            const timeStr = new Date().toLocaleTimeString('es-BO', { hour: '2-digit', minute: '2-digit' });
+            await triggerAlert({
+                siteId,
+                alertType: 'first_entry',
+                title: '🌅 Primera Entrada del Día',
+                body: `${personName} fue el primero en llegar hoy a las ${timeStr}`,
+                data: { person_name: personName, time: timeStr },
+            });
+        }
+    } catch (err) {
+        console.error('Error checking first entry:', err);
+    }
+}
+
+// ─── TRIGGER 8: Exit Without Entry ──────────────────────────────────────────
+
+/**
+ * Detect when someone exits but has no active entry
+ * Call this on every exit attempt
+ */
+export async function checkExitWithoutEntry(
+    siteId: string,
+    personId: string,
+    personName: string
+): Promise<void> {
+    try {
+        const settings = await getAlertSettings(siteId);
+        if (!settings?.exit_without_entry_enabled) return;
+
+        // Check if person has an active entry (entry without exit)
+        const { count } = await supabase
+            .from('access_logs')
+            .select('*', { count: 'exact', head: true })
+            .eq('site_id', siteId)
+            .eq('person_id', personId)
+            .is('exit_at', null)
+            .is('voided_at', null);
+
+        if (count === 0) {
+            await triggerAlert({
+                siteId,
+                alertType: 'exit_without_entry',
+                title: '❌ Salida sin Entrada',
+                body: `${personName} registró salida pero no tiene entrada activa. Posible error o fraude.`,
+                data: { person_id: personId, person_name: personName },
+            });
+        }
+    } catch (err) {
+        console.error('Error checking exit without entry:', err);
+    }
+}
+
+// ─── TRIGGER 9: Inspector Visit ─────────────────────────────────────────────
+
+/**
+ * Detect when an inspector enters the site
+ * Call this on every entry
+ */
+export async function checkInspectorVisit(
+    siteId: string,
+    personId: string,
+    personName: string
+): Promise<void> {
+    try {
+        const settings = await getAlertSettings(siteId);
+        if (!settings?.inspector_visit_enabled) return;
+
+        // Check if person is an inspector
+        const { data: profile } = await (supabase as any)
+            .from('workers_profile')
+            .select('is_inspector')
+            .eq('person_id', personId)
+            .maybeSingle();
+
+        if (profile?.is_inspector) {
+            const timeStr = new Date().toLocaleTimeString('es-BO', { hour: '2-digit', minute: '2-digit' });
+            await triggerAlert({
+                siteId,
+                alertType: 'inspector_visit',
+                title: '👮 Inspector en Obra',
+                body: `${personName} (Inspector) ha ingresado a la obra a las ${timeStr}`,
+                data: { person_id: personId, person_name: personName, time: timeStr },
+            });
+        }
+    } catch (err) {
+        console.error('Error checking inspector visit:', err);
+    }
+}
+
+// ─── COMBINED: Run all entry-time triggers ──────────────────────────────────
+
+/**
+ * Run all triggers that should fire on entry
+ * Call this once per entry to avoid duplicate code
+ */
+export async function runEntryTriggers(
+    siteId: string,
+    personId: string,
+    personName: string
+): Promise<void> {
+    // Run all triggers in parallel for performance
+    await Promise.allSettled([
+        checkEntryAlerts(siteId, personId, personName),
+        checkCapacityAlerts(siteId),
+        checkUnusualRotation(siteId, personId, personName),
+        checkMassEntry(siteId),
+        checkNightActivity(siteId, personName),
+        checkFirstEntry(siteId, personName),
+        checkInspectorVisit(siteId, personId, personName),
+    ]);
+}
+
+/**
+ * Run all triggers that should fire on exit
+ */
+export async function runExitTriggers(
+    siteId: string,
+    personId: string,
+    personName: string
+): Promise<void> {
+    await Promise.allSettled([
+        checkCapacityAlerts(siteId),
+    ]);
 }

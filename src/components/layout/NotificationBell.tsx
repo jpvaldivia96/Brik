@@ -26,6 +26,20 @@ function getAlertMeta(alertType: string): { icon: typeof Bell; color: string; bg
     announcement: { icon: Megaphone, color: 'text-blue-400', bg: 'bg-blue-500/20', label: 'Anuncios' },
     accident_reported: { icon: AlertTriangle, color: 'text-red-500', bg: 'bg-red-500/30', label: 'Accidentes' },
     safety_milestone: { icon: Shield, color: 'text-green-400', bg: 'bg-green-500/20', label: 'Seguridad' },
+    unusual_rotation: { icon: AlertTriangle, color: 'text-amber-400', bg: 'bg-amber-500/20', label: 'Rotación Inusual' },
+    mass_entry: { icon: Users, color: 'text-cyan-400', bg: 'bg-cyan-500/20', label: 'Entrada Masiva' },
+    night_activity: { icon: Clock, color: 'text-indigo-400', bg: 'bg-indigo-500/20', label: 'Actividad Nocturna' },
+    first_entry: { icon: Bell, color: 'text-sky-400', bg: 'bg-sky-500/20', label: 'Primera Entrada' },
+    exit_without_entry: { icon: AlertTriangle, color: 'text-rose-400', bg: 'bg-rose-500/20', label: 'Salida sin Entrada' },
+    inspector_visit: { icon: Shield, color: 'text-violet-400', bg: 'bg-violet-500/20', label: 'Inspector en Obra' },
+    low_weekly_attendance: { icon: TrendingDown, color: 'text-amber-400', bg: 'bg-amber-500/20', label: 'Baja Asistencia' },
+    attendance_record: { icon: TrendingUp, color: 'text-emerald-400', bg: 'bg-emerald-500/20', label: 'Récord Asistencia' },
+    contractor_inactive: { icon: AlertTriangle, color: 'text-gray-400', bg: 'bg-gray-500/20', label: 'Contratista Inactivo' },
+    exponential_growth: { icon: TrendingUp, color: 'text-lime-400', bg: 'bg-lime-500/20', label: 'Crecimiento' },
+    birthday: { icon: Star, color: 'text-pink-400', bg: 'bg-pink-500/20', label: 'Cumpleaños' },
+    worker_of_month: { icon: Star, color: 'text-yellow-400', bg: 'bg-yellow-500/20', label: 'Trabajador del Mes' },
+    meeting_reminder: { icon: Clock, color: 'text-blue-400', bg: 'bg-blue-500/20', label: 'Reunión' },
+    weather_alert: { icon: AlertTriangle, color: 'text-teal-400', bg: 'bg-teal-500/20', label: 'Clima' },
   };
   return map[alertType] || { icon: Bell, color: 'text-white/70', bg: 'bg-white/10', label: 'Otros' };
 }
