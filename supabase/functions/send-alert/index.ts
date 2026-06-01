@@ -357,6 +357,22 @@ serve(async (req) => {
         const payload: AlertPayload = await req.json()
         const { site_id, alert_type, title, body, data = {} } = payload
 
+        // ── DIAGNOSTIC MODE ──
+        if (alert_type === '_debug') {
+            const { data: allSites } = await supabase.from('sites').select('id, name')
+            const { data: allMemberships } = await supabase.from('site_memberships').select('*')
+            const { data: allNotifSettings } = await supabase.from('notification_settings').select('*')
+            const { data: allUserPrefs } = await supabase.from('user_notification_preferences').select('*')
+            const { data: allAlertSettings } = await supabase.from('alert_settings').select('*')
+            return new Response(JSON.stringify({
+                sites: allSites,
+                memberships: allMemberships,
+                notification_settings: allNotifSettings,
+                user_prefs: allUserPrefs,
+                alert_settings: allAlertSettings,
+            }, null, 2), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } })
+        }
+
         if (!site_id || !alert_type || !title || !body) {
             throw new Error('Missing required fields: site_id, alert_type, title, body')
         }
@@ -369,16 +385,36 @@ serve(async (req) => {
             .single()
         const siteName = siteData?.name || 'Obra'
 
-        // Get supervisors of this site
-        const { data: memberships } = await supabase
+        // Get all members of this site (any role)
+        let memberships: any[] | null = null
+        
+        // Try site_memberships first
+        const { data: memberData } = await supabase
             .from('site_memberships')
             .select('user_id')
             .eq('site_id', site_id)
-            .eq('role', 'supervisor')
+        memberships = memberData
+
+        // Fallback: if no memberships, try site_users table
+        if (!memberships || memberships.length === 0) {
+            const { data: siteUsers } = await supabase
+                .from('site_users')
+                .select('user_id')
+                .eq('site_id', site_id)
+            memberships = siteUsers
+        }
+
+        // Last fallback: get ALL platform admins
+        if (!memberships || memberships.length === 0) {
+            const { data: admins } = await supabase
+                .from('platform_admins')
+                .select('user_id')
+            memberships = admins
+        }
 
         if (!memberships || memberships.length === 0) {
             return new Response(
-                JSON.stringify({ success: false, message: 'No supervisors found for site' }),
+                JSON.stringify({ success: false, message: 'No users found for site' }),
                 { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
             )
         }
