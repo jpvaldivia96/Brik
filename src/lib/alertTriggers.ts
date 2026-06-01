@@ -235,7 +235,8 @@ export async function checkOvertimeAlerts(siteId: string): Promise<void> {
 export async function checkUnusualRotation(
     siteId: string,
     personId: string,
-    personName: string
+    personName: string,
+    contractorName?: string
 ): Promise<void> {
     try {
         const settings = await getAlertSettings(siteId);
@@ -253,12 +254,13 @@ export async function checkUnusualRotation(
             .gte('entry_at', todayStart.toISOString());
 
         if (count && count >= threshold) {
+            const contractor = contractorName ? `\n${contractorName}` : '';
             await triggerAlert({
                 siteId,
                 alertType: 'unusual_rotation',
                 title: '🔄 Rotación Inusual Detectada',
-                body: `${personName} ha ingresado ${count} veces hoy (umbral: ${threshold})`,
-                data: { person_id: personId, person_name: personName, count, threshold },
+                body: `${personName}${contractor}\nIngresó ${count} veces hoy (umbral: ${threshold})`,
+                data: { person_id: personId, person_name: personName, contractor_name: contractorName || '', count, threshold },
             });
         }
     } catch (err) {
@@ -281,18 +283,31 @@ export async function checkMassEntry(siteId: string): Promise<void> {
         const minutes = settings.mass_entry_minutes || 15;
         const cutoff = new Date(Date.now() - minutes * 60 * 1000).toISOString();
 
-        const { count } = await supabase
+        const { data: recentEntries } = await supabase
             .from('access_logs')
-            .select('*', { count: 'exact', head: true })
+            .select('name_snapshot, contractor_snapshot, entry_at')
             .eq('site_id', siteId)
-            .gte('entry_at', cutoff);
+            .gte('entry_at', cutoff)
+            .order('entry_at', { ascending: false })
+            .limit(30);
 
-        if (count && count >= threshold) {
+        const count = recentEntries?.length || 0;
+        if (count >= threshold) {
+            // Group by contractor
+            const byContractor: Record<string, string[]> = {};
+            for (const e of recentEntries || []) {
+                const c = e.contractor_snapshot || 'Sin contratista';
+                if (!byContractor[c]) byContractor[c] = [];
+                byContractor[c].push(e.name_snapshot);
+            }
+            const lines = Object.entries(byContractor).map(
+                ([contractor, names]) => `• ${contractor}: ${names.length} (${names.slice(0, 5).join(', ')}${names.length > 5 ? '...' : ''})`
+            );
             await triggerAlert({
                 siteId,
                 alertType: 'mass_entry',
                 title: '🏃 Entrada Masiva Detectada',
-                body: `${count} personas ingresaron en los últimos ${minutes} minutos (umbral: ${threshold})`,
+                body: `${count} personas en ${minutes} min:\n${lines.join('\n')}`,
                 data: { count, threshold, minutes },
             });
         }
@@ -309,7 +324,8 @@ export async function checkMassEntry(siteId: string): Promise<void> {
  */
 export async function checkNightActivity(
     siteId: string,
-    personName: string
+    personName: string,
+    contractorName?: string
 ): Promise<void> {
     try {
         const settings = await getAlertSettings(siteId);
@@ -329,21 +345,20 @@ export async function checkNightActivity(
 
         let isNight = false;
         if (startMinutes > endMinutes) {
-            // Overnight range (e.g., 22:00 - 06:00)
             isNight = currentMinutes >= startMinutes || currentMinutes < endMinutes;
         } else {
-            // Same-day range
             isNight = currentMinutes >= startMinutes && currentMinutes < endMinutes;
         }
 
         if (isNight) {
             const timeStr = now.toLocaleTimeString('es-BO', { hour: '2-digit', minute: '2-digit' });
+            const contractor = contractorName ? `\n${contractorName}` : '';
             await triggerAlert({
                 siteId,
                 alertType: 'night_activity',
                 title: '🌙 Actividad Nocturna',
-                body: `${personName} ingresó a las ${timeStr} (fuera de horario: ${startStr}-${endStr})`,
-                data: { person_name: personName, time: timeStr },
+                body: `${personName}${contractor}\nIngresó a las ${timeStr} (horario: ${startStr}-${endStr})`,
+                data: { person_name: personName, contractor_name: contractorName || '', time: timeStr },
             });
         }
     } catch (err) {
@@ -359,7 +374,8 @@ export async function checkNightActivity(
  */
 export async function checkFirstEntry(
     siteId: string,
-    personName: string
+    personName: string,
+    contractorName?: string
 ): Promise<void> {
     try {
         const settings = await getAlertSettings(siteId);
@@ -378,12 +394,13 @@ export async function checkFirstEntry(
         // If this is the first (or only) entry of the day
         if (count !== null && count <= 1) {
             const timeStr = new Date().toLocaleTimeString('es-BO', { hour: '2-digit', minute: '2-digit' });
+            const contractor = contractorName ? `\n${contractorName}` : '';
             await triggerAlert({
                 siteId,
                 alertType: 'first_entry',
                 title: '🌅 Primera Entrada del Día',
-                body: `${personName} fue el primero en llegar hoy a las ${timeStr}`,
-                data: { person_name: personName, time: timeStr },
+                body: `${personName}${contractor}\nPrimero en llegar hoy a las ${timeStr}`,
+                data: { person_name: personName, contractor_name: contractorName || '', time: timeStr },
             });
         }
     } catch (err) {
@@ -400,7 +417,8 @@ export async function checkFirstEntry(
 export async function checkExitWithoutEntry(
     siteId: string,
     personId: string,
-    personName: string
+    personName: string,
+    contractorName?: string
 ): Promise<void> {
     try {
         const settings = await getAlertSettings(siteId);
@@ -416,12 +434,13 @@ export async function checkExitWithoutEntry(
             .is('voided_at', null);
 
         if (count === 0) {
+            const contractor = contractorName ? `\n${contractorName}` : '';
             await triggerAlert({
                 siteId,
                 alertType: 'exit_without_entry',
                 title: '❌ Salida sin Entrada',
-                body: `${personName} registró salida pero no tiene entrada activa. Posible error o fraude.`,
-                data: { person_id: personId, person_name: personName },
+                body: `${personName}${contractor}\nRegistró salida sin entrada activa. Posible error o fraude.`,
+                data: { person_id: personId, person_name: personName, contractor_name: contractorName || '' },
             });
         }
     } catch (err) {
@@ -482,10 +501,10 @@ export async function runEntryTriggers(
     await Promise.allSettled([
         checkEntryAlerts(siteId, personId, personName, contractorName),
         checkCapacityAlerts(siteId),
-        checkUnusualRotation(siteId, personId, personName),
+        checkUnusualRotation(siteId, personId, personName, contractorName),
         checkMassEntry(siteId),
-        checkNightActivity(siteId, personName),
-        checkFirstEntry(siteId, personName),
+        checkNightActivity(siteId, personName, contractorName),
+        checkFirstEntry(siteId, personName, contractorName),
         checkInspectorVisit(siteId, personId, personName),
     ]);
 }
@@ -496,10 +515,11 @@ export async function runEntryTriggers(
 export async function runExitTriggers(
     siteId: string,
     personId: string,
-    personName: string
+    personName: string,
+    contractorName?: string
 ): Promise<void> {
     await Promise.allSettled([
         checkCapacityAlerts(siteId),
-        checkExitWithoutEntry(siteId, personId, personName),
+        checkExitWithoutEntry(siteId, personId, personName, contractorName),
     ]);
 }

@@ -283,7 +283,7 @@ export default function BottomActionBar({ activeAction, onActionChange }: Omit<B
               triggerDashboardRefresh();
 
               // Fire exit triggers (non-blocking)
-              runExitTriggers(currentSite.id, match.id, (logToUpdate.people as any).full_name).catch(console.error);
+              runExitTriggers(currentSite.id, match.id, (logToUpdate.people as any).full_name, logToUpdate.contractor_snapshot).catch(console.error);
             }
             setScanning(false);
           } else {
@@ -419,7 +419,7 @@ export default function BottomActionBar({ activeAction, onActionChange }: Omit<B
           triggerDashboardRefresh();
 
           // Fire exit triggers (non-blocking)
-          runExitTriggers(currentSite.id, selected.id, selected.full_name).catch(console.error);
+          runExitTriggers(currentSite.id, selected.id, selected.full_name, selected.contractor).catch(console.error);
           // Audit log for manual exit
           logAuditEvent({
             siteId: currentSite.id,

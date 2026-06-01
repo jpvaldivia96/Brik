@@ -303,7 +303,7 @@ export default function ExitTab() {
       triggerDashboardRefresh();
 
       // Fire exit triggers (non-blocking)
-      runExitTriggers(currentSite.id, selected.id, selected.full_name).catch(console.error);
+      runExitTriggers(currentSite.id, selected.id, selected.full_name, selected.contractor).catch(console.error);
 
       setSelected(null);
       setQuery('');
