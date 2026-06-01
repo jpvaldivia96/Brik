@@ -125,31 +125,45 @@ async function checkContractorAttendance(supabase: any, siteId: string, settings
     const todayStart = new Date()
     todayStart.setHours(0, 0, 0, 0)
 
-    // Get total registered workers for this site
-    const { count: totalWorkers } = await supabase
-        .from('access_logs')
-        .select('person_id', { count: 'exact', head: true })
+    // Get contractors for this site
+    const { data: contractors } = await supabase
+        .from('contractors')
+        .select('id, name')
         .eq('site_id', siteId)
-        .is('voided_at', null)
 
-    // Get today's unique entries
-    const { data: todayEntries } = await supabase
-        .from('access_logs')
-        .select('person_id')
-        .eq('site_id', siteId)
-        .gte('entry_at', todayStart.toISOString())
-        .is('voided_at', null)
+    if (!contractors || contractors.length === 0) return 0
 
-    const uniqueToday = new Set((todayEntries || []).map((e: any) => e.person_id)).size
-    const rate = totalWorkers ? (uniqueToday / totalWorkers) * 100 : 0
+    const lowContractors: string[] = []
+    for (const c of contractors) {
+        // Total workers of this contractor
+        const { count: total } = await supabase
+            .from('people')
+            .select('*', { count: 'exact', head: true })
+            .eq('contractor', c.name)
 
-    if (rate < threshold) {
+        // Today's entries for this contractor
+        const { data: todayEntries } = await supabase
+            .from('access_logs')
+            .select('person_id')
+            .eq('site_id', siteId)
+            .eq('contractor_snapshot', c.name)
+            .gte('entry_at', todayStart.toISOString())
+            .is('voided_at', null)
+
+        const present = new Set((todayEntries || []).map((e: any) => e.person_id)).size
+        const rate = total ? (present / total) * 100 : 100
+        if (rate < threshold) {
+            lowContractors.push(`• ${c.name}: ${present}/${total} (${rate.toFixed(0)}%)`)
+        }
+    }
+
+    if (lowContractors.length > 0) {
         await sendAlert(supabase, {
             site_id: siteId,
             alert_type: 'contractor_attendance',
             title: '👷 Baja Asistencia de Contratistas',
-            body: `Asistencia actual: ${rate.toFixed(0)}% (${uniqueToday} de ${totalWorkers} registrados). Umbral: ${threshold}%`,
-            data: { rate, unique_today: uniqueToday, total: totalWorkers, threshold }
+            body: `${lowContractors.length} contratista(s) bajo ${threshold}%:\n${lowContractors.join('\n')}`,
+            data: { count: lowContractors.length, threshold }
         })
         return 1
     }
@@ -443,20 +457,24 @@ async function checkOvertime(supabase: any, siteId: string, settings: any): Prom
 
     const { data: overtime } = await supabase
         .from('access_logs')
-        .select('id, name_snapshot, entry_at')
+        .select('id, name_snapshot, contractor_snapshot, entry_at')
         .eq('site_id', siteId)
         .is('exit_at', null)
         .is('voided_at', null)
         .lt('entry_at', cutoffTime)
-        .limit(10)
+        .limit(20)
 
     if (overtime && overtime.length > 0) {
-        const names = overtime.map((p: any) => p.name_snapshot).join(', ')
+        const lines = overtime.map((p: any) => {
+            const hours = Math.round((Date.now() - new Date(p.entry_at).getTime()) / 3600000)
+            const contractor = p.contractor_snapshot ? ` (${p.contractor_snapshot})` : ''
+            return `• ${p.name_snapshot}${contractor} — ${hours}h`
+        })
         await sendAlert(supabase, {
             site_id: siteId,
             alert_type: 'overtime',
             title: '⏰ Alerta de Horas Extras',
-            body: `${overtime.length} persona(s) superaron ${thresholdHours}h en obra: ${names}`,
+            body: `${overtime.length} persona(s) superan ${thresholdHours}h:\n${lines.join('\n')}`,
             data: { count: overtime.length, people: overtime }
         })
         return 1

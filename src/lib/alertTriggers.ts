@@ -200,20 +200,24 @@ export async function checkOvertimeAlerts(siteId: string): Promise<void> {
 
         const { data: overtime } = await supabase
             .from('access_logs')
-            .select('id, name_snapshot, entry_at')
+            .select('id, name_snapshot, contractor_snapshot, entry_at')
             .eq('site_id', siteId)
             .is('exit_at', null)
             .is('voided_at', null)
             .lt('entry_at', cutoffTime)
-            .limit(5);
+            .limit(20);
 
         if (overtime && overtime.length > 0) {
-            const names = overtime.map(p => p.name_snapshot).join(', ');
+            const lines = overtime.map(p => {
+                const hours = Math.round((Date.now() - new Date(p.entry_at).getTime()) / 3600000);
+                const contractor = p.contractor_snapshot ? ` (${p.contractor_snapshot})` : '';
+                return `• ${p.name_snapshot}${contractor} — ${hours}h`;
+            });
             await triggerAlert({
                 siteId,
                 alertType: 'overtime',
                 title: '⏰ Alerta de Horas Extras',
-                body: `${overtime.length} persona(s) superaron ${thresholdHours}h: ${names}`,
+                body: `${overtime.length} persona(s) superan ${thresholdHours}h:\n${lines.join('\n')}`,
                 data: { count: overtime.length, people: overtime },
             });
         }
