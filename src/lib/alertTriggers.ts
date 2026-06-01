@@ -43,18 +43,43 @@ export async function triggerAlert(options: AlertTriggerOptions): Promise<boolea
     }
 }
 
-// ─── Helper: get alert_settings for a site ─────────────────────────────────
+// ─── Default settings for sites without explicit configuration ──────────────
+const DEFAULT_ALERT_SETTINGS: Record<string, any> = {
+    favorite_entry_enabled: true,
+    blocked_entry_enabled: true,
+    min_capacity_enabled: false,
+    min_capacity_threshold: 0,
+    max_capacity_enabled: false,
+    max_capacity_threshold: 100,
+    overtime_enabled: true,
+    overtime_hours: 12,
+    contractor_attendance_enabled: true,
+    contractor_attendance_threshold: 50,
+    // These don't have DB columns yet but triggers check them:
+    unusual_rotation_enabled: true,
+    unusual_rotation_threshold: 3,
+    mass_entry_enabled: true,
+    mass_entry_threshold: 20,
+    mass_entry_minutes: 15,
+    night_activity_enabled: true,
+    night_activity_start: 22,
+    night_activity_end: 6,
+    first_entry_enabled: true,
+    exit_without_entry_enabled: true,
+    inspector_visit_enabled: true,
+};
 
-async function getAlertSettings(siteId: string): Promise<Record<string, any> | null> {
+async function getAlertSettings(siteId: string): Promise<Record<string, any>> {
     try {
         const { data } = await (supabase as any)
             .from('alert_settings')
             .select('*')
             .eq('site_id', siteId)
             .single();
-        return data;
+        // Merge DB settings with defaults (DB values override defaults)
+        return { ...DEFAULT_ALERT_SETTINGS, ...(data || {}) };
     } catch {
-        return null;
+        return { ...DEFAULT_ALERT_SETTINGS };
     }
 }
 
