@@ -360,7 +360,7 @@ export default function EntryTab() {
       triggerDashboardRefresh();
 
       // Fire all alert triggers (non-blocking)
-      runEntryTriggers(currentSite.id, selected.id, selected.full_name).catch(console.error);
+      runEntryTriggers(currentSite.id, selected.id, selected.full_name, selected.contractor).catch(console.error);
 
       setSelected(null);
       setQuery('');

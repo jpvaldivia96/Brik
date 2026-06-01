@@ -246,7 +246,7 @@ export default function BottomActionBar({ activeAction, onActionChange }: Omit<B
                 triggerDashboardRefresh();
 
                 // Fire all alert triggers (non-blocking)
-                runEntryTriggers(currentSite.id, match.id, personData.full_name).catch(console.error);
+                runEntryTriggers(currentSite.id, match.id, personData.full_name, personData.contractor).catch(console.error);
               }
             }
             setScanning(false);
@@ -398,7 +398,7 @@ export default function BottomActionBar({ activeAction, onActionChange }: Omit<B
         triggerDashboardRefresh();
 
         // Fire all alert triggers (non-blocking)
-        runEntryTriggers(currentSite.id, selected.id, selected.full_name).catch(console.error);
+        runEntryTriggers(currentSite.id, selected.id, selected.full_name, selected.contractor).catch(console.error);
         // Audit log for manual entry
         logAuditEvent({
           siteId: currentSite.id,

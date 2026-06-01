@@ -67,7 +67,8 @@ async function getAlertSettings(siteId: string): Promise<Record<string, any> | n
 export async function checkEntryAlerts(
     siteId: string,
     personId: string,
-    personName: string
+    personName: string,
+    contractorName?: string
 ): Promise<void> {
     try {
         const { data: favRecord } = await (supabase as any)
@@ -85,7 +86,7 @@ export async function checkEntryAlerts(
                 alertType: 'blocked_entry',
                 title: '🚫 ALERTA: Bloqueado Ingresó',
                 body: `${personName} (BLOQUEADO) ha ingresado a la obra${favRecord.block_reason ? '. Motivo: ' + favRecord.block_reason : ''}`,
-                data: { person_id: personId, person_name: personName, block_reason: favRecord.block_reason },
+                data: { person_id: personId, person_name: personName, contractor_name: contractorName || '', block_reason: favRecord.block_reason },
             });
         } else {
             await triggerAlert({
@@ -93,7 +94,7 @@ export async function checkEntryAlerts(
                 alertType: 'favorite_entry',
                 title: '⭐ Favorito Ingresó',
                 body: `${personName} ha ingresado a la obra`,
-                data: { person_id: personId, person_name: personName },
+                data: { person_id: personId, person_name: personName, contractor_name: contractorName || '' },
             });
         }
     } catch (err) {
@@ -445,11 +446,12 @@ export async function checkInspectorVisit(
 export async function runEntryTriggers(
     siteId: string,
     personId: string,
-    personName: string
+    personName: string,
+    contractorName?: string
 ): Promise<void> {
     // Run all triggers in parallel for performance
     await Promise.allSettled([
-        checkEntryAlerts(siteId, personId, personName),
+        checkEntryAlerts(siteId, personId, personName, contractorName),
         checkCapacityAlerts(siteId),
         checkUnusualRotation(siteId, personId, personName),
         checkMassEntry(siteId),
