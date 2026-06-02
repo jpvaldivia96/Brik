@@ -392,9 +392,9 @@ async function sendTelegram(botToken: string, chatId: string, title: string, bod
                 break
 
             case 'exponential_growth':
-                text = `<b>Crecimiento exponencial</b>\n\n`
+                text = `<b>Resumen Semanal</b>\n\n`
                     + `${body}\n`
-                    + `\n${siteName} — ${timestamp}`
+                    + `\n${siteName}`
                 break
 
             case 'meeting_reminder':

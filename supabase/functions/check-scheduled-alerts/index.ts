@@ -336,44 +336,136 @@ async function checkInactiveContractors(supabase: any, siteId: string, settings:
     return sent
 }
 
-// ─── Exponential Growth Check ───────────────────────────────────────────────
+// ─── Weekly Summary / Trend Report ──────────────────────────────────────────
 
 async function checkExponentialGrowth(supabase: any, siteId: string, settings: any): Promise<number> {
     if (!settings.exponential_growth_enabled) return 0
 
-    const growthThreshold = settings.exponential_growth_threshold || 30
-    const thisWeek = new Date()
-    thisWeek.setDate(thisWeek.getDate() - 7)
-    const lastWeek = new Date()
-    lastWeek.setDate(lastWeek.getDate() - 14)
+    // Define week boundaries (Mon-Sun)
+    const now = new Date()
+    const dayOfWeek = now.getDay() // 0=Sun, 1=Mon...
+    
+    // This week start (last Monday)
+    const thisWeekStart = new Date(now)
+    thisWeekStart.setDate(now.getDate() - (dayOfWeek === 0 ? 6 : dayOfWeek - 1))
+    thisWeekStart.setHours(0, 0, 0, 0)
 
-    const { count: thisWeekCount } = await supabase
+    // Last week boundaries
+    const lastWeekStart = new Date(thisWeekStart)
+    lastWeekStart.setDate(lastWeekStart.getDate() - 7)
+    const lastWeekEnd = new Date(thisWeekStart)
+
+    // --- Fetch this week's data ---
+    const { data: thisWeekLogs } = await supabase
         .from('access_logs')
-        .select('*', { count: 'exact', head: true })
+        .select('person_id, contractor_snapshot, entry_at, exit_at')
         .eq('site_id', siteId)
-        .gte('entry_at', thisWeek.toISOString())
+        .gte('entry_at', thisWeekStart.toISOString())
+        .is('voided_at', null)
 
-    const { count: lastWeekCount } = await supabase
+    // --- Fetch last week's data ---
+    const { data: lastWeekLogs } = await supabase
         .from('access_logs')
-        .select('*', { count: 'exact', head: true })
+        .select('person_id, contractor_snapshot, entry_at, exit_at')
         .eq('site_id', siteId)
-        .gte('entry_at', lastWeek.toISOString())
-        .lt('entry_at', thisWeek.toISOString())
+        .gte('entry_at', lastWeekStart.toISOString())
+        .lt('entry_at', lastWeekEnd.toISOString())
+        .is('voided_at', null)
 
-    const growth = lastWeekCount ? ((thisWeekCount || 0) - lastWeekCount) / lastWeekCount * 100 : 0
+    const tw = thisWeekLogs || []
+    const lw = lastWeekLogs || []
 
-    if (growth > growthThreshold) {
-        await sendAlert(supabase, {
-            site_id: siteId,
-            alert_type: 'exponential_growth',
-            title: '📈 Crecimiento Exponencial',
-            body: `+${growth.toFixed(0)}% más entradas vs semana pasada (${thisWeekCount} vs ${lastWeekCount})`,
-            data: { growth_percent: growth, this_week: thisWeekCount, last_week: lastWeekCount }
-        })
-        return 1
+    // If no data from last week, skip (can't compare)
+    if (lw.length === 0 && tw.length === 0) return 0
+
+    // --- Calculate metrics ---
+    const calcMetrics = (logs: any[]) => {
+        const uniqueWorkers = new Set(logs.map(l => l.person_id))
+        const contractors = new Map<string, Set<string>>()
+        let exits = 0
+
+        for (const log of logs) {
+            const cName = log.contractor_snapshot || 'Sin Contratista'
+            if (!contractors.has(cName)) contractors.set(cName, new Set())
+            contractors.get(cName)!.add(log.person_id)
+            if (log.exit_at) exits++
+        }
+
+        return {
+            totalEntries: logs.length,
+            totalExits: exits,
+            uniqueWorkers: uniqueWorkers.size,
+            activeContractors: contractors.size,
+            contractorDetails: contractors,
+        }
     }
-    return 0
+
+    const twMetrics = calcMetrics(tw)
+    const lwMetrics = calcMetrics(lw)
+
+    // --- Trend indicator ---
+    const trend = (current: number, previous: number): string => {
+        if (previous === 0) return current > 0 ? '(nuevo)' : ''
+        const pct = ((current - previous) / previous) * 100
+        if (pct > 5) return `(+${pct.toFixed(0)}%)`
+        if (pct < -5) return `(${pct.toFixed(0)}%)`
+        return '(estable)'
+    }
+
+    // --- Build contractor breakdown (top 8) ---
+    const contractorLines: string[] = []
+    const allContractors = new Set([
+        ...twMetrics.contractorDetails.keys(),
+        ...lwMetrics.contractorDetails.keys()
+    ])
+
+    const contractorData = [...allContractors].map(name => ({
+        name,
+        thisWeek: twMetrics.contractorDetails.get(name)?.size || 0,
+        lastWeek: lwMetrics.contractorDetails.get(name)?.size || 0,
+    })).sort((a, b) => b.thisWeek - a.thisWeek)
+
+    for (const c of contractorData.slice(0, 8)) {
+        const t = trend(c.thisWeek, c.lastWeek)
+        contractorLines.push(`  ${c.name}: ${c.thisWeek} ${t}`)
+    }
+    if (contractorData.length > 8) {
+        contractorLines.push(`  ...y ${contractorData.length - 8} mas`)
+    }
+
+    // --- Overall change ---
+    const overallChange = lwMetrics.totalEntries > 0
+        ? ((twMetrics.totalEntries - lwMetrics.totalEntries) / lwMetrics.totalEntries * 100).toFixed(0)
+        : 'N/A'
+
+    // --- Build message body ---
+    const body = [
+        `Entradas: ${twMetrics.totalEntries} vs ${lwMetrics.totalEntries} ${trend(twMetrics.totalEntries, lwMetrics.totalEntries)}`,
+        `Salidas: ${twMetrics.totalExits} vs ${lwMetrics.totalExits} ${trend(twMetrics.totalExits, lwMetrics.totalExits)}`,
+        `Trabajadores unicos: ${twMetrics.uniqueWorkers} vs ${lwMetrics.uniqueWorkers} ${trend(twMetrics.uniqueWorkers, lwMetrics.uniqueWorkers)}`,
+        `Contratistas activos: ${twMetrics.activeContractors} vs ${lwMetrics.activeContractors} ${trend(twMetrics.activeContractors, lwMetrics.activeContractors)}`,
+        ``,
+        `Por contratista:`,
+        ...contractorLines,
+    ].join('\n')
+
+    await sendAlert(supabase, {
+        site_id: siteId,
+        alert_type: 'exponential_growth',
+        title: 'Resumen Semanal',
+        body,
+        data: {
+            this_week_entries: twMetrics.totalEntries,
+            last_week_entries: lwMetrics.totalEntries,
+            change_pct: overallChange,
+            unique_workers_tw: twMetrics.uniqueWorkers,
+            unique_workers_lw: lwMetrics.uniqueWorkers,
+            active_contractors: twMetrics.activeContractors,
+        }
+    })
+    return 1
 }
+
 
 // ─── Worker of the Month ────────────────────────────────────────────────────
 

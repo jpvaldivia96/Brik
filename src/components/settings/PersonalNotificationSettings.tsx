@@ -100,6 +100,7 @@ const alertCategories = [
             { key: 'low_weekly_attendance', label: 'Baja Asistencia Semanal', icon: TrendingDown, description: 'Alerta basada en promedio semanal' },
             { key: 'attendance_record', label: 'Récord de Asistencia', icon: Trophy, description: 'Día con mayor asistencia histórica' },
             { key: 'contractor_inactive', label: 'Contratista Sin Actividad', icon: AlertCircle, description: 'Sin trabajadores por X días' },
+            { key: 'exponential_growth', label: 'Resumen Semanal', icon: TrendingUp, description: 'Comparación semanal: entradas, salidas, contratistas y tendencias' },
         ]
     },
     {
