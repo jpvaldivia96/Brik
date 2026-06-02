@@ -373,6 +373,39 @@ serve(async (req) => {
             }, null, 2), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } })
         }
 
+        // ── FIX SETTINGS: Enable all alerts for all sites ──
+        if (alert_type === '_fix_settings') {
+            const updates = {
+                first_entry_enabled: true,
+                favorite_entry_enabled: true,
+                blocked_entry_enabled: true,
+                overtime_enabled: true,
+                unusual_rotation_enabled: true,
+                mass_entry_enabled: true,
+                night_activity_enabled: true,
+                exit_without_entry_enabled: true,
+                contractor_attendance_enabled: true,
+                contractor_inactive_enabled: true,
+                low_weekly_attendance_enabled: true,
+                exponential_growth_enabled: true,
+                accident_reported_enabled: true,
+                announcement_enabled: true,
+                inspector_visit_enabled: true,
+                meeting_reminder_enabled: true,
+                weather_alert_enabled: true,
+            }
+            const { data: result, error } = await supabase
+                .from('alert_settings')
+                .update(updates)
+                .neq('site_id', '00000000-0000-0000-0000-000000000000')
+                .select('site_id, first_entry_enabled, favorite_entry_enabled')
+            return new Response(JSON.stringify({
+                success: !error,
+                updated: result,
+                error: error?.message
+            }, null, 2), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } })
+        }
+
         if (!site_id || !alert_type || !title || !body) {
             throw new Error('Missing required fields: site_id, alert_type, title, body')
         }
