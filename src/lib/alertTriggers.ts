@@ -83,7 +83,7 @@ async function getAlertSettings(siteId: string): Promise<Record<string, any>> {
     }
 }
 
-// ─── TRIGGER 1: Favorite/Blocked Entry ──────────────────────────────────────
+// ─── TRIGGER 1a: Favorite/Blocked Entry ─────────────────────────────────────
 
 /**
  * Check and trigger favorite/blocked entry alerts
@@ -109,21 +109,93 @@ export async function checkEntryAlerts(
             await triggerAlert({
                 siteId,
                 alertType: 'blocked_entry',
-                title: '🚫 ALERTA: Bloqueado Ingresó',
-                body: `${personName} (BLOQUEADO) ha ingresado a la obra${favRecord.block_reason ? '. Motivo: ' + favRecord.block_reason : ''}`,
+                title: 'ALERTA: Bloqueado Ingresó',
+                body: `${personName}\n${contractorName || ''}${favRecord.block_reason ? '\nMotivo: ' + favRecord.block_reason : ''}`,
                 data: { person_id: personId, person_name: personName, contractor_name: contractorName || '', block_reason: favRecord.block_reason },
             });
         } else {
             await triggerAlert({
                 siteId,
                 alertType: 'favorite_entry',
-                title: '⭐ Favorito Ingresó',
-                body: `${personName} ha ingresado a la obra`,
+                title: 'Favorito ingresó',
+                body: `${personName}\n${contractorName || ''}`,
                 data: { person_id: personId, person_name: personName, contractor_name: contractorName || '' },
             });
         }
     } catch (err) {
         console.error('Error checking entry alerts:', err);
+    }
+}
+
+// ─── TRIGGER 1b: Favorite/Blocked Exit ──────────────────────────────────────
+
+/**
+ * Check and trigger favorite/blocked exit alerts
+ * Call this when someone exits
+ */
+export async function checkExitAlerts(
+    siteId: string,
+    personId: string,
+    personName: string,
+    contractorName?: string
+): Promise<void> {
+    try {
+        const { data: favRecord } = await (supabase as any)
+            .from('favorites')
+            .select('id, is_blocked')
+            .eq('site_id', siteId)
+            .eq('person_id', personId)
+            .maybeSingle();
+
+        if (!favRecord || favRecord.is_blocked) return; // Only alert on non-blocked favorites
+
+        await triggerAlert({
+            siteId,
+            alertType: 'favorite_exit',
+            title: 'Favorito salió',
+            body: `${personName}\n${contractorName || ''}`,
+            data: { person_id: personId, person_name: personName, contractor_name: contractorName || '' },
+        });
+    } catch (err) {
+        console.error('Error checking exit alerts:', err);
+    }
+}
+
+// ─── TRIGGER 1c: Dependent Entry/Exit ───────────────────────────────────────
+
+/**
+ * Check if person is a dependent (is_dependent in workers_profile)
+ * and trigger entry or exit alerts. Dependents are company-standard tracked employees.
+ */
+export async function checkDependentAlerts(
+    siteId: string,
+    personId: string,
+    personName: string,
+    contractorName?: string,
+    direction: 'entry' | 'exit' = 'entry'
+): Promise<void> {
+    try {
+        const { data: profile } = await (supabase as any)
+            .from('workers_profile')
+            .select('is_dependent')
+            .eq('person_id', personId)
+            .maybeSingle();
+
+        if (!profile?.is_dependent) return;
+
+        const timeStr = new Date().toLocaleTimeString('es-BO', { hour: '2-digit', minute: '2-digit' });
+        const alertType = direction === 'entry' ? 'dependent_entry' : 'dependent_exit';
+        const title = direction === 'entry' ? 'Dependiente ingresó' : 'Dependiente salió';
+
+        await triggerAlert({
+            siteId,
+            alertType,
+            title,
+            body: `${personName}\n${contractorName || ''}\nHora: ${timeStr}`,
+            data: { person_id: personId, person_name: personName, contractor_name: contractorName || '', time: timeStr },
+        });
+    } catch (err) {
+        console.error('Error checking dependent alerts:', err);
     }
 }
 
@@ -506,6 +578,7 @@ export async function runEntryTriggers(
         checkNightActivity(siteId, personName, contractorName),
         checkFirstEntry(siteId, personName, contractorName),
         checkInspectorVisit(siteId, personId, personName),
+        checkDependentAlerts(siteId, personId, personName, contractorName, 'entry'),
     ]);
 }
 
@@ -521,5 +594,7 @@ export async function runExitTriggers(
     await Promise.allSettled([
         checkCapacityAlerts(siteId),
         checkExitWithoutEntry(siteId, personId, personName, contractorName),
+        checkExitAlerts(siteId, personId, personName, contractorName),
+        checkDependentAlerts(siteId, personId, personName, contractorName, 'exit'),
     ]);
 }

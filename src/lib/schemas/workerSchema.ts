@@ -55,6 +55,8 @@ export const workerFormSchema = z.object({
     inductionCompleted: z.boolean().default(false),
 
     isInspector: z.boolean().default(false),
+
+    isDependent: z.boolean().default(false),
 });
 
 // Tipo inferido del schema
@@ -73,4 +75,5 @@ export const workerFormDefaults: WorkerFormData = {
     bloodType: '',
     inductionCompleted: false,
     isInspector: false,
+    isDependent: false,
 };

@@ -274,6 +274,29 @@ async function sendTelegram(botToken: string, chatId: string, title: string, bod
                     + `\n${siteName} — ${timestamp}`
                 break
 
+            case 'favorite_exit':
+                text = `<b>Favorito salió</b>\n\n`
+                    + `${data?.person_name || body}\n`
+                    + (data?.contractor_name ? `${data.contractor_name}\n` : '')
+                    + `\n${siteName} — ${timestamp}`
+                break
+
+            case 'dependent_entry':
+                text = `<b>Dependiente ingresó</b>\n\n`
+                    + `${data?.person_name || body}\n`
+                    + (data?.contractor_name ? `${data.contractor_name}\n` : '')
+                    + (data?.time ? `Hora: ${data.time}\n` : '')
+                    + `\n${siteName}`
+                break
+
+            case 'dependent_exit':
+                text = `<b>Dependiente salió</b>\n\n`
+                    + `${data?.person_name || body}\n`
+                    + (data?.contractor_name ? `${data.contractor_name}\n` : '')
+                    + (data?.time ? `Hora: ${data.time}\n` : '')
+                    + `\n${siteName}`
+                break
+
             case 'blocked_entry':
                 text = `<b>ALERTA — Persona bloqueada ingresó</b>\n\n`
                     + `${data?.person_name || body}\n`
@@ -483,6 +506,23 @@ serve(async (req) => {
                 updated: result,
                 error: error?.message
             }, null, 2), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } })
+        }
+
+        // ── MIGRATE: Run SQL via service role ──
+        if (alert_type === '_migrate') {
+            const sql = data?.sql
+            if (!sql) return new Response(JSON.stringify({ error: 'Missing data.sql' }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } })
+            
+            const { data: result, error } = await supabase.rpc('exec_sql', { query: sql }).maybeSingle()
+            if (error) {
+                // Fallback: try direct query via pg
+                const { error: err2 } = await supabase.from('workers_profile').select('is_dependent').limit(1)
+                if (err2) {
+                    return new Response(JSON.stringify({ error: error.message, fallback_error: err2.message }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } })
+                }
+                return new Response(JSON.stringify({ success: true, note: 'Column already exists' }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } })
+            }
+            return new Response(JSON.stringify({ success: true, result }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } })
         }
 
         // ── TEST: Send test alert with real data ──

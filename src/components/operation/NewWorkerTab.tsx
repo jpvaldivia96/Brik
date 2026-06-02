@@ -270,6 +270,7 @@ export default function NewWorkerTab() {
           emergency_contact: data.emergencyContact.trim() || null,
           blood_type: data.bloodType.trim() || null,
           is_inspector: data.isInspector,
+          is_dependent: data.isDependent,
         });
 
       if (profileError) throw profileError;
@@ -522,6 +523,25 @@ export default function NewWorkerTab() {
             </span>
             <p className="text-xs text-muted-foreground mt-0.5">
               Marcar si esta persona es un inspector (activará alerta de visita de inspector)
+            </p>
+          </Label>
+        </div>
+
+        {/* Dependent Checkbox */}
+        <div className="flex items-center gap-3 p-4 bg-card/50 rounded-xl border border-border mt-2">
+          <input
+            type="checkbox"
+            id="isDependent"
+            {...register('isDependent')}
+            className="w-5 h-5 rounded border-border text-amber-500 focus:ring-amber-500"
+          />
+          <Label htmlFor="isDependent" className="flex-1 cursor-pointer">
+            <span className="font-medium flex items-center gap-2">
+              <User className="w-4 h-4 text-amber-400" />
+              Dependiente / Seguimiento
+            </span>
+            <p className="text-xs text-muted-foreground mt-0.5">
+              Asalariado con seguimiento. Se notificará cada entrada y salida.
             </p>
           </Label>
         </div>

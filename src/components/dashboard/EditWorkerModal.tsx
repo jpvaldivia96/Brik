@@ -40,6 +40,7 @@ interface WorkerData {
         night_permit_permanent?: boolean;
         night_permit_until?: string | null;
         is_inspector?: boolean;
+        is_dependent?: boolean;
     };
 }
 
@@ -74,6 +75,12 @@ const ViewForm = ({ workerData, form, handleClose, setEditing, isExternalInspect
                         <div className="inline-flex items-center gap-1.5 px-2 py-1 rounded-md bg-purple-500/10 text-purple-400 text-xs font-medium border border-purple-500/20">
                             <UserCheck className="w-3 h-3" />
                             Inspector
+                        </div>
+                    )}
+                    {form.isDependent && (
+                        <div className="inline-flex items-center gap-1.5 px-2 py-1 rounded-md bg-amber-500/10 text-amber-400 text-xs font-medium border border-amber-500/20">
+                            <User className="w-3 h-3" />
+                            Dependiente
                         </div>
                     )}
                     {hasPermit && (
@@ -247,6 +254,21 @@ const EditForm = ({ form, setForm, saving, handleSave, setEditing, shouldMaskPho
                     </Label>
                 </div>
 
+                {/* Dependent Flag */}
+                <div className="flex items-center gap-3">
+                    <input
+                        type="checkbox"
+                        id="isDependent"
+                        checked={form.isDependent}
+                        onChange={(e) => setForm({ ...form, isDependent: e.target.checked })}
+                        className="w-4 h-4 rounded border-gray-400 bg-transparent text-amber-500 focus:ring-amber-500"
+                    />
+                    <Label htmlFor="isDependent" className="cursor-pointer flex items-center gap-2">
+                        <User className="w-4 h-4 text-amber-400" />
+                        <span>Dependiente / Seguimiento</span>
+                    </Label>
+                </div>
+
                 <div className="h-px bg-border/50" />
 
                 {/* Permanent Permit */}
@@ -346,6 +368,7 @@ export function EditWorkerModal({ open, onClose, personId, onSaved }: EditWorker
         nightPermitPermanent: boolean;
         nightPermitUntil: string;
         isInspector: boolean;
+        isDependent: boolean;
         tags: TagDefinition[];
     }>({
         ci: '',
@@ -361,6 +384,7 @@ export function EditWorkerModal({ open, onClose, personId, onSaved }: EditWorker
         nightPermitPermanent: false,
         nightPermitUntil: '',
         isInspector: false,
+        isDependent: false,
         tags: [],
     });
     const { toast } = useToast();
@@ -417,6 +441,7 @@ export function EditWorkerModal({ open, onClose, personId, onSaved }: EditWorker
             nightPermitPermanent: wp?.night_permit_permanent || false,
             nightPermitUntil: wp?.night_permit_until ? wp.night_permit_until.split('T')[0] : '',
             isInspector: wp?.is_inspector || false,
+            isDependent: wp?.is_dependent || false,
             tags,
         });
         setLoading(false);
@@ -561,6 +586,7 @@ export function EditWorkerModal({ open, onClose, personId, onSaved }: EditWorker
                 night_permit_permanent: form.nightPermitPermanent,
                 night_permit_until: form.nightPermitUntil || null,
                 is_inspector: form.isInspector,
+                is_dependent: form.isDependent,
             }, { onConflict: 'person_id' });
 
         if (profileError) throw profileError;
