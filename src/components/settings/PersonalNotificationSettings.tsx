@@ -63,6 +63,9 @@ interface UserPreferences {
     meeting_reminder: boolean;
     announcement: boolean;
     inspector_visit: boolean;
+    favorite_exit: boolean;
+    dependent_entry: boolean;
+    dependent_exit: boolean;
 
     // Thresholds & Settings
     contractor_attendance_threshold?: number;
@@ -124,7 +127,10 @@ const alertCategories = [
         name: 'Social & Comunicación',
         icon: Users,
         alerts: [
-            { key: 'favorite_entry', label: 'Favorito Ingresó', icon: Star, description: 'Persona marcada como favorita' },
+            { key: 'favorite_entry', label: 'Favorito Ingresó', icon: Star, description: 'Persona marcada como favorita entró' },
+            { key: 'favorite_exit', label: 'Favorito Salió', icon: Star, description: 'Persona marcada como favorita salió' },
+            { key: 'dependent_entry', label: 'Dependiente Ingresó', icon: UserCheck, description: 'Asalariado en seguimiento entró' },
+            { key: 'dependent_exit', label: 'Dependiente Salió', icon: UserCheck, description: 'Asalariado en seguimiento salió' },
             { key: 'birthday', label: 'Cumpleaños en Obra', icon: Gift, description: 'Trabajador cumple años hoy' },
             { key: 'worker_of_month', label: 'Trabajador del Mes', icon: Trophy, description: 'Mejor asistencia/puntualidad' },
             { key: 'meeting_reminder', label: 'Recordatorio de Reunión', icon: Calendar, description: '30 min antes de reunión' },
@@ -219,6 +225,9 @@ export function PersonalNotificationSettings() {
         meeting_reminder_minutes: 60,
         announcement: true,
         inspector_visit: true,
+        favorite_exit: true,
+        dependent_entry: true,
+        dependent_exit: true,
     });
 
     const handleToggle = (key: string, value: boolean) => {

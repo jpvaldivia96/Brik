@@ -629,16 +629,20 @@ serve(async (req) => {
         const supervisorIds = memberships.map((m: any) => m.user_id)
 
         // Filter supervisors based on personal notification preferences
-        const { data: preferences } = await supabase
+        const { data: preferences, error: prefError } = await supabase
             .from('user_notification_preferences')
             .select('user_id, ' + alert_type)
             .eq('site_id', site_id)
             .in('user_id', supervisorIds)
 
         // Keep only users who have this alert enabled personally
-        // If no preferences found, default to all supervisors (new users)
+        // If column doesn't exist or error, default to all supervisors
         let filteredUserIds: string[]
-        if (preferences && preferences.length > 0) {
+        if (prefError) {
+            // Column might not exist yet (new alert type) — send to everyone
+            console.log(`Preference column ${alert_type} not found, sending to all:`, prefError.message)
+            filteredUserIds = supervisorIds
+        } else if (preferences && preferences.length > 0) {
             filteredUserIds = preferences
                 .filter((pref: any) => pref[alert_type] === true)
                 .map((pref: any) => pref.user_id)
