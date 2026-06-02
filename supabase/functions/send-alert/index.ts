@@ -265,58 +265,136 @@ async function sendTelegram(botToken: string, chatId: string, title: string, bod
         const timestamp = new Date().toLocaleTimeString('es-BO', { timeZone: 'America/La_Paz', hour: '2-digit', minute: '2-digit' })
         let text = ''
 
-        // Per-type Telegram templates
+        // Per-type Telegram templates — no emojis, bold titles
         switch (alertType) {
             case 'favorite_entry':
-                text = `★ Uno de tus favoritos acaba de ingresar\n\n`
+                text = `<b>Favorito ingresó</b>\n\n`
                     + `${data?.person_name || body}\n`
                     + (data?.contractor_name ? `${data.contractor_name}\n` : '')
-                    + `\n✦ ${siteName} — ${timestamp}`
+                    + `\n${siteName} — ${timestamp}`
                 break
 
             case 'blocked_entry':
-                text = `🚫 ¡ALERTA! Persona bloqueada ingresó\n\n`
+                text = `<b>ALERTA — Persona bloqueada ingresó</b>\n\n`
                     + `${data?.person_name || body}\n`
                     + (data?.contractor_name ? `${data.contractor_name}\n` : '')
                     + (data?.block_reason ? `Motivo: ${data.block_reason}\n` : '')
-                    + `\n⚠ ${siteName} — ${timestamp}`
+                    + `\n${siteName} — ${timestamp}`
                 break
 
             case 'overtime':
-                text = `⏰ Horas Extra detectadas\n\n`
+                text = `<b>Horas extra detectadas</b>\n\n`
                     + `${body}\n`
-                    + `\n✦ ${siteName} — ${timestamp}`
+                    + `\n${siteName} — ${timestamp}`
                 break
 
             case 'night_activity':
-                text = `🌙 Actividad nocturna detectada\n\n`
+                text = `<b>Actividad nocturna</b>\n\n`
                     + `${body}\n`
-                    + `\n✦ ${siteName} — ${timestamp}`
+                    + `\n${siteName} — ${timestamp}`
                 break
 
             case 'mass_entry':
-                text = `🏃 Entrada masiva detectada\n\n`
+                text = `<b>Entrada masiva</b>\n\n`
                     + `${body}\n`
-                    + `\n✦ ${siteName} — ${timestamp}`
+                    + `\n${siteName} — ${timestamp}`
                 break
 
             case 'inspector_visit':
-                text = `👮 Inspector en obra\n\n`
+                text = `<b>Inspector en obra</b>\n\n`
                     + `${data?.person_name || body}\n`
-                    + `\n✦ ${siteName} — ${timestamp}`
+                    + `\n${siteName} — ${timestamp}`
                 break
 
             case 'birthday':
-                text = `🎂 ¡Cumpleaños!\n\n`
+                text = `<b>Cumpleaños en obra</b>\n\n`
                     + `${body}\n`
-                    + `\n✦ ${siteName} — ${timestamp}`
+                    + `\n${siteName} — ${timestamp}`
                 break
 
-            default: {
-                const emoji = getAlertEmoji(alertType)
-                text = `${emoji} ${title}\n\n${body}\n\n✦ ${siteName} — ${timestamp}`
+            case 'first_entry':
+                text = `<b>Primera entrada del día</b>\n\n`
+                    + `${data?.person_name || body}\n`
+                    + (data?.contractor_name ? `${data.contractor_name}\n` : '')
+                    + (data?.time ? `Hora: ${data.time}\n` : '')
+                    + `\n${siteName}`
                 break
-            }
+
+            case 'unusual_rotation':
+                text = `<b>Rotación inusual</b>\n\n`
+                    + `${body}\n`
+                    + `\n${siteName} — ${timestamp}`
+                break
+
+            case 'exit_without_entry':
+                text = `<b>Salida sin entrada</b>\n\n`
+                    + `${body}\n`
+                    + `\n${siteName} — ${timestamp}`
+                break
+
+            case 'contractor_attendance':
+                text = `<b>Baja asistencia de contratistas</b>\n\n`
+                    + `${body}\n`
+                    + `\n${siteName} — ${timestamp}`
+                break
+
+            case 'contractor_inactive':
+                text = `<b>Contratista sin actividad</b>\n\n`
+                    + `${body}\n`
+                    + `\n${siteName} — ${timestamp}`
+                break
+
+            case 'low_weekly_attendance':
+                text = `<b>Baja asistencia semanal</b>\n\n`
+                    + `${body}\n`
+                    + `\n${siteName} — ${timestamp}`
+                break
+
+            case 'attendance_record':
+                text = `<b>Récord de asistencia</b>\n\n`
+                    + `${body}\n`
+                    + `\n${siteName} — ${timestamp}`
+                break
+
+            case 'worker_of_month':
+                text = `<b>Trabajador del mes</b>\n\n`
+                    + `${body}\n`
+                    + `\n${siteName} — ${timestamp}`
+                break
+
+            case 'safety_milestone':
+                text = `<b>Meta de seguridad alcanzada</b>\n\n`
+                    + `${body}\n`
+                    + `\n${siteName} — ${timestamp}`
+                break
+
+            case 'exponential_growth':
+                text = `<b>Crecimiento exponencial</b>\n\n`
+                    + `${body}\n`
+                    + `\n${siteName} — ${timestamp}`
+                break
+
+            case 'meeting_reminder':
+                text = `<b>Recordatorio de reunión</b>\n\n`
+                    + `${body}\n`
+                    + `\n${siteName} — ${timestamp}`
+                break
+
+            case 'accident_reported':
+                text = `<b>ALERTA — Accidente reportado</b>\n\n`
+                    + `${body}\n`
+                    + `\n${siteName} — ${timestamp}`
+                break
+
+            case 'weather_alert':
+                text = `<b>Alerta meteorológica</b>\n\n`
+                    + `${body}\n`
+                    + `\n${siteName} — ${timestamp}`
+                break
+
+            default:
+                text = `<b>${title}</b>\n\n${body}\n\n${siteName} — ${timestamp}`
+                break
         }
 
         const response = await fetch(`https://api.telegram.org/bot${botToken}/sendMessage`, {
@@ -325,6 +403,7 @@ async function sendTelegram(botToken: string, chatId: string, title: string, bod
             body: JSON.stringify({
                 chat_id: chatId,
                 text,
+                parse_mode: 'HTML',
                 disable_web_page_preview: true,
             }),
         })
@@ -404,6 +483,61 @@ serve(async (req) => {
                 updated: result,
                 error: error?.message
             }, null, 2), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } })
+        }
+
+        // ── TEST: Send test alert with real data ──
+        if (alert_type === '_test') {
+            const testType = data?.test_type || 'first_entry'
+            const testSiteId = site_id || 'cf3e7533-d483-4a65-8bb4-dd77d5bd95af'
+            
+            const todayStart = new Date()
+            todayStart.setHours(0, 0, 0, 0)
+            
+            if (testType === 'first_entry') {
+                const { data: first } = await supabase
+                    .from('access_logs')
+                    .select('name_snapshot, contractor_snapshot, entry_at')
+                    .eq('site_id', testSiteId)
+                    .gte('entry_at', todayStart.toISOString())
+                    .is('voided_at', null)
+                    .order('entry_at', { ascending: true })
+                    .limit(1)
+                    .single()
+                
+                if (!first) return new Response(JSON.stringify({ error: 'No entries today' }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } })
+                
+                const time = new Date(first.entry_at).toLocaleTimeString('es-BO', { timeZone: 'America/La_Paz', hour: '2-digit', minute: '2-digit' })
+                
+                // Re-invoke self with real data
+                const testPayload = {
+                    site_id: testSiteId,
+                    alert_type: 'first_entry',
+                    title: 'Primera entrada del día',
+                    body: `${first.name_snapshot}\n${first.contractor_snapshot || ''}\nPrimero en llegar hoy a las ${time}`,
+                    data: { person_name: first.name_snapshot, contractor_name: first.contractor_snapshot, time }
+                }
+                
+                const resp = await fetch(`${supabaseUrl}/functions/v1/send-alert`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${supabaseServiceKey}` },
+                    body: JSON.stringify(testPayload)
+                })
+                const result = await resp.json()
+                return new Response(JSON.stringify({ test: testType, real_data: first, result }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } })
+            }
+            
+            if (testType === 'overtime') {
+                // Just trigger the real overtime check
+                const resp = await fetch(`${supabaseUrl}/functions/v1/check-scheduled-alerts`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${supabaseServiceKey}` },
+                    body: JSON.stringify({ alert_type: 'overtime' })
+                })
+                const result = await resp.json()
+                return new Response(JSON.stringify({ test: testType, result }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } })
+            }
+
+            return new Response(JSON.stringify({ error: 'Unknown test_type. Use: first_entry, overtime' }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } })
         }
 
         if (!site_id || !alert_type || !title || !body) {
