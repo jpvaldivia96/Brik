@@ -615,13 +615,15 @@ async function checkSafetyMilestone(supabase: any, siteId: string, settings: any
 async function sendAlert(_supabase: any, payload: any) {
     try {
         const supabaseUrl = Deno.env.get('SUPABASE_URL')!
-        const serviceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
+        // Edge Functions need anon key in Authorization for function-to-function calls
+        const anonKey = Deno.env.get('SUPABASE_ANON_KEY')
+            || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inh0ZW1mb3J2cGdxbmFsaG1la2dqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njc0NDQyNTAsImV4cCI6MjA4MzAyMDI1MH0.iiFb17p_lXSF0q3UQFXbAVsfUjfvRXgc1SA0km2CYBY'
 
         const response = await fetch(`${supabaseUrl}/functions/v1/send-alert`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
-                'Authorization': `Bearer ${serviceKey}`,
+                'Authorization': `Bearer ${anonKey}`,
             },
             body: JSON.stringify(payload),
         })
