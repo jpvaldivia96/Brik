@@ -247,8 +247,8 @@ export async function checkCapacityAlerts(siteId: string): Promise<void> {
                 await triggerAlert({
                     siteId,
                     alertType: 'min_capacity',
-                    title: '📉 Baja Asistencia',
-                    body: `Solo hay ${currentCount} personas en obra (mínimo: ${settings.min_capacity_threshold})`,
+                    title: 'Baja asistencia',
+                    body: `Solo hay ${currentCount} personas en obra (minimo: ${settings.min_capacity_threshold})`,
                     data: { current_count: currentCount, threshold: settings.min_capacity_threshold },
                 });
             }
@@ -262,8 +262,8 @@ export async function checkCapacityAlerts(siteId: string): Promise<void> {
                 await triggerAlert({
                     siteId,
                     alertType: 'max_capacity',
-                    title: '📈 Capacidad Máxima Excedida',
-                    body: `Hay ${currentCount} personas en obra (máximo: ${settings.max_capacity_threshold})`,
+                    title: 'Capacidad maxima excedida',
+                    body: `Hay ${currentCount} personas en obra (maximo: ${settings.max_capacity_threshold})`,
                     data: { current_count: currentCount, threshold: settings.max_capacity_threshold },
                 });
             }
@@ -306,7 +306,7 @@ export async function checkOvertimeAlerts(siteId: string): Promise<void> {
             await triggerAlert({
                 siteId,
                 alertType: 'overtime',
-                title: '⏰ Alerta de Horas Extras',
+                title: 'Alerta de horas extras',
                 body: `${overtime.length} persona(s) superan ${thresholdHours}h:\n${lines.join('\n')}`,
                 data: { count: overtime.length, people: overtime },
             });
@@ -333,23 +333,29 @@ export async function checkUnusualRotation(
         if (!settings?.unusual_rotation_enabled) return;
 
         const threshold = settings.unusual_rotation_threshold || 3;
-        const todayStart = new Date();
+
+        // Use Bolivia timezone for "today" (UTC-4)
+        const now = new Date();
+        const boliviaOffset = -4 * 60;
+        const boliviaNow = new Date(now.getTime() + (boliviaOffset + now.getTimezoneOffset()) * 60000);
+        const todayStart = new Date(boliviaNow);
         todayStart.setHours(0, 0, 0, 0);
+        const todayStartUTC = new Date(todayStart.getTime() - (boliviaOffset + now.getTimezoneOffset()) * 60000);
 
         const { count } = await supabase
             .from('access_logs')
             .select('*', { count: 'exact', head: true })
             .eq('site_id', siteId)
             .eq('person_id', personId)
-            .gte('entry_at', todayStart.toISOString());
+            .gte('entry_at', todayStartUTC.toISOString());
 
         if (count && count >= threshold) {
             const contractor = contractorName ? `\n${contractorName}` : '';
             await triggerAlert({
                 siteId,
                 alertType: 'unusual_rotation',
-                title: '🔄 Rotación Inusual Detectada',
-                body: `${personName}${contractor}\nIngresó ${count} veces hoy (umbral: ${threshold})`,
+                title: 'Rotacion inusual detectada',
+                body: `${personName}${contractor}\nIngreso ${count} veces hoy (umbral: ${threshold})`,
                 data: { person_id: personId, person_name: personName, contractor_name: contractorName || '', count, threshold },
             });
         }
@@ -396,7 +402,7 @@ export async function checkMassEntry(siteId: string): Promise<void> {
             await triggerAlert({
                 siteId,
                 alertType: 'mass_entry',
-                title: '🏃 Entrada Masiva Detectada',
+                title: 'Entrada masiva detectada',
                 body: `${count} personas en ${minutes} min:\n${lines.join('\n')}`,
                 data: { count, threshold, minutes },
             });
@@ -425,11 +431,24 @@ export async function checkNightActivity(
         const currentHour = now.getHours();
         const currentMinutes = currentHour * 60 + now.getMinutes();
 
-        // Parse start/end times (default 22:00 - 06:00)
-        const startStr = settings.night_activity_start || '22:00';
-        const endStr = settings.night_activity_end || '06:00';
-        const [startH, startM] = startStr.split(':').map(Number);
-        const [endH, endM] = endStr.split(':').map(Number);
+        // Parse start/end times — handle both number (22) and string ("22:00") formats
+        const rawStart = settings.night_activity_start;
+        const rawEnd = settings.night_activity_end;
+        let startH: number, startM: number, endH: number, endM: number;
+
+        if (typeof rawStart === 'number') {
+            startH = rawStart; startM = 0;
+        } else {
+            const parts = String(rawStart || '22:00').split(':').map(Number);
+            startH = parts[0] || 22; startM = parts[1] || 0;
+        }
+        if (typeof rawEnd === 'number') {
+            endH = rawEnd; endM = 0;
+        } else {
+            const parts = String(rawEnd || '06:00').split(':').map(Number);
+            endH = parts[0] || 6; endM = parts[1] || 0;
+        }
+
         const startMinutes = startH * 60 + startM;
         const endMinutes = endH * 60 + endM;
 
@@ -442,12 +461,14 @@ export async function checkNightActivity(
 
         if (isNight) {
             const timeStr = now.toLocaleTimeString('es-BO', { hour: '2-digit', minute: '2-digit' });
+            const startLabel = `${String(startH).padStart(2,'0')}:${String(startM).padStart(2,'0')}`;
+            const endLabel = `${String(endH).padStart(2,'0')}:${String(endM).padStart(2,'0')}`;
             const contractor = contractorName ? `\n${contractorName}` : '';
             await triggerAlert({
                 siteId,
                 alertType: 'night_activity',
-                title: '🌙 Actividad Nocturna',
-                body: `${personName}${contractor}\nIngresó a las ${timeStr} (horario: ${startStr}-${endStr})`,
+                title: 'Actividad nocturna',
+                body: `${personName}${contractor}\nIngreso a las ${timeStr} (horario: ${startLabel}-${endLabel})`,
                 data: { person_name: personName, contractor_name: contractorName || '', time: timeStr },
             });
         }
@@ -589,8 +610,8 @@ export async function checkInspectorVisit(
             await triggerAlert({
                 siteId,
                 alertType: 'inspector_visit',
-                title: '👮 Inspector en Obra',
-                body: `${personName} (Inspector) ha ingresado a la obra a las ${timeStr}`,
+                title: 'Inspector en obra',
+                body: `${personName} (Inspector) ingreso a la obra a las ${timeStr}`,
                 data: { person_id: personId, person_name: personName, time: timeStr },
             });
         }
