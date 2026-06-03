@@ -453,25 +453,41 @@ export async function checkFirstEntry(
         const settings = await getAlertSettings(siteId);
         if (!settings?.first_entry_enabled) return;
 
-        const todayStart = new Date();
+        // Use Bolivia timezone for "today" (UTC-4)
+        const now = new Date();
+        const boliviaOffset = -4 * 60; // UTC-4 in minutes
+        const boliviaNow = new Date(now.getTime() + (boliviaOffset + now.getTimezoneOffset()) * 60000);
+        const todayStart = new Date(boliviaNow);
         todayStart.setHours(0, 0, 0, 0);
+        // Convert back to UTC for the query
+        const todayStartUTC = new Date(todayStart.getTime() - (boliviaOffset + now.getTimezoneOffset()) * 60000);
 
-        // Count entries today (including this one)
+        // Check if we already sent first_entry today (dedup)
+        const { count: alertsToday } = await (supabase as any)
+            .from('alert_history')
+            .select('*', { count: 'exact', head: true })
+            .eq('site_id', siteId)
+            .eq('alert_type', 'first_entry')
+            .gte('sent_at', todayStartUTC.toISOString());
+
+        if (alertsToday && alertsToday > 0) return; // Already alerted today
+
+        // Count entries today (the insert may or may not have been committed)
         const { count } = await supabase
             .from('access_logs')
             .select('*', { count: 'exact', head: true })
             .eq('site_id', siteId)
-            .gte('entry_at', todayStart.toISOString());
+            .gte('entry_at', todayStartUTC.toISOString());
 
-        // If this is the first (or only) entry of the day
-        if (count !== null && count <= 1) {
-            const timeStr = new Date().toLocaleTimeString('es-BO', { hour: '2-digit', minute: '2-digit' });
+        // Use <= 2 to handle race condition (entry might already be in DB)
+        if (count !== null && count <= 2) {
+            const timeStr = boliviaNow.toLocaleTimeString('es-BO', { hour: '2-digit', minute: '2-digit' });
             const contractor = contractorName ? `\n${contractorName}` : '';
             await triggerAlert({
                 siteId,
                 alertType: 'first_entry',
-                title: '🌅 Primera Entrada del Día',
-                body: `${personName}${contractor}\nPrimero en llegar hoy a las ${timeStr}`,
+                title: 'Primera entrada del dia',
+                body: `${personName}${contractor}\nHora: ${timeStr}`,
                 data: { person_name: personName, contractor_name: contractorName || '', time: timeStr },
             });
         }
