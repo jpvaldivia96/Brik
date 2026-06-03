@@ -512,22 +512,30 @@ export async function checkExitWithoutEntry(
         const settings = await getAlertSettings(siteId);
         if (!settings?.exit_without_entry_enabled) return;
 
-        // Check if person has an active entry (entry without exit)
+        // Check if person had ANY entry today (exit_at may already be set by the exit flow)
+        const now = new Date();
+        const boliviaOffset = -4 * 60;
+        const boliviaNow = new Date(now.getTime() + (boliviaOffset + now.getTimezoneOffset()) * 60000);
+        const todayStart = new Date(boliviaNow);
+        todayStart.setHours(0, 0, 0, 0);
+        const todayStartUTC = new Date(todayStart.getTime() - (boliviaOffset + now.getTimezoneOffset()) * 60000);
+
         const { count } = await supabase
             .from('access_logs')
             .select('*', { count: 'exact', head: true })
             .eq('site_id', siteId)
             .eq('person_id', personId)
-            .is('exit_at', null)
+            .gte('entry_at', todayStartUTC.toISOString())
             .is('voided_at', null);
 
+        // If no entry at all today, this is a real exit without entry
         if (count === 0) {
             const contractor = contractorName ? `\n${contractorName}` : '';
             await triggerAlert({
                 siteId,
                 alertType: 'exit_without_entry',
-                title: '❌ Salida sin Entrada',
-                body: `${personName}${contractor}\nRegistró salida sin entrada activa. Posible error o fraude.`,
+                title: 'Salida sin entrada',
+                body: `${personName}${contractor}\nRegistro salida sin entrada hoy`,
                 data: { person_id: personId, person_name: personName, contractor_name: contractorName || '' },
             });
         }
