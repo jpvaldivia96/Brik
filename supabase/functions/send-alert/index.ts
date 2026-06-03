@@ -658,6 +658,18 @@ serve(async (req) => {
             )
         }
 
+        // Apply target_user_ids filter (for per-user alerts like favorites)
+        // Only send to the intersection of filteredUserIds and target_user_ids
+        if (data?.target_user_ids && Array.isArray(data.target_user_ids) && data.target_user_ids.length > 0) {
+            filteredUserIds = filteredUserIds.filter((uid: string) => data.target_user_ids.includes(uid))
+            if (filteredUserIds.length === 0) {
+                return new Response(
+                    JSON.stringify({ success: false, message: 'Target users do not have this alert enabled' }),
+                    { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+                )
+            }
+        }
+
         const channels: string[] = []
 
         // ─── CHANNEL 1: Push Notifications via FCM ───────────────────────

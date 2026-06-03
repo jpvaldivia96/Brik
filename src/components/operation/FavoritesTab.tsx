@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useSite } from '@/contexts/SiteContext';
+import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -15,6 +16,7 @@ type TabMode = 'favorites' | 'blocked';
 
 export default function FavoritesTab() {
   const { currentSite } = useSite();
+  const { user } = useAuth();
   const [mode, setMode] = useState<TabMode>('favorites');
   const [items, setItems] = useState<FavoriteStatus[]>([]);
   const [loading, setLoading] = useState(true);
@@ -28,13 +30,16 @@ export default function FavoritesTab() {
   const [blocking, setBlocking] = useState(false);
 
   const fetchItems = async () => {
-    if (!currentSite) return;
+    if (!currentSite || !user) return;
     setLoading(true);
 
-    const { data: favs } = await supabase
+    // Favorites are per-user, blocked are site-wide
+    // Query: user's favorites OR any blocked persons
+    const { data: favs } = await (supabase as any)
       .from('favorites')
       .select('*, people(*)')
-      .eq('site_id', currentSite.id);
+      .eq('site_id', currentSite.id)
+      .or(`user_id.eq.${user.id},is_blocked.eq.true`);
 
     const peopleIds = (favs || []).map(f => (f.people as any)?.id).filter(Boolean);
 
@@ -72,7 +77,7 @@ export default function FavoritesTab() {
     setLoading(false);
   };
 
-  useEffect(() => { fetchItems(); }, [currentSite]);
+  useEffect(() => { fetchItems(); }, [currentSite, user]);
 
   // Auto-search as user types with debounce
   useEffect(() => {
@@ -107,9 +112,9 @@ export default function FavoritesTab() {
     if (!currentSite) return;
 
     if (isFav) {
-      await supabase.from('favorites').delete().eq('site_id', currentSite.id).eq('person_id', personId);
+      await (supabase as any).from('favorites').delete().eq('site_id', currentSite.id).eq('person_id', personId).eq('user_id', user?.id);
     } else {
-      await supabase.from('favorites').insert({ site_id: currentSite.id, person_id: personId, is_blocked: false });
+      await (supabase as any).from('favorites').insert({ site_id: currentSite.id, person_id: personId, is_blocked: false, user_id: user?.id });
     }
     fetchItems();
     setSearchResults([]);
@@ -138,14 +143,15 @@ export default function FavoritesTab() {
         .eq('id', existing.id);
     } else {
       // Insert new as blocked
-      await supabase
+      await (supabase as any)
         .from('favorites')
         .insert({
           site_id: currentSite.id,
           person_id: personId,
           is_blocked: true,
           block_reason: blockReason.trim() || null,
-          blocked_at: new Date().toISOString()
+          blocked_at: new Date().toISOString(),
+          user_id: null  // Blocked persons are site-wide, no user_id
         });
     }
 

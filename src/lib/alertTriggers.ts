@@ -96,32 +96,46 @@ export async function checkEntryAlerts(
     contractorName?: string
 ): Promise<void> {
     try {
-        const { data: favRecord } = await (supabase as any)
+        // Check if person is blocked (site-wide, no user_id)
+        const { data: blockedRecord } = await (supabase as any)
             .from('favorites')
             .select('id, is_blocked, block_reason')
             .eq('site_id', siteId)
             .eq('person_id', personId)
+            .eq('is_blocked', true)
             .maybeSingle();
 
-        if (!favRecord) return;
-
-        if (favRecord.is_blocked) {
+        if (blockedRecord) {
             await triggerAlert({
                 siteId,
                 alertType: 'blocked_entry',
-                title: 'ALERTA: Bloqueado Ingresó',
-                body: `${personName}\n${contractorName || ''}${favRecord.block_reason ? '\nMotivo: ' + favRecord.block_reason : ''}`,
-                data: { person_id: personId, person_name: personName, contractor_name: contractorName || '', block_reason: favRecord.block_reason },
+                title: 'ALERTA: Bloqueado ingreso',
+                body: `${personName}\n${contractorName || ''}${blockedRecord.block_reason ? '\nMotivo: ' + blockedRecord.block_reason : ''}`,
+                data: { person_id: personId, person_name: personName, contractor_name: contractorName || '', block_reason: blockedRecord.block_reason },
             });
-        } else {
-            await triggerAlert({
-                siteId,
-                alertType: 'favorite_entry',
-                title: 'Favorito ingresó',
-                body: `${personName}\n${contractorName || ''}`,
-                data: { person_id: personId, person_name: personName, contractor_name: contractorName || '' },
-            });
+            return;
         }
+
+        // Check which users have this person as favorite (per-user)
+        const { data: favRecords } = await (supabase as any)
+            .from('favorites')
+            .select('user_id')
+            .eq('site_id', siteId)
+            .eq('person_id', personId)
+            .eq('is_blocked', false)
+            .not('user_id', 'is', null);
+
+        if (!favRecords || favRecords.length === 0) return;
+
+        const targetUserIds = favRecords.map((f: any) => f.user_id);
+
+        await triggerAlert({
+            siteId,
+            alertType: 'favorite_entry',
+            title: 'Favorito ingreso',
+            body: `${personName}\n${contractorName || ''}`,
+            data: { person_id: personId, person_name: personName, contractor_name: contractorName || '', target_user_ids: targetUserIds },
+        });
     } catch (err) {
         console.error('Error checking entry alerts:', err);
     }
@@ -140,21 +154,25 @@ export async function checkExitAlerts(
     contractorName?: string
 ): Promise<void> {
     try {
-        const { data: favRecord } = await (supabase as any)
+        // Check which users have this person as favorite (per-user)
+        const { data: favRecords } = await (supabase as any)
             .from('favorites')
-            .select('id, is_blocked')
+            .select('user_id')
             .eq('site_id', siteId)
             .eq('person_id', personId)
-            .maybeSingle();
+            .eq('is_blocked', false)
+            .not('user_id', 'is', null);
 
-        if (!favRecord || favRecord.is_blocked) return; // Only alert on non-blocked favorites
+        if (!favRecords || favRecords.length === 0) return;
+
+        const targetUserIds = favRecords.map((f: any) => f.user_id);
 
         await triggerAlert({
             siteId,
             alertType: 'favorite_exit',
-            title: 'Favorito salió',
+            title: 'Favorito salio',
             body: `${personName}\n${contractorName || ''}`,
-            data: { person_id: personId, person_name: personName, contractor_name: contractorName || '' },
+            data: { person_id: personId, person_name: personName, contractor_name: contractorName || '', target_user_ids: targetUserIds },
         });
     } catch (err) {
         console.error('Error checking exit alerts:', err);
