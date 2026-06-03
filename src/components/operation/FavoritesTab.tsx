@@ -109,12 +109,14 @@ export default function FavoritesTab() {
   };
 
   const toggleFavorite = async (personId: string, isFav: boolean) => {
-    if (!currentSite) return;
+    if (!currentSite || !user) return;
 
     if (isFav) {
-      await (supabase as any).from('favorites').delete().eq('site_id', currentSite.id).eq('person_id', personId).eq('user_id', user?.id);
+      const { error } = await (supabase as any).from('favorites').delete().eq('site_id', currentSite.id).eq('person_id', personId).eq('user_id', user.id);
+      if (error) console.error('Error removing favorite:', error);
     } else {
-      await (supabase as any).from('favorites').insert({ site_id: currentSite.id, person_id: personId, is_blocked: false, user_id: user?.id });
+      const { error } = await (supabase as any).from('favorites').insert({ site_id: currentSite.id, person_id: personId, is_blocked: false, user_id: user.id });
+      if (error) console.error('Error adding favorite:', error);
     }
     fetchItems();
     setSearchResults([]);
