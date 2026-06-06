@@ -584,6 +584,9 @@ serve(async (req) => {
             throw new Error('Missing required fields: site_id, alert_type, title, body')
         }
 
+        // Log client version for diagnostics
+        console.log(`[ALERT] type=${alert_type} site=${site_id} client_version=${data?.app_version || 'unknown'}`)
+
         // Get site name
         const { data: siteData } = await supabase
             .from('sites')

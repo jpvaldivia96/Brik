@@ -1,5 +1,6 @@
 // Alert triggering helpers - call these from entry/exit flows
 import { supabase } from '@/integrations/supabase/client';
+import { APP_VERSION } from '@/lib/version';
 
 // Cooldown map to prevent spam (in-memory, resets on page reload)
 const capacityCooldowns = new Map<string, number>();
@@ -26,7 +27,7 @@ export async function triggerAlert(options: AlertTriggerOptions): Promise<boolea
                 alert_type: alertType,
                 title,
                 body,
-                data,
+                data: { ...data, app_version: APP_VERSION },
             },
         });
 
