@@ -5,6 +5,7 @@ import { Settings, FileText, History, LayoutDashboard, X, Users, ClipboardCheck 
 import { cn } from '@/lib/utils';
 import { useSite } from '@/contexts/SiteContext';
 import { supabase } from '@/integrations/supabase/client';
+import { VERSION } from '@/lib/version';
 
 interface AdminDrawerProps {
   open: boolean;
@@ -25,6 +26,7 @@ const adminOptions = [
 export default function AdminDrawer({ open, onOpenChange, activePanel, onPanelChange }: AdminDrawerProps) {
   const { isSupervisor, isInspector, currentSite, currentRole } = useSite();
   const [userRole, setUserRole] = useState<string>('');
+  const [showBuild, setShowBuild] = useState(false);
 
   const handleSelect = (panelId: string) => {
     onPanelChange(panelId);
@@ -102,6 +104,24 @@ export default function AdminDrawer({ open, onOpenChange, activePanel, onPanelCh
               </button>
             );
           })}
+        </div>
+
+        {/* Version Badge */}
+        <div className="mt-5 flex justify-center">
+          <button
+            onClick={() => setShowBuild(!showBuild)}
+            className="group flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-gradient-to-r from-purple-500/10 to-blue-500/10 border border-white/5 hover:border-purple-500/20 transition-all duration-300"
+          >
+            <span className="w-1.5 h-1.5 rounded-full bg-green-400 animate-pulse" />
+            <span className="text-[11px] font-medium text-muted-foreground/70 tracking-wide">
+              BRIK v{VERSION.display}
+            </span>
+            {showBuild && (
+              <span className="text-[10px] text-muted-foreground/40 font-mono">
+                build {VERSION.build}
+              </span>
+            )}
+          </button>
         </div>
       </SheetContent>
     </Sheet>
