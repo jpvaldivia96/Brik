@@ -469,7 +469,7 @@ export default function BottomActionBar({ activeAction, onActionChange }: Omit<B
             </button>
             <button
               onClick={() => handleManualOpen('entry')}
-              className="hidden group-hover:block absolute -bottom-3"
+              className="block absolute -bottom-3"
               style={{ fontSize: '8px', color: 'rgba(255,255,255,0.4)' }}
             >
               manual
@@ -491,7 +491,7 @@ export default function BottomActionBar({ activeAction, onActionChange }: Omit<B
             </button>
             <button
               onClick={() => handleManualOpen('exit')}
-              className="hidden group-hover:block absolute -bottom-3"
+              className="block absolute -bottom-3"
               style={{ fontSize: '8px', color: 'rgba(255,255,255,0.4)' }}
             >
               manual
