@@ -105,17 +105,18 @@ export function AssistantChat() {
             right: '16px',
             width: 'min(360px, calc(100vw - 32px))',
             height: 'min(480px, calc(100vh - 160px))',
-            borderRadius: '16px',
-            background: 'rgba(15, 15, 25, 0.95)',
-            backdropFilter: 'blur(20px)',
-            border: '1px solid rgba(255,255,255,0.1)',
-            boxShadow: '0 8px 40px rgba(0,0,0,0.5), 0 0 0 1px rgba(99,102,241,0.2)',
+            borderRadius: '20px',
+            background: 'rgba(30, 30, 40, 0.55)',
+            backdropFilter: 'blur(40px) saturate(1.4)',
+            WebkitBackdropFilter: 'blur(40px) saturate(1.4)',
+            border: '1px solid rgba(255,255,255,0.06)',
+            boxShadow: '0 4px 30px rgba(0,0,0,0.3), inset 0 1px 0 rgba(255,255,255,0.04)',
           }}
         >
           {/* Header */}
           <div className="flex items-center justify-between px-4 py-3" style={{ borderBottom: '1px solid rgba(255,255,255,0.08)' }}>
             <div className="flex items-center gap-2.5">
-              <div className="w-8 h-8 rounded-full flex items-center justify-center" style={{ background: 'linear-gradient(135deg, #6366f1, #8b5cf6)' }}>
+              <div className="w-8 h-8 rounded-full flex items-center justify-center" style={{ background: 'rgba(255,255,255,0.1)', border: '1px solid rgba(255,255,255,0.1)' }}>
                 <Bot className="w-4 h-4 text-white" />
               </div>
               <div>
@@ -146,9 +147,9 @@ export function AssistantChat() {
                   style={{
                     borderRadius: msg.role === 'user' ? '14px 14px 4px 14px' : '14px 14px 14px 4px',
                     background: msg.role === 'user'
-                      ? 'linear-gradient(135deg, #6366f1, #7c3aed)'
+                      ? 'rgba(255,255,255,0.12)'
                       : 'rgba(255,255,255,0.06)',
-                    border: msg.role === 'user' ? 'none' : '1px solid rgba(255,255,255,0.08)',
+                    border: msg.role === 'user' ? '1px solid rgba(255,255,255,0.1)' : '1px solid rgba(255,255,255,0.06)',
                     color: 'white',
                   }}
                   dangerouslySetInnerHTML={{
@@ -207,7 +208,8 @@ export function AssistantChat() {
                 disabled={!input.trim() || loading}
                 className="w-9 h-9 rounded-xl flex items-center justify-center transition-all disabled:opacity-30"
                 style={{
-                  background: 'linear-gradient(135deg, #6366f1, #7c3aed)',
+                  background: 'rgba(255,255,255,0.1)',
+                  border: '1px solid rgba(255,255,255,0.1)',
                 }}
               >
                 <Send className="w-4 h-4 text-white" />

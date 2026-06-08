@@ -455,32 +455,48 @@ export default function BottomActionBar({ activeAction, onActionChange }: Omit<B
           }}
         >
           {/* Entry */}
-          <button
-            onClick={() => handleScan('entry')}
-            onContextMenu={(e) => { e.preventDefault(); handleManualOpen('entry'); }}
-            className="relative flex items-center justify-center transition-all duration-200 active:scale-90"
-            style={{
-              width: '48px', height: '48px',
-              borderRadius: '16px',
-              background: 'transparent',
-            }}
-          >
-            <LogIn style={{ width: '26px', height: '26px', color: 'white', strokeWidth: 1.6 }} />
-          </button>
+          <div className="relative group flex flex-col items-center">
+            <button
+              onClick={() => handleScan('entry')}
+              className="relative flex items-center justify-center transition-all duration-200 active:scale-90"
+              style={{
+                width: '48px', height: '48px',
+                borderRadius: '16px',
+                background: 'transparent',
+              }}
+            >
+              <LogIn style={{ width: '26px', height: '26px', color: 'white', strokeWidth: 1.6 }} />
+            </button>
+            <button
+              onClick={() => handleManualOpen('entry')}
+              className="hidden group-hover:block absolute -bottom-3"
+              style={{ fontSize: '8px', color: 'rgba(255,255,255,0.4)' }}
+            >
+              manual
+            </button>
+          </div>
 
           {/* Exit */}
-          <button
-            onClick={() => handleScan('exit')}
-            onContextMenu={(e) => { e.preventDefault(); handleManualOpen('exit'); }}
-            className="relative flex items-center justify-center transition-all duration-200 active:scale-90"
-            style={{
-              width: '48px', height: '48px',
-              borderRadius: '16px',
-              background: 'transparent',
-            }}
-          >
-            <LogOut style={{ width: '26px', height: '26px', color: 'white', strokeWidth: 1.6 }} />
-          </button>
+          <div className="relative group flex flex-col items-center">
+            <button
+              onClick={() => handleScan('exit')}
+              className="relative flex items-center justify-center transition-all duration-200 active:scale-90"
+              style={{
+                width: '48px', height: '48px',
+                borderRadius: '16px',
+                background: 'transparent',
+              }}
+            >
+              <LogOut style={{ width: '26px', height: '26px', color: 'white', strokeWidth: 1.6 }} />
+            </button>
+            <button
+              onClick={() => handleManualOpen('exit')}
+              className="hidden group-hover:block absolute -bottom-3"
+              style={{ fontSize: '8px', color: 'rgba(255,255,255,0.4)' }}
+            >
+              manual
+            </button>
+          </div>
 
           {/* Worker — active pill */}
           <button

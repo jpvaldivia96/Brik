@@ -75,12 +75,13 @@ export default function AdminDrawer({ open, onOpenChange, activePanel, onPanelCh
         side="bottom"
         className="pb-8 border-0"
         style={{
-          borderRadius: '24px 24px 0 0',
-          background: 'rgba(10, 10, 18, 0.85)',
-          backdropFilter: 'blur(24px)',
-          WebkitBackdropFilter: 'blur(24px)',
-          border: '1px solid rgba(255,255,255,0.08)',
+          borderRadius: '28px 28px 0 0',
+          background: 'rgba(30, 30, 40, 0.55)',
+          backdropFilter: 'blur(40px) saturate(1.4)',
+          WebkitBackdropFilter: 'blur(40px) saturate(1.4)',
+          border: '1px solid rgba(255,255,255,0.06)',
           borderBottom: 'none',
+          boxShadow: '0 -4px 30px rgba(0,0,0,0.3), inset 0 1px 0 rgba(255,255,255,0.04)',
         }}
       >
         <SheetHeader className="pb-4">
