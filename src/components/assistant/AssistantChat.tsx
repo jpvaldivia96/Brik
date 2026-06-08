@@ -87,22 +87,15 @@ export function AssistantChat() {
     }
   };
 
+  // Listen for toggle event from bottom bar Sparkles icon
+  useEffect(() => {
+    const handler = () => setOpen(prev => !prev);
+    document.addEventListener('toggle-assistant', handler);
+    return () => document.removeEventListener('toggle-assistant', handler);
+  }, []);
+
   return (
     <>
-      {/* FAB */}
-      {!open && (
-        <button
-          onClick={() => setOpen(true)}
-          className="fixed bottom-24 right-4 z-50 w-12 h-12 rounded-full flex items-center justify-center shadow-lg transition-all duration-300 hover:scale-110 active:scale-95"
-          style={{
-            background: 'linear-gradient(135deg, #6366f1, #8b5cf6)',
-            boxShadow: '0 4px 20px rgba(99, 102, 241, 0.5)',
-          }}
-        >
-          <Sparkles className="w-5 h-5 text-white" />
-        </button>
-      )}
-
       {/* Chat Window */}
       {open && (
         <div

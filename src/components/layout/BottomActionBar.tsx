@@ -1,4 +1,4 @@
-import { LogIn, LogOut, HardHat, User, Star, Camera, Search, SwitchCamera } from 'lucide-react';
+import { LogIn, LogOut, HardHat, User, Star, Camera, Search, SwitchCamera, Bell, Sparkles } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useSite } from '@/contexts/SiteContext';
 import { useState, useRef, useEffect } from 'react';
@@ -441,103 +441,102 @@ export default function BottomActionBar({ activeAction, onActionChange }: Omit<B
 
   return (
     <>
-      <div className="fixed bottom-0 left-0 right-0 z-50 flex justify-center pb-safe px-4 py-2">
-        <div
-          className="flex items-center justify-center gap-1 px-3 py-2 w-full max-w-md"
+      <div className="fixed bottom-0 left-0 right-0 z-50 flex justify-center pb-safe px-3 py-2.5">
+        <nav
+          className="flex items-center justify-evenly w-full max-w-md"
           style={{
-            borderRadius: '24px',
-            background: 'rgba(10, 10, 18, 0.75)',
-            backdropFilter: 'blur(24px)',
-            WebkitBackdropFilter: 'blur(24px)',
-            border: '1px solid rgba(255,255,255,0.08)',
-            boxShadow: '0 8px 32px rgba(0,0,0,0.4)',
+            borderRadius: '28px',
+            background: 'rgba(30, 30, 40, 0.55)',
+            backdropFilter: 'blur(40px) saturate(1.4)',
+            WebkitBackdropFilter: 'blur(40px) saturate(1.4)',
+            border: '1px solid rgba(255,255,255,0.06)',
+            boxShadow: '0 4px 30px rgba(0,0,0,0.3), inset 0 1px 0 rgba(255,255,255,0.04)',
+            padding: '6px 8px',
           }}
         >
-          {/* Worker */}
+          {/* Entry */}
+          <button
+            onClick={() => handleScan('entry')}
+            onContextMenu={(e) => { e.preventDefault(); handleManualOpen('entry'); }}
+            className="relative flex items-center justify-center transition-all duration-200 active:scale-90"
+            style={{
+              width: '48px', height: '48px',
+              borderRadius: '16px',
+              background: 'transparent',
+            }}
+          >
+            <LogIn style={{ width: '26px', height: '26px', color: 'white', strokeWidth: 1.6 }} />
+          </button>
+
+          {/* Exit */}
+          <button
+            onClick={() => handleScan('exit')}
+            onContextMenu={(e) => { e.preventDefault(); handleManualOpen('exit'); }}
+            className="relative flex items-center justify-center transition-all duration-200 active:scale-90"
+            style={{
+              width: '48px', height: '48px',
+              borderRadius: '16px',
+              background: 'transparent',
+            }}
+          >
+            <LogOut style={{ width: '26px', height: '26px', color: 'white', strokeWidth: 1.6 }} />
+          </button>
+
+          {/* Worker — active pill */}
           <button
             onClick={() => onActionChange('worker')}
-            className="flex flex-col items-center justify-center transition-all duration-300 active:scale-90"
+            className="relative flex items-center justify-center transition-all duration-200 active:scale-90"
             style={{
-              padding: '8px 12px',
+              width: activeAction === 'worker' ? '56px' : '48px',
+              height: '48px',
               borderRadius: '16px',
               background: activeAction === 'worker' ? 'rgba(255,255,255,0.12)' : 'transparent',
             }}
           >
-            <HardHat className="w-[22px] h-[22px]" style={{ color: activeAction === 'worker' ? 'white' : 'rgba(255,255,255,0.45)', strokeWidth: 1.5 }} />
+            <HardHat style={{ width: '26px', height: '26px', color: 'white', strokeWidth: 1.6 }} />
           </button>
-
-          {/* Entry */}
-          <div className="flex flex-col items-center">
-            <button
-              onClick={() => handleScan('entry')}
-              className="flex items-center gap-1.5 transition-all duration-300 active:scale-90"
-              style={{
-                padding: '8px 16px',
-                borderRadius: '16px',
-                background: 'rgba(52, 211, 153, 0.15)',
-                border: '1px solid rgba(52, 211, 153, 0.25)',
-              }}
-            >
-              <LogIn className="w-[18px] h-[18px]" style={{ color: '#6ee7b7', strokeWidth: 1.5 }} />
-              <span style={{ fontSize: '12px', fontWeight: 600, color: '#6ee7b7' }}>Entrada</span>
-            </button>
-            <button
-              onClick={() => handleManualOpen('entry')}
-              style={{ fontSize: '9px', color: 'rgba(255,255,255,0.3)', marginTop: '2px' }}
-            >
-              manual
-            </button>
-          </div>
-
-          {/* Exit */}
-          <div className="flex flex-col items-center">
-            <button
-              onClick={() => handleScan('exit')}
-              className="flex items-center gap-1.5 transition-all duration-300 active:scale-90"
-              style={{
-                padding: '8px 16px',
-                borderRadius: '16px',
-                background: 'rgba(248, 113, 113, 0.15)',
-                border: '1px solid rgba(248, 113, 113, 0.25)',
-              }}
-            >
-              <LogOut className="w-[18px] h-[18px]" style={{ color: '#fca5a5', strokeWidth: 1.5 }} />
-              <span style={{ fontSize: '12px', fontWeight: 600, color: '#fca5a5' }}>Salida</span>
-            </button>
-            <button
-              onClick={() => handleManualOpen('exit')}
-              style={{ fontSize: '9px', color: 'rgba(255,255,255,0.3)', marginTop: '2px' }}
-            >
-              manual
-            </button>
-          </div>
 
           {/* Visitor */}
           <button
             onClick={() => onActionChange('visitor')}
-            className="flex flex-col items-center justify-center transition-all duration-300 active:scale-90"
+            className="relative flex items-center justify-center transition-all duration-200 active:scale-90"
             style={{
-              padding: '8px 12px',
+              width: activeAction === 'visitor' ? '56px' : '48px',
+              height: '48px',
               borderRadius: '16px',
               background: activeAction === 'visitor' ? 'rgba(255,255,255,0.12)' : 'transparent',
             }}
           >
-            <User className="w-[22px] h-[22px]" style={{ color: activeAction === 'visitor' ? 'white' : 'rgba(255,255,255,0.45)', strokeWidth: 1.5 }} />
+            <User style={{ width: '26px', height: '26px', color: 'white', strokeWidth: 1.6 }} />
           </button>
 
           {/* Favorites */}
           <button
             onClick={() => onActionChange('favorites')}
-            className="flex flex-col items-center justify-center transition-all duration-300 active:scale-90"
+            className="relative flex items-center justify-center transition-all duration-200 active:scale-90"
             style={{
-              padding: '8px 12px',
+              width: activeAction === 'favorites' ? '56px' : '48px',
+              height: '48px',
               borderRadius: '16px',
               background: activeAction === 'favorites' ? 'rgba(255,255,255,0.12)' : 'transparent',
             }}
           >
-            <Star className="w-[22px] h-[22px]" style={{ color: activeAction === 'favorites' ? 'white' : 'rgba(255,255,255,0.45)', strokeWidth: 1.5 }} />
+            <Star style={{ width: '26px', height: '26px', color: 'white', strokeWidth: 1.6 }} />
           </button>
-        </div>
+
+          {/* AI Assistant */}
+          <button
+            onClick={() => document.dispatchEvent(new CustomEvent('toggle-assistant'))}
+            className="relative flex items-center justify-center transition-all duration-200 active:scale-90"
+            style={{
+              width: '48px', height: '48px',
+              borderRadius: '16px',
+              background: 'transparent',
+            }}
+          >
+            <Sparkles style={{ width: '26px', height: '26px', color: 'white', strokeWidth: 1.6 }} />
+          </button>
+        </nav>
       </div>
 
       {/* Camera Modal */}
