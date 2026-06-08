@@ -441,82 +441,101 @@ export default function BottomActionBar({ activeAction, onActionChange }: Omit<B
 
   return (
     <>
-      <div className="fixed bottom-0 left-0 right-0 backdrop-blur-xl bg-slate-900/80 border-t border-white/10 z-50 pb-safe">
-        <div className="flex items-center justify-center gap-2.5 sm:gap-3 px-2.5 sm:px-5 py-3 sm:py-4">
-          {/* Worker Button */}
+      <div className="fixed bottom-0 left-0 right-0 z-50 flex justify-center pb-safe px-4 py-2">
+        <div
+          className="flex items-center justify-center gap-1 px-3 py-2 w-full max-w-md"
+          style={{
+            borderRadius: '24px',
+            background: 'rgba(10, 10, 18, 0.75)',
+            backdropFilter: 'blur(24px)',
+            WebkitBackdropFilter: 'blur(24px)',
+            border: '1px solid rgba(255,255,255,0.08)',
+            boxShadow: '0 8px 32px rgba(0,0,0,0.4)',
+          }}
+        >
+          {/* Worker */}
           <button
             onClick={() => onActionChange('worker')}
-            className={cn(
-              "flex flex-col items-center justify-center gap-0.5 px-3 py-2.5 sm:px-3.5 sm:py-3 rounded-xl transition-all duration-300 min-w-0",
-              activeAction === 'worker'
-                ? "bg-gradient-to-r from-purple-500 to-blue-500 text-white shadow-lg shadow-purple-500/30"
-                : "text-white/50 hover:text-white hover:bg-purple-500/20 hover:shadow-lg hover:shadow-purple-500/25 hover:scale-105"
-            )}
+            className="flex flex-col items-center justify-center transition-all duration-300 active:scale-90"
+            style={{
+              padding: '8px 12px',
+              borderRadius: '16px',
+              background: activeAction === 'worker' ? 'rgba(255,255,255,0.12)' : 'transparent',
+            }}
           >
-            <HardHat className="w-5 h-5 sm:w-7 sm:h-7" />
-            <span className="text-[10px] sm:text-xs font-medium">Trabajador</span>
+            <HardHat className="w-[22px] h-[22px]" style={{ color: activeAction === 'worker' ? 'white' : 'rgba(255,255,255,0.45)', strokeWidth: 1.5 }} />
           </button>
 
-          {/* Entry Button Group */}
+          {/* Entry */}
           <div className="flex flex-col items-center">
             <button
               onClick={() => handleScan('entry')}
-              className="flex items-center gap-2 sm:gap-2.5 px-4 sm:px-10 py-2.5 sm:py-3 rounded-xl transition-all duration-300 bg-gradient-to-r from-emerald-500 via-teal-500 to-purple-600 text-white shadow-lg shadow-emerald-500/40 hover:shadow-xl hover:shadow-emerald-500/60 hover:scale-105 active:scale-95"
+              className="flex items-center gap-1.5 transition-all duration-300 active:scale-90"
+              style={{
+                padding: '8px 16px',
+                borderRadius: '16px',
+                background: 'rgba(52, 211, 153, 0.15)',
+                border: '1px solid rgba(52, 211, 153, 0.25)',
+              }}
             >
-              <LogIn className="w-4 h-4 sm:w-6 sm:h-6" />
-              <span className="text-xs sm:text-base font-semibold">Entrada</span>
+              <LogIn className="w-[18px] h-[18px]" style={{ color: '#6ee7b7', strokeWidth: 1.5 }} />
+              <span style={{ fontSize: '12px', fontWeight: 600, color: '#6ee7b7' }}>Entrada</span>
             </button>
             <button
               onClick={() => handleManualOpen('entry')}
-              className="text-[11px] sm:text-xs text-white/50 hover:text-emerald-400 mt-1.5 transition-colors underline underline-offset-2"
+              style={{ fontSize: '9px', color: 'rgba(255,255,255,0.3)', marginTop: '2px' }}
             >
               manual
             </button>
           </div>
 
-          {/* Exit Button Group */}
+          {/* Exit */}
           <div className="flex flex-col items-center">
             <button
               onClick={() => handleScan('exit')}
-              className="flex items-center gap-2 sm:gap-2.5 px-4 sm:px-10 py-2.5 sm:py-3 rounded-xl transition-all duration-300 bg-gradient-to-r from-red-500 via-orange-500 to-purple-600 text-white shadow-lg shadow-red-500/40 hover:shadow-xl hover:shadow-red-500/60 hover:scale-105 active:scale-95"
+              className="flex items-center gap-1.5 transition-all duration-300 active:scale-90"
+              style={{
+                padding: '8px 16px',
+                borderRadius: '16px',
+                background: 'rgba(248, 113, 113, 0.15)',
+                border: '1px solid rgba(248, 113, 113, 0.25)',
+              }}
             >
-              <LogOut className="w-4 h-4 sm:w-6 sm:h-6" />
-              <span className="text-xs sm:text-base font-semibold">Salida</span>
+              <LogOut className="w-[18px] h-[18px]" style={{ color: '#fca5a5', strokeWidth: 1.5 }} />
+              <span style={{ fontSize: '12px', fontWeight: 600, color: '#fca5a5' }}>Salida</span>
             </button>
             <button
               onClick={() => handleManualOpen('exit')}
-              className="text-[11px] sm:text-xs text-white/50 hover:text-red-400 mt-1.5 transition-colors underline underline-offset-2"
+              style={{ fontSize: '9px', color: 'rgba(255,255,255,0.3)', marginTop: '2px' }}
             >
               manual
             </button>
           </div>
 
-          {/* Visitor Button */}
+          {/* Visitor */}
           <button
             onClick={() => onActionChange('visitor')}
-            className={cn(
-              "flex flex-col items-center justify-center gap-0.5 px-3 py-2.5 sm:px-3.5 sm:py-3 rounded-xl transition-all duration-300 min-w-0",
-              activeAction === 'visitor'
-                ? "bg-gradient-to-r from-purple-500 to-blue-500 text-white shadow-lg shadow-purple-500/30"
-                : "text-white/50 hover:text-white hover:bg-purple-500/20 hover:shadow-lg hover:shadow-purple-500/25 hover:scale-105"
-            )}
+            className="flex flex-col items-center justify-center transition-all duration-300 active:scale-90"
+            style={{
+              padding: '8px 12px',
+              borderRadius: '16px',
+              background: activeAction === 'visitor' ? 'rgba(255,255,255,0.12)' : 'transparent',
+            }}
           >
-            <User className="w-5 h-5 sm:w-7 sm:h-7" />
-            <span className="text-[10px] sm:text-xs font-medium">Visitante</span>
+            <User className="w-[22px] h-[22px]" style={{ color: activeAction === 'visitor' ? 'white' : 'rgba(255,255,255,0.45)', strokeWidth: 1.5 }} />
           </button>
 
-          {/* Favorites Button */}
+          {/* Favorites */}
           <button
             onClick={() => onActionChange('favorites')}
-            className={cn(
-              "flex flex-col items-center justify-center gap-0.5 px-3 py-2.5 sm:px-3.5 sm:py-3 rounded-xl transition-all duration-300 min-w-0",
-              activeAction === 'favorites'
-                ? "bg-gradient-to-r from-purple-500 to-blue-500 text-white shadow-lg shadow-purple-500/30"
-                : "text-white/50 hover:text-white hover:bg-purple-500/20 hover:shadow-lg hover:shadow-purple-500/25 hover:scale-105"
-            )}
+            className="flex flex-col items-center justify-center transition-all duration-300 active:scale-90"
+            style={{
+              padding: '8px 12px',
+              borderRadius: '16px',
+              background: activeAction === 'favorites' ? 'rgba(255,255,255,0.12)' : 'transparent',
+            }}
           >
-            <Star className="w-5 h-5 sm:w-7 sm:h-7" />
-            <span className="text-[10px] sm:text-xs font-medium">Favoritos</span>
+            <Star className="w-[22px] h-[22px]" style={{ color: activeAction === 'favorites' ? 'white' : 'rgba(255,255,255,0.45)', strokeWidth: 1.5 }} />
           </button>
         </div>
       </div>

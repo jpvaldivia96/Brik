@@ -93,7 +93,7 @@ export function AssistantChat() {
       {!open && (
         <button
           onClick={() => setOpen(true)}
-          className="fixed bottom-20 right-4 z-50 w-12 h-12 rounded-full flex items-center justify-center shadow-lg transition-all duration-300 hover:scale-110 active:scale-95"
+          className="fixed bottom-24 right-4 z-50 w-12 h-12 rounded-full flex items-center justify-center shadow-lg transition-all duration-300 hover:scale-110 active:scale-95"
           style={{
             background: 'linear-gradient(135deg, #6366f1, #8b5cf6)',
             boxShadow: '0 4px 20px rgba(99, 102, 241, 0.5)',

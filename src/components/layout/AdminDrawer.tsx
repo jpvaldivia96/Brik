@@ -71,12 +71,23 @@ export default function AdminDrawer({ open, onOpenChange, activePanel, onPanelCh
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent side="bottom" className="rounded-t-3xl pb-8">
+      <SheetContent
+        side="bottom"
+        className="pb-8 border-0"
+        style={{
+          borderRadius: '24px 24px 0 0',
+          background: 'rgba(10, 10, 18, 0.85)',
+          backdropFilter: 'blur(24px)',
+          WebkitBackdropFilter: 'blur(24px)',
+          border: '1px solid rgba(255,255,255,0.08)',
+          borderBottom: 'none',
+        }}
+      >
         <SheetHeader className="pb-4">
-          <SheetTitle className="text-lg font-semibold">Administración</SheetTitle>
+          <SheetTitle style={{ fontSize: '16px', fontWeight: 600, color: 'white' }}>Administración</SheetTitle>
         </SheetHeader>
 
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid grid-cols-2 gap-2.5">
           {visibleOptions.map((option) => {
             const Icon = option.icon;
             const isActive = activePanel === option.id;
@@ -84,22 +95,25 @@ export default function AdminDrawer({ open, onOpenChange, activePanel, onPanelCh
               <button
                 key={option.id}
                 onClick={() => handleSelect(option.id)}
-                className={cn(
-                  "flex items-start gap-3 p-4 rounded-2xl border transition-all duration-200 text-left",
-                  isActive
-                    ? "bg-primary/10 border-primary text-primary scale-[1.02] shadow-lg shadow-primary/20"
-                    : "bg-card border-border hover:border-primary/50 hover:scale-[1.02] hover:shadow-lg hover:shadow-primary/10 active:scale-95"
-                )}
+                className="flex items-start gap-3 p-4 transition-all duration-200 text-left active:scale-95"
+                style={{
+                  borderRadius: '16px',
+                  background: isActive ? 'rgba(255,255,255,0.1)' : 'rgba(255,255,255,0.04)',
+                  border: isActive ? '1px solid rgba(255,255,255,0.15)' : '1px solid rgba(255,255,255,0.06)',
+                }}
               >
-                <div className={cn(
-                  "w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0",
-                  isActive ? "bg-primary text-primary-foreground" : "bg-muted"
-                )}>
-                  <Icon className="w-5 h-5" />
+                <div
+                  className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0"
+                  style={{
+                    background: isActive ? 'rgba(139, 92, 246, 0.3)' : 'rgba(255,255,255,0.06)',
+                    border: isActive ? '1px solid rgba(139, 92, 246, 0.4)' : '1px solid rgba(255,255,255,0.06)',
+                  }}
+                >
+                  <Icon className="w-5 h-5" style={{ color: isActive ? '#c4b5fd' : 'rgba(255,255,255,0.5)', strokeWidth: 1.5 }} />
                 </div>
                 <div className="min-w-0">
-                  <p className="font-medium text-sm">{option.label}</p>
-                  <p className="text-xs text-muted-foreground truncate">{option.description}</p>
+                  <p style={{ fontSize: '13px', fontWeight: 500, color: isActive ? 'white' : 'rgba(255,255,255,0.8)' }}>{option.label}</p>
+                  <p style={{ fontSize: '11px', color: 'rgba(255,255,255,0.35)' }} className="truncate">{option.description}</p>
                 </div>
               </button>
             );
@@ -110,14 +124,19 @@ export default function AdminDrawer({ open, onOpenChange, activePanel, onPanelCh
         <div className="mt-5 flex justify-center">
           <button
             onClick={() => setShowBuild(!showBuild)}
-            className="group flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-gradient-to-r from-purple-500/10 to-blue-500/10 border border-white/5 hover:border-purple-500/20 transition-all duration-300"
+            className="flex items-center gap-1.5 px-3 py-1.5 transition-all duration-300"
+            style={{
+              borderRadius: '999px',
+              background: 'rgba(255,255,255,0.04)',
+              border: '1px solid rgba(255,255,255,0.06)',
+            }}
           >
             <span className="w-1.5 h-1.5 rounded-full bg-green-400 animate-pulse" />
-            <span className="text-[11px] font-medium text-muted-foreground/70 tracking-wide">
+            <span style={{ fontSize: '11px', fontWeight: 500, color: 'rgba(255,255,255,0.4)', letterSpacing: '0.05em' }}>
               BRIK v{VERSION.display}
             </span>
             {showBuild && (
-              <span className="text-[10px] text-muted-foreground/40 font-mono">
+              <span style={{ fontSize: '10px', color: 'rgba(255,255,255,0.25)', fontFamily: 'monospace' }}>
                 build {VERSION.build}
               </span>
             )}
