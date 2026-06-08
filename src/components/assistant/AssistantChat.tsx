@@ -1,14 +1,9 @@
 import { useState, useRef, useEffect } from 'react';
-import { Bot, Sparkles, Send, X, Loader2 } from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
-import { Input } from '@/components/ui/input';
-import { ScrollArea } from '@/components/ui/scroll-area';
+import { Sparkles, Send, X, Loader2, Bot } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useSite } from '@/contexts/SiteContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { cn } from '@/lib/utils';
-import ReactMarkdown from 'react-markdown';
 
 interface Message {
   id: string;
@@ -24,12 +19,13 @@ export function AssistantChat() {
     {
       id: 'welcome',
       role: 'assistant',
-      content: '¡Hola! Soy BRIK AI ✨. Pregúntame sobre quién está adentro, reportes del día o cualquier información de la obra.',
+      content: '¡Hola! 👋 Soy BRIK AI. Pregúntame lo que necesites sobre la obra.',
       createdAt: new Date(),
     }
   ]);
   const [loading, setLoading] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
   const { currentSite } = useSite();
   const { user } = useAuth();
 
@@ -38,6 +34,12 @@ export function AssistantChat() {
       scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
     }
   }, [messages, loading]);
+
+  useEffect(() => {
+    if (open && inputRef.current) {
+      setTimeout(() => inputRef.current?.focus(), 300);
+    }
+  }, [open]);
 
   const handleSend = async () => {
     if (!input.trim() || !currentSite || !user) return;
@@ -54,7 +56,6 @@ export function AssistantChat() {
     setLoading(true);
 
     try {
-      // Call edge function
       const { data, error } = await supabase.functions.invoke('in-app-assistant', {
         body: {
           message: userMessage.content,
@@ -75,13 +76,12 @@ export function AssistantChat() {
       setMessages(prev => [...prev, assistantMessage]);
     } catch (error) {
       console.error('Error calling assistant:', error);
-      const errorMessage: Message = {
+      setMessages(prev => [...prev, {
         id: (Date.now() + 1).toString(),
         role: 'assistant',
-        content: '❌ Lo siento, ocurrió un error al comunicarme con el servidor.',
+        content: '❌ Ocurrió un error. Intenta de nuevo.',
         createdAt: new Date(),
-      };
-      setMessages(prev => [...prev, errorMessage]);
+      }]);
     } finally {
       setLoading(false);
     }
@@ -89,80 +89,109 @@ export function AssistantChat() {
 
   return (
     <>
-      {/* Floating Action Button */}
-      <Button
-        onClick={() => setOpen(true)}
-        className="fixed bottom-20 right-4 w-12 h-12 rounded-full shadow-xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 z-40 p-0 overflow-hidden group"
-        style={{
-          boxShadow: '0 0 20px rgba(79, 70, 229, 0.4)',
-        }}
-      >
-        <div className="absolute inset-0 bg-white/20 group-hover:scale-150 transition-transform duration-500 rounded-full" />
-        <Sparkles className="w-5 h-5 text-white relative z-10" />
-      </Button>
+      {/* FAB */}
+      {!open && (
+        <button
+          onClick={() => setOpen(true)}
+          className="fixed bottom-20 right-4 z-50 w-12 h-12 rounded-full flex items-center justify-center shadow-lg transition-all duration-300 hover:scale-110 active:scale-95"
+          style={{
+            background: 'linear-gradient(135deg, #6366f1, #8b5cf6)',
+            boxShadow: '0 4px 20px rgba(99, 102, 241, 0.5)',
+          }}
+        >
+          <Sparkles className="w-5 h-5 text-white" />
+        </button>
+      )}
 
-      <Sheet open={open} onOpenChange={setOpen}>
-        <SheetContent side="right" className="w-full sm:w-[400px] p-0 flex flex-col bg-background/95 backdrop-blur-xl border-l border-white/10">
-          <SheetHeader className="p-4 border-b border-white/5 flex flex-row items-center justify-between space-y-0">
-            <div className="flex items-center gap-2">
-              <div className="w-8 h-8 rounded-full bg-gradient-to-br from-blue-500 to-indigo-500 flex items-center justify-center shadow-inner">
+      {/* Chat Window */}
+      {open && (
+        <div
+          className="fixed z-50 flex flex-col overflow-hidden animate-in slide-in-from-bottom-4 fade-in duration-200"
+          style={{
+            bottom: '80px',
+            right: '16px',
+            width: 'min(360px, calc(100vw - 32px))',
+            height: 'min(480px, calc(100vh - 160px))',
+            borderRadius: '16px',
+            background: 'rgba(15, 15, 25, 0.95)',
+            backdropFilter: 'blur(20px)',
+            border: '1px solid rgba(255,255,255,0.1)',
+            boxShadow: '0 8px 40px rgba(0,0,0,0.5), 0 0 0 1px rgba(99,102,241,0.2)',
+          }}
+        >
+          {/* Header */}
+          <div className="flex items-center justify-between px-4 py-3" style={{ borderBottom: '1px solid rgba(255,255,255,0.08)' }}>
+            <div className="flex items-center gap-2.5">
+              <div className="w-8 h-8 rounded-full flex items-center justify-center" style={{ background: 'linear-gradient(135deg, #6366f1, #8b5cf6)' }}>
                 <Bot className="w-4 h-4 text-white" />
               </div>
               <div>
-                <SheetTitle className="text-left text-base">BRIK AI</SheetTitle>
-                <p className="text-xs text-muted-foreground">Asistente Inteligente</p>
+                <div className="text-sm font-semibold text-white">BRIK AI</div>
+                <div className="text-[10px] text-white/40">Asistente Inteligente</div>
               </div>
             </div>
-          </SheetHeader>
+            <button
+              onClick={() => setOpen(false)}
+              className="w-7 h-7 rounded-full flex items-center justify-center hover:bg-white/10 transition-colors"
+            >
+              <X className="w-4 h-4 text-white/60" />
+            </button>
+          </div>
 
-          {/* Chat Messages */}
-          <ScrollArea className="flex-1 p-4" ref={scrollRef}>
-            <div className="space-y-4 pb-4">
-              {messages.map((msg) => (
+          {/* Messages */}
+          <div ref={scrollRef} className="flex-1 overflow-y-auto px-3 py-3 space-y-3" style={{ scrollBehavior: 'smooth' }}>
+            {messages.map((msg) => (
+              <div
+                key={msg.id}
+                className={cn(
+                  "flex flex-col max-w-[85%]",
+                  msg.role === 'user' ? "ml-auto items-end" : "mr-auto items-start"
+                )}
+              >
                 <div
-                  key={msg.id}
-                  className={cn(
-                    "flex flex-col max-w-[85%] animate-fade-in",
-                    msg.role === 'user' ? "ml-auto items-end" : "mr-auto items-start"
-                  )}
-                >
-                  <div
-                    className={cn(
-                      "px-4 py-2.5 rounded-2xl text-sm whitespace-pre-wrap shadow-sm",
-                      msg.role === 'user' 
-                        ? "bg-blue-600 text-white rounded-tr-sm" 
-                        : "bg-white/5 text-foreground rounded-tl-sm border border-white/10"
-                    )}
-                  >
-                    {msg.role === 'assistant' ? (
-                      <ReactMarkdown className="prose prose-invert prose-sm max-w-none">
-                        {msg.content}
-                      </ReactMarkdown>
-                    ) : (
-                      msg.content
-                    )}
-                  </div>
-                  <span className="text-[10px] text-muted-foreground mt-1 px-1">
-                    {msg.createdAt.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                  </span>
-                </div>
-              ))}
-              
-              {loading && (
-                <div className="flex items-start max-w-[85%] mr-auto animate-fade-in">
-                  <div className="px-4 py-3 rounded-2xl rounded-tl-sm bg-white/5 border border-white/10 flex items-center gap-2">
-                    <Loader2 className="w-4 h-4 animate-spin text-blue-400" />
-                    <span className="text-xs text-muted-foreground">Pensando...</span>
-                  </div>
-                </div>
-              )}
-            </div>
-          </ScrollArea>
+                  className="px-3 py-2 text-[13px] leading-relaxed whitespace-pre-wrap"
+                  style={{
+                    borderRadius: msg.role === 'user' ? '14px 14px 4px 14px' : '14px 14px 14px 4px',
+                    background: msg.role === 'user'
+                      ? 'linear-gradient(135deg, #6366f1, #7c3aed)'
+                      : 'rgba(255,255,255,0.06)',
+                    border: msg.role === 'user' ? 'none' : '1px solid rgba(255,255,255,0.08)',
+                    color: 'white',
+                  }}
+                  dangerouslySetInnerHTML={{
+                    __html: msg.content
+                      .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+                      .replace(/\n/g, '<br/>')
+                  }}
+                />
+                <span className="text-[10px] mt-1 px-1" style={{ color: 'rgba(255,255,255,0.3)' }}>
+                  {msg.createdAt.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                </span>
+              </div>
+            ))}
 
-          {/* Input Area */}
-          <div className="p-4 border-t border-white/5 bg-background/50 backdrop-blur-md">
-            <div className="relative flex items-center">
-              <Input
+            {loading && (
+              <div className="flex items-start max-w-[85%] mr-auto">
+                <div
+                  className="px-3 py-2 flex items-center gap-2"
+                  style={{
+                    borderRadius: '14px 14px 14px 4px',
+                    background: 'rgba(255,255,255,0.06)',
+                    border: '1px solid rgba(255,255,255,0.08)',
+                  }}
+                >
+                  <Loader2 className="w-3.5 h-3.5 animate-spin" style={{ color: '#818cf8' }} />
+                  <span className="text-xs" style={{ color: 'rgba(255,255,255,0.5)' }}>Pensando...</span>
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Input */}
+          <div className="px-3 py-3" style={{ borderTop: '1px solid rgba(255,255,255,0.08)' }}>
+            <div className="flex items-center gap-2">
+              <input
+                ref={inputRef}
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
                 onKeyDown={(e) => {
@@ -172,24 +201,28 @@ export function AssistantChat() {
                   }
                 }}
                 placeholder="Pregunta algo..."
-                className="pr-12 py-6 rounded-xl bg-white/5 border-white/10 focus-visible:ring-blue-500/50"
                 disabled={loading}
+                className="flex-1 px-3 py-2.5 text-[13px] rounded-xl outline-none placeholder:text-white/25"
+                style={{
+                  background: 'rgba(255,255,255,0.06)',
+                  border: '1px solid rgba(255,255,255,0.1)',
+                  color: 'white',
+                }}
               />
-              <Button
-                size="icon"
+              <button
                 onClick={handleSend}
                 disabled={!input.trim() || loading}
-                className="absolute right-1.5 h-9 w-9 rounded-lg bg-blue-600 hover:bg-blue-500 transition-colors"
+                className="w-9 h-9 rounded-xl flex items-center justify-center transition-all disabled:opacity-30"
+                style={{
+                  background: 'linear-gradient(135deg, #6366f1, #7c3aed)',
+                }}
               >
                 <Send className="w-4 h-4 text-white" />
-              </Button>
+              </button>
             </div>
-            <p className="text-[10px] text-center text-muted-foreground mt-2 opacity-70">
-              La IA puede cometer errores. Verifica la info importante.
-            </p>
           </div>
-        </SheetContent>
-      </Sheet>
+        </div>
+      )}
     </>
   );
 }
