@@ -35,6 +35,7 @@ import { SuspendedOverlay } from '@/components/subscription/SuspendedOverlay';
 import { SpotlightTutorial } from '@/components/tutorial/SpotlightTutorial';
 import { getCountryFlag, formatSiteDateShort, formatSiteTime, getSiteCurrentTime } from '@/lib/dateUtils';
 import { NotificationBell } from '@/components/layout/NotificationBell';
+import { AssistantChat } from '@/components/assistant/AssistantChat';
 
 // Live Date/Time Display Component with Weather and Country Flag
 function DateTimeDisplay() {
@@ -372,6 +373,9 @@ export default function MainLayout() {
       {showTutorial && activeAdminPanel === 'dashboard' && (
         <SpotlightTutorial onComplete={() => setShowTutorial(false)} />
       )}
+
+      {/* In-App AI Assistant */}
+      <AssistantChat />
     </div>
   );
 }

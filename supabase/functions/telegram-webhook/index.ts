@@ -672,27 +672,110 @@ async function handleDesconectar(supabase: any, chatId: string) {
 // ─── Natural Language (keyword matching) ─────────────────────────────────────
 
 async function handleNatural(supabase: any, chatId: string, ctx: UserContext, text: string) {
-    const lower = text.toLowerCase()
+    const geminiKey = Deno.env.get('GEMINI_API_KEY')
+    
+    // Fallback to keyword matching if Gemini is not configured
+    if (!geminiKey) {
+        const lower = text.toLowerCase()
+        if (lower.includes('adentro') || lower.includes('cuantos') || lower.includes('cuántos') || lower.includes('dentro') || lower.includes('presentes')) {
+            await handleAdentro(supabase, chatId, ctx)
+        } else if (lower.includes('hoy') || lower.includes('resumen') || lower.includes('dia') || lower.includes('día')) {
+            await handleHoy(supabase, chatId, ctx)
+        } else if (lower.includes('favorito') || lower.includes('estrella')) {
+            await handleFavoritos(supabase, chatId, ctx)
+        } else if (lower.includes('hora') || lower.includes('tiempo')) {
+            await handleHoras(supabase, chatId, ctx)
+        } else if (lower.includes('overtime') || lower.includes('extra')) {
+            await handleOvertime(supabase, chatId, ctx)
+        } else if (lower.startsWith('busca ') || lower.startsWith('quien es ') || lower.startsWith('quién es ')) {
+            const name = text.replace(/^(busca a |busca |quien es |quién es )/i, '').trim()
+            await handleBuscar(supabase, chatId, ctx, name)
+        } else {
+            await sendTG(chatId,
+                `🤔 No entendi tu mensaje.\n\n` +
+                `Escribe /help para ver los comandos disponibles.`
+            )
+        }
+        return
+    }
 
-    // Match patterns
-    if (lower.includes('adentro') || lower.includes('cuantos') || lower.includes('cuántos') || lower.includes('dentro') || lower.includes('presentes')) {
-        await handleAdentro(supabase, chatId, ctx)
-    } else if (lower.includes('hoy') || lower.includes('resumen') || lower.includes('dia') || lower.includes('día')) {
-        await handleHoy(supabase, chatId, ctx)
-    } else if (lower.includes('favorito') || lower.includes('estrella')) {
-        await handleFavoritos(supabase, chatId, ctx)
-    } else if (lower.includes('hora') || lower.includes('tiempo')) {
-        await handleHoras(supabase, chatId, ctx)
-    } else if (lower.includes('overtime') || lower.includes('extra')) {
-        await handleOvertime(supabase, chatId, ctx)
-    } else if (lower.startsWith('busca ') || lower.startsWith('quien es ') || lower.startsWith('quién es ')) {
-        const name = text.replace(/^(busca a |busca |quien es |quién es )/i, '').trim()
-        await handleBuscar(supabase, chatId, ctx, name)
-    } else {
-        await sendTG(chatId,
-            `🤔 No entendi tu mensaje.\n\n` +
-            `Escribe /help para ver los comandos disponibles.`
-        )
+    // Process with Gemini
+    try {
+        const prompt = `You are an AI assistant for a construction site gate access system. 
+Classify the user's input into one of these commands: 
+- /adentro (who is inside)
+- /hoy (today's summary)
+- /buscar (search for a specific person, requires name)
+- /contratista (info about a specific contractor, requires name)
+- /favoritos (status of favorite people)
+- /horas (top hours worked today)
+- /overtime (people working overtime)
+
+User Input: "${text}"
+
+Respond ONLY with a valid JSON object matching this schema, nothing else:
+{"command": "/command_name", "arg": "argument if required, or null"}
+`
+
+        const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-latest:generateContent?key=${geminiKey}`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                contents: [{ parts: [{ text: prompt }] }],
+                generationConfig: {
+                    temperature: 0,
+                    responseMimeType: "application/json"
+                }
+            })
+        })
+
+        if (!response.ok) {
+            throw new Error(`Gemini API error: ${response.statusText}`)
+        }
+
+        const data = await response.json()
+        const resultText = data.candidates?.[0]?.content?.parts?.[0]?.text
+        
+        if (!resultText) {
+            throw new Error('Empty response from Gemini')
+        }
+
+        const parsed = JSON.parse(resultText)
+
+        // Dispatch based on Gemini classification
+        switch (parsed.command) {
+            case '/adentro':
+                await handleAdentro(supabase, chatId, ctx)
+                break
+            case '/hoy':
+                await handleHoy(supabase, chatId, ctx)
+                break
+            case '/buscar':
+                if (parsed.arg) await handleBuscar(supabase, chatId, ctx, parsed.arg)
+                else await sendTG(chatId, "⚠️ Dime el nombre de quién quieres buscar.")
+                break
+            case '/contratista':
+                if (parsed.arg) await handleContratista(supabase, chatId, ctx, parsed.arg)
+                else await sendTG(chatId, "⚠️ Dime el nombre del contratista.")
+                break
+            case '/favoritos':
+                await handleFavoritos(supabase, chatId, ctx)
+                break
+            case '/horas':
+                await handleHoras(supabase, chatId, ctx)
+                break
+            case '/overtime':
+                await handleOvertime(supabase, chatId, ctx)
+                break
+            default:
+                await sendTG(chatId,
+                    `🤔 No entendi tu mensaje.\n\n` +
+                    `Escribe /help para ver los comandos disponibles.`
+                )
+        }
+    } catch (err) {
+        console.error('NLP Error:', err)
+        await sendTG(chatId, `❌ Ocurrió un error al procesar tu mensaje.`)
     }
 }
 
