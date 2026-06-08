@@ -458,7 +458,7 @@ export default function BottomActionBar({ activeAction, onActionChange }: Omit<B
           <div className="relative group flex flex-col items-center">
             <button
               onClick={() => handleScan('entry')}
-              className="relative flex items-center justify-center transition-all duration-200 hover:scale-110 active:scale-125"
+              className="relative flex items-center justify-center transition-all duration-200 hover:scale-125 active:scale-[1.4]"
               style={{
                 width: '48px', height: '48px',
                 borderRadius: '16px',
@@ -480,7 +480,7 @@ export default function BottomActionBar({ activeAction, onActionChange }: Omit<B
           <div className="relative group flex flex-col items-center">
             <button
               onClick={() => handleScan('exit')}
-              className="relative flex items-center justify-center transition-all duration-200 hover:scale-110 active:scale-125"
+              className="relative flex items-center justify-center transition-all duration-200 hover:scale-125 active:scale-[1.4]"
               style={{
                 width: '48px', height: '48px',
                 borderRadius: '16px',
@@ -501,7 +501,7 @@ export default function BottomActionBar({ activeAction, onActionChange }: Omit<B
           {/* Worker — active pill */}
           <button
             onClick={() => onActionChange('worker')}
-            className="relative flex items-center justify-center transition-all duration-200 hover:scale-110 active:scale-125"
+            className="relative flex items-center justify-center transition-all duration-200 hover:scale-125 active:scale-[1.4]"
             style={{
               width: activeAction === 'worker' ? '56px' : '48px',
               height: '48px',
@@ -515,7 +515,7 @@ export default function BottomActionBar({ activeAction, onActionChange }: Omit<B
           {/* Visitor */}
           <button
             onClick={() => onActionChange('visitor')}
-            className="relative flex items-center justify-center transition-all duration-200 hover:scale-110 active:scale-125"
+            className="relative flex items-center justify-center transition-all duration-200 hover:scale-125 active:scale-[1.4]"
             style={{
               width: activeAction === 'visitor' ? '56px' : '48px',
               height: '48px',
@@ -529,7 +529,7 @@ export default function BottomActionBar({ activeAction, onActionChange }: Omit<B
           {/* Favorites */}
           <button
             onClick={() => onActionChange('favorites')}
-            className="relative flex items-center justify-center transition-all duration-200 hover:scale-110 active:scale-125"
+            className="relative flex items-center justify-center transition-all duration-200 hover:scale-125 active:scale-[1.4]"
             style={{
               width: activeAction === 'favorites' ? '56px' : '48px',
               height: '48px',
@@ -543,7 +543,7 @@ export default function BottomActionBar({ activeAction, onActionChange }: Omit<B
           {/* AI Assistant */}
           <button
             onClick={() => document.dispatchEvent(new CustomEvent('toggle-assistant'))}
-            className="relative flex items-center justify-center transition-all duration-200 hover:scale-110 active:scale-125"
+            className="relative flex items-center justify-center transition-all duration-200 hover:scale-125 active:scale-[1.4]"
             style={{
               width: '48px', height: '48px',
               borderRadius: '16px',
