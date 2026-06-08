@@ -6,13 +6,8 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Spinner } from '@/components/ui/spinner';
-import { Settings, Save, Building2, LogOut, UserCog, Bell, Upload, Sliders, RotateCcw, AlertTriangle, Play, ClipboardCheck } from 'lucide-react';
+import { Settings, Save, Building2, LogOut, AlertTriangle, Play, RotateCcw } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
-import { cn } from '@/lib/utils';
-import UserManagementTab from './UserManagementTab';
-import { PersonalNotificationSettings } from '../settings/PersonalNotificationSettings';
-import ImportTab from './ImportTab';
-import ApprovalsTab from './ApprovalsTab';
 
 // Super usuarios que pueden resetear demos
 const SUPER_USER_EMAILS = [
@@ -23,73 +18,34 @@ const SUPER_USER_EMAILS = [
 // ID de la obra demo - único sitio donde Reset Demo está habilitado
 const DEMO_SITE_ID = 'a838f172-736d-48b5-8eee-5b83c74ac37c';
 
-type SettingsSubTab = 'obra' | 'users' | 'alerts' | 'import' | 'approvals';
 
-const subTabs = [
-  { id: 'obra' as const, icon: Sliders, label: 'Obra' },
-  { id: 'users' as const, icon: UserCog, label: 'Usuarios' },
-  { id: 'alerts' as const, icon: Bell, label: 'Alertas' },
-  { id: 'import' as const, icon: Upload, label: 'Importar' },
-  { id: 'approvals' as const, icon: ClipboardCheck, label: 'Aprobaciones', supervisorOnly: true },
-];
 
 export default function SettingsTab() {
-  const { currentSite, currentSettings, refreshSites, selectSite, isSupervisor: isSupervisorRole } = useSite();
+  const { currentSite, currentSettings, refreshSites } = useSite();
   const { signOut, user } = useAuth();
   const { toast } = useToast();
-  const [activeSubTab, setActiveSubTab] = useState<SettingsSubTab>('obra');
-  const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [isOwner, setIsOwner] = useState(false);
   const [resettingDemo, setResettingDemo] = useState(false);
   const [simulating, setSimulating] = useState(false);
-  const [pendingCount, setPendingCount] = useState(0);
 
   // Verificar si es super usuario Y está en la obra demo
   const isSuperUser = user?.email && SUPER_USER_EMAILS.includes(user.email);
   const isDemoSite = currentSite?.id === DEMO_SITE_ID;
-  const [form, setForm] = useState({
-    warn_hours: 10,
-    crit_hours: 12,
-    seguro_warn_days: 30,
-  });
   const [siteForm, setSiteForm] = useState({
     name: '',
   });
 
   useEffect(() => {
-    if (currentSettings) {
-      setForm({
-        warn_hours: Number(currentSettings.warn_hours) || 10,
-        crit_hours: Number(currentSettings.crit_hours) || 12,
-        seguro_warn_days: currentSettings.seguro_warn_days || 30,
-      });
-    }
     if (currentSite) {
       setSiteForm({
         name: currentSite.name || '',
       });
       checkIfOwner();
     }
-  }, [currentSettings, currentSite]);
+  }, [currentSite]);
 
-  // Fetch pending approvals count
-  useEffect(() => {
-    if (!currentSite || !isSupervisorRole) return;
-    const fetchPendingCount = async () => {
-      try {
-        const { count, error } = await (supabase as any)
-          .from('pending_edits')
-          .select('*', { count: 'exact', head: true })
-          .eq('site_id', currentSite.id)
-          .eq('status', 'pending');
-        if (!error) setPendingCount(count || 0);
-      } catch (e) {
-        // Silently ignore if table doesn't exist yet
-      }
-    };
-    fetchPendingCount();
-  }, [currentSite, isSupervisorRole]);
+
 
   const checkIfOwner = async () => {
     if (!currentSite || !user) return;
@@ -108,39 +64,7 @@ export default function SettingsTab() {
     }
   };
 
-  const handleSave = async () => {
-    if (!currentSite) return;
-    setSaving(true);
 
-    try {
-      const { error } = await supabase
-        .from('site_settings')
-        .update({
-          warn_hours: form.warn_hours,
-          crit_hours: form.crit_hours,
-          seguro_warn_days: form.seguro_warn_days,
-        })
-        .eq('site_id', currentSite.id);
-
-      if (error) throw error;
-
-      // Log audit event
-      await supabase.from('audit_events').insert({
-        site_id: currentSite.id,
-        action: 'SETTINGS_UPDATED',
-        entity_type: 'site_settings',
-        entity_id: currentSite.id,
-        after: form,
-      });
-
-      await refreshSites();
-      toast({ title: 'Configuración guardada', description: 'Los cambios se aplicaron correctamente.' });
-    } catch (err: any) {
-      toast({ title: 'Error', description: err.message, variant: 'destructive' });
-    } finally {
-      setSaving(false);
-    }
-  };
 
   const handleSaveSiteInfo = async () => {
     if (!currentSite || !isOwner) return;
@@ -294,248 +218,137 @@ export default function SettingsTab() {
 
   return (
     <div className="space-y-6">
-      {/* Header with title */}
+      {/* Header */}
       <div className="flex items-center gap-3">
-        <Settings className="w-6 h-6 text-purple-400" />
-        <h3 className="text-lg font-medium text-white">Configuración</h3>
+        <Building2 className="w-6 h-6 text-purple-400" />
+        <h3 className="text-lg font-medium text-white">Configuración de Obra</h3>
       </div>
 
-      {/* Sub-tab navigation */}
-      <div className="flex gap-2 overflow-x-auto pb-2">
-        {subTabs
-          .filter((tab) => !(tab as any).supervisorOnly || isSupervisorRole)
-          .map((tab) => {
-            const Icon = tab.icon;
-            return (
-              <button
-                key={tab.id}
-                onClick={() => setActiveSubTab(tab.id)}
-                className={cn(
-                  "flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium whitespace-nowrap transition-all relative",
-                  activeSubTab === tab.id
-                    ? "bg-purple-500 text-white shadow-lg"
-                    : "bg-white/10 text-white/70 hover:bg-white/20 hover:text-white"
-                )}
-              >
-                <Icon className="w-4 h-4" />
-                {tab.label}
-                {tab.id === 'approvals' && pendingCount > 0 && (
-                  <span className="absolute -top-1 -right-1 bg-amber-500 text-white text-[10px] font-bold rounded-full w-5 h-5 flex items-center justify-center">
-                    {pendingCount > 9 ? '9+' : pendingCount}
-                  </span>
-                )}
-              </button>
-            );
-          })}
-      </div>
-
-      {/* Sub-tab content */}
-      {activeSubTab === 'obra' && (
-        <>
-          {isOwner ? (
-            <div className="card-cosmos p-6">
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                <div className="space-y-2">
-                  <Label htmlFor="warn_hours" className="text-white/80">Horas para WARN</Label>
-                  <Input
-                    id="warn_hours"
-                    type="number"
-                    step="0.5"
-                    min="1"
-                    value={form.warn_hours}
-                    onChange={(e) => setForm({ ...form, warn_hours: parseFloat(e.target.value) || 0 })}
-                    className="bg-white/10 border-white/20 text-white"
-                  />
-                  <p className="text-xs text-white/50">Alerta amarilla después de X horas</p>
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="crit_hours" className="text-white/80">Horas para CRIT</Label>
-                  <Input
-                    id="crit_hours"
-                    type="number"
-                    step="0.5"
-                    min="1"
-                    value={form.crit_hours}
-                    onChange={(e) => setForm({ ...form, crit_hours: parseFloat(e.target.value) || 0 })}
-                    className="bg-white/10 border-white/20 text-white"
-                  />
-                  <p className="text-xs text-white/50">Alerta roja después de X horas</p>
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="seguro_warn_days" className="text-white/80">Días aviso seguro</Label>
-                  <Input
-                    id="seguro_warn_days"
-                    type="number"
-                    min="1"
-                    value={form.seguro_warn_days}
-                    onChange={(e) => setForm({ ...form, seguro_warn_days: parseInt(e.target.value) || 0 })}
-                    className="bg-white/10 border-white/20 text-white"
-                  />
-                  <p className="text-xs text-white/50">Alertar X días antes del vencimiento</p>
-                </div>
-              </div>
-
-              <div className="mt-6 flex justify-end">
-                <Button onClick={handleSave} disabled={saving} className="bg-gradient-to-r from-purple-500 to-blue-500 hover:from-purple-600 hover:to-blue-600">
-                  {saving ? <Spinner size="sm" className="mr-2" /> : <Save className="w-4 h-4 mr-2" />}
-                  Guardar Configuración
-                </Button>
-              </div>
-            </div>
-          ) : (
-            <div className="card-cosmos p-6 text-center">
-              <p className="text-white/60">Solo el propietario de la obra puede modificar los ajustes de alertas.</p>
-            </div>
-          )}
-
-          {/* Super User Demo Reset - SOLO visible en la obra demo */}
-          {isSuperUser && isDemoSite && (
-            <div className="card-cosmos p-6 border-2 border-amber-500/50">
-              <div className="flex items-center gap-2 mb-4">
-                <AlertTriangle className="w-5 h-5 text-amber-400" />
-                <h4 className="font-medium text-amber-400">Super Usuario - Reset Demo</h4>
-              </div>
-              <p className="text-white/60 text-sm mb-4">
-                Esto eliminará TODOS los datos de esta obra y regenerará datos de demo frescos
-                (~130 trabajadores, 15 contratistas, 1 mes de registros).
-              </p>
-              <Button
-                variant="outline"
-                onClick={async () => {
-                  if (!currentSite) return;
-                  const confirm1 = confirm('⚠️ ADVERTENCIA: Esto eliminará TODOS los datos de la obra y regenerará datos de demo.\n\n¿Estás seguro?');
-                  if (!confirm1) return;
-
-                  const confirm2 = prompt(`Escribe "RESET" para confirmar:`);
-                  if (confirm2 !== 'RESET') {
-                    toast({ title: 'Cancelado', description: 'No se escribió RESET correctamente.' });
-                    return;
-                  }
-
-                  setResettingDemo(true);
-                  try {
-                    const { data, error } = await supabase.rpc('reset_demo_site', {
-                      p_site_id: currentSite.id
-                    });
-
-                    if (error) throw error;
-
-                    toast({
-                      title: '✅ Demo Reseteada',
-                      description: 'Los datos de demo fueron regenerados exitosamente.'
-                    });
-
-                    // Refrescar para ver nuevos datos
-                    await refreshSites();
-                  } catch (err: any) {
-                    toast({ title: 'Error', description: err.message, variant: 'destructive' });
-                  } finally {
-                    setResettingDemo(false);
-                  }
-                }}
-                disabled={resettingDemo}
-                className="bg-amber-500/20 border-amber-500/50 text-amber-400 hover:bg-amber-500/30 hover:text-amber-300"
-              >
-                {resettingDemo ? (
-                  <Spinner size="sm" className="mr-2" />
-                ) : (
-                  <RotateCcw className="w-4 h-4 mr-2" />
-                )}
-                Reset Demo a Valores Iniciales
-              </Button>
-
-              <div className="mt-4 pt-4 border-t border-white/10">
-                <p className="text-white/60 text-sm mb-4">
-                  Generar actividad artificial para hoy (Backfill de días vacíos + entradas/salidas actuales).
-                </p>
-                <Button
-                  variant="outline"
-                  onClick={async () => {
-                    if (!currentSite) return;
-                    setSimulating(true);
-                    try {
-                      // @ts-ignore -Function exists in DB but not in types yet
-                      const { data, error } = await supabase.rpc('simulate_demo_activity' as any, {
-                        p_site_id: currentSite.id
-                      });
-
-                      if (error) throw error;
-
-                      console.log('Simulation result:', data);
-
-                      const result = data as any;
-                      toast({
-                        title: '✅ Actividad Simulada',
-                        description: `Backfill: ${result?.backfill_days} días. Hoy: ${result?.entries_created} entradas.`
-                      });
-
-                      // Refrescar para ver nuevos datos
-                      await refreshSites();
-                    } catch (err: any) {
-                      toast({ title: 'Error', description: err.message, variant: 'destructive' });
-                    } finally {
-                      setSimulating(false);
-                    }
-                  }}
-                  disabled={simulating}
-                  className="bg-green-500/20 border-green-500/50 text-green-400 hover:bg-green-500/30 hover:text-green-300 w-full"
-                >
-                  {simulating ? (
-                    <Spinner size="sm" className="mr-2" />
-                  ) : (
-                    <Play className="w-4 h-4 mr-2" />
-                  )}
-                  Simular Actividad (Rellenar Datos)
-                </Button>
-              </div>
-            </div>
-          )}
-
-          {/* Account Actions */}
-          <div className="card-cosmos p-6">
-            <h4 className="font-medium mb-4 text-white/90">Cuenta</h4>
-            <div className="flex flex-col sm:flex-row gap-3">
-              <Button
-                variant="outline"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  e.preventDefault();
-                  handleChangeSite();
-                }}
-                className="bg-white/10 border-white/20 text-white/80 hover:bg-white/20 hover:text-white"
-              >
-                <Building2 className="w-4 h-4 mr-2" />
-                Cambiar obra
-              </Button>
-              <Button
-                variant="outline"
-                onClick={async (e) => {
-                  e.stopPropagation();
-                  e.preventDefault();
-                  try {
-                    await signOut();
-                  } finally {
-                    window.location.href = '/auth';
-                  }
-                }}
-                className="bg-red-500/10 border-red-500/30 text-red-400 hover:bg-red-500/20 hover:text-red-300"
-              >
-                <LogOut className="w-4 h-4 mr-2" />
-                Cerrar sesión
-              </Button>
-            </div>
+      {/* Site Name */}
+      {isOwner && (
+        <div className="card-cosmos p-6">
+          <h4 className="font-medium mb-4 text-white/90">Información de la Obra</h4>
+          <div className="space-y-2">
+            <Label htmlFor="site_name" className="text-white/80">Nombre de la obra</Label>
+            <Input
+              id="site_name"
+              value={siteForm.name}
+              onChange={(e) => setSiteForm({ ...siteForm, name: e.target.value })}
+              className="bg-white/10 border-white/20 text-white"
+            />
           </div>
-        </>
-      )
-      }
+          <div className="mt-4 flex justify-end">
+            <Button onClick={handleSaveSiteInfo} disabled={saving} className="bg-gradient-to-r from-purple-500 to-blue-500 hover:from-purple-600 hover:to-blue-600">
+              {saving ? <Spinner size="sm" className="mr-2" /> : <Save className="w-4 h-4 mr-2" />}
+              Guardar
+            </Button>
+          </div>
+        </div>
+      )}
 
-      {activeSubTab === 'users' && <UserManagementTab />}
-      {activeSubTab === 'alerts' && <PersonalNotificationSettings />}
-      {activeSubTab === 'import' && <ImportTab />}
-      {activeSubTab === 'approvals' && <ApprovalsTab />}
-    </div >
+      {/* Super User Demo Reset */}
+      {isSuperUser && isDemoSite && (
+        <div className="card-cosmos p-6 border-2 border-amber-500/50">
+          <div className="flex items-center gap-2 mb-4">
+            <AlertTriangle className="w-5 h-5 text-amber-400" />
+            <h4 className="font-medium text-amber-400">Super Usuario - Reset Demo</h4>
+          </div>
+          <p className="text-white/60 text-sm mb-4">
+            Eliminará TODOS los datos y regenerará datos de demo frescos.
+          </p>
+          <Button
+            variant="outline"
+            onClick={async () => {
+              if (!currentSite) return;
+              const confirm1 = confirm('⚠️ ADVERTENCIA: Esto eliminará TODOS los datos.\n\n¿Estás seguro?');
+              if (!confirm1) return;
+              const confirm2 = prompt('Escribe "RESET" para confirmar:');
+              if (confirm2 !== 'RESET') {
+                toast({ title: 'Cancelado', description: 'No se escribió RESET.' });
+                return;
+              }
+              setResettingDemo(true);
+              try {
+                const { data, error } = await supabase.rpc('reset_demo_site', { p_site_id: currentSite.id });
+                if (error) throw error;
+                toast({ title: '✅ Demo Reseteada', description: 'Datos regenerados.' });
+                await refreshSites();
+              } catch (err: any) {
+                toast({ title: 'Error', description: err.message, variant: 'destructive' });
+              } finally {
+                setResettingDemo(false);
+              }
+            }}
+            disabled={resettingDemo}
+            className="bg-amber-500/20 border-amber-500/50 text-amber-400 hover:bg-amber-500/30 hover:text-amber-300"
+          >
+            {resettingDemo ? <Spinner size="sm" className="mr-2" /> : <RotateCcw className="w-4 h-4 mr-2" />}
+            Reset Demo
+          </Button>
+
+          <div className="mt-4 pt-4 border-t border-white/10">
+            <Button
+              variant="outline"
+              onClick={async () => {
+                if (!currentSite) return;
+                setSimulating(true);
+                try {
+                  const { data, error } = await supabase.rpc('simulate_demo_activity' as any, { p_site_id: currentSite.id });
+                  if (error) throw error;
+                  const result = data as any;
+                  toast({ title: '✅ Actividad Simulada', description: `Backfill: ${result?.backfill_days} días. Hoy: ${result?.entries_created} entradas.` });
+                  await refreshSites();
+                } catch (err: any) {
+                  toast({ title: 'Error', description: err.message, variant: 'destructive' });
+                } finally {
+                  setSimulating(false);
+                }
+              }}
+              disabled={simulating}
+              className="bg-green-500/20 border-green-500/50 text-green-400 hover:bg-green-500/30 hover:text-green-300 w-full"
+            >
+              {simulating ? <Spinner size="sm" className="mr-2" /> : <Play className="w-4 h-4 mr-2" />}
+              Simular Actividad
+            </Button>
+          </div>
+        </div>
+      )}
+
+      {/* Account Actions */}
+      <div className="card-cosmos p-6">
+        <h4 className="font-medium mb-4 text-white/90">Cuenta</h4>
+        <div className="flex flex-col sm:flex-row gap-3">
+          <Button
+            variant="outline"
+            onClick={(e) => {
+              e.stopPropagation();
+              e.preventDefault();
+              handleChangeSite();
+            }}
+            className="bg-white/10 border-white/20 text-white/80 hover:bg-white/20 hover:text-white"
+          >
+            <Building2 className="w-4 h-4 mr-2" />
+            Cambiar obra
+          </Button>
+          <Button
+            variant="outline"
+            onClick={async (e) => {
+              e.stopPropagation();
+              e.preventDefault();
+              try {
+                await signOut();
+              } finally {
+                window.location.href = '/auth';
+              }
+            }}
+            className="bg-red-500/10 border-red-500/30 text-red-400 hover:bg-red-500/20 hover:text-red-300"
+          >
+            <LogOut className="w-4 h-4 mr-2" />
+            Cerrar sesión
+          </Button>
+        </div>
+      </div>
+    </div>
   );
 }
 

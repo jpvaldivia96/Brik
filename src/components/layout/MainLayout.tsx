@@ -159,8 +159,8 @@ export default function MainLayout() {
         return <InspectionNotesPanel />;
       case 'alerts':
         return <PersonalNotificationSettings />;
-
       case 'settings':
+      case 'site-settings':
         return <SettingsTab />;
       case 'audit':
         return <AuditLogTab />;
@@ -182,8 +182,9 @@ export default function MainLayout() {
       users: 'Usuarios',
       stats: 'Estadísticas',
       inspection: 'Control de Obra',
-      alerts: 'Mis Alertas',
+      alerts: 'Alertas',
       settings: 'Configuración',
+      'site-settings': 'Configuración de Obra',
       audit: 'Auditoría',
       tools: 'Herramientas',
       reports: 'Reportes',

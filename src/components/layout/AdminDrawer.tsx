@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { Button } from '@/components/ui/button';
-import { Settings, FileText, History, LayoutDashboard, X, Users, ClipboardCheck } from 'lucide-react';
+import { Settings, FileText, History, LayoutDashboard, X, Users, ClipboardCheck, Bell, Upload, Building2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useSite } from '@/contexts/SiteContext';
 import { supabase } from '@/integrations/supabase/client';
@@ -16,11 +16,14 @@ interface AdminDrawerProps {
 
 const adminOptions = [
   { id: 'dashboard', icon: LayoutDashboard, label: 'Dashboard', description: 'KPIs y resumen', supervisorOnly: false },
-  { id: 'people', icon: Users, label: 'Personal', description: 'Gestionar y eliminar', supervisorOnly: false },
+  { id: 'people', icon: Users, label: 'Personal', description: 'Gestionar trabajadores', supervisorOnly: false },
   { id: 'inspection', icon: ClipboardCheck, label: 'Control de Obra', description: 'Notas de fiscalización', supervisorOnly: true, allowInspector: true },
   { id: 'reports', icon: FileText, label: 'Reportes', description: 'Descargar informes', supervisorOnly: true, allowInspector: true },
-  { id: 'audit', icon: History, label: 'Auditoría y Control', description: 'Historial y correcciones', supervisorOnly: true },
-  { id: 'settings', icon: Settings, label: 'Configuración', description: 'Usuarios, alertas y más', supervisorOnly: true },
+  { id: 'alerts', icon: Bell, label: 'Alertas', description: 'Notificaciones y umbrales', supervisorOnly: true },
+  { id: 'users', icon: Settings, label: 'Usuarios', description: 'Gestionar equipo', supervisorOnly: true },
+  { id: 'import', icon: Upload, label: 'Importar', description: 'Carga masiva', supervisorOnly: true },
+  { id: 'audit', icon: History, label: 'Auditoría', description: 'Historial de cambios', supervisorOnly: true },
+  { id: 'site-settings', icon: Building2, label: 'Obra', description: 'Config. y cuenta', supervisorOnly: true },
 ];
 
 export default function AdminDrawer({ open, onOpenChange, activePanel, onPanelChange }: AdminDrawerProps) {

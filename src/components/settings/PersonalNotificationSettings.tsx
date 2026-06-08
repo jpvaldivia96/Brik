@@ -140,6 +140,106 @@ const alertCategories = [
     },
 ];
 
+// Inline component for alert thresholds (moved from Settings > Obra)
+function AlertThresholds() {
+    const { currentSite, currentSettings, refreshSites, isSupervisor } = useSite();
+    const [saving, setSaving] = useState(false);
+    const [form, setForm] = useState({
+        warn_hours: 10,
+        crit_hours: 12,
+        seguro_warn_days: 30,
+    });
+
+    useEffect(() => {
+        if (currentSettings) {
+            setForm({
+                warn_hours: Number(currentSettings.warn_hours) || 10,
+                crit_hours: Number(currentSettings.crit_hours) || 12,
+                seguro_warn_days: currentSettings.seguro_warn_days || 30,
+            });
+        }
+    }, [currentSettings]);
+
+    const handleSave = async () => {
+        if (!currentSite) return;
+        setSaving(true);
+        try {
+            const { error } = await supabase
+                .from('site_settings')
+                .update({
+                    warn_hours: form.warn_hours,
+                    crit_hours: form.crit_hours,
+                    seguro_warn_days: form.seguro_warn_days,
+                })
+                .eq('site_id', currentSite.id);
+            if (error) throw error;
+            await refreshSites();
+            toast.success('Umbrales guardados');
+        } catch (err: any) {
+            toast.error(err.message);
+        } finally {
+            setSaving(false);
+        }
+    };
+
+    if (!isSupervisor) return null;
+
+    return (
+        <div className="card-cosmos p-5">
+            <h3 className="text-sm font-semibold text-white/80 mb-4 flex items-center gap-2">
+                <Clock className="w-4 h-4" />
+                Umbrales de Alerta
+            </h3>
+            <div className="grid grid-cols-3 gap-4">
+                <div className="space-y-1.5">
+                    <Label htmlFor="warn_hours" className="text-xs text-white/60">Horas WARN</Label>
+                    <Input
+                        id="warn_hours"
+                        type="number"
+                        step="0.5"
+                        min="1"
+                        value={form.warn_hours}
+                        onChange={(e) => setForm({ ...form, warn_hours: parseFloat(e.target.value) || 0 })}
+                        className="bg-white/10 border-white/20 text-white h-9 text-sm"
+                    />
+                    <p className="text-[10px] text-white/40">Alerta amarilla</p>
+                </div>
+                <div className="space-y-1.5">
+                    <Label htmlFor="crit_hours" className="text-xs text-white/60">Horas CRIT</Label>
+                    <Input
+                        id="crit_hours"
+                        type="number"
+                        step="0.5"
+                        min="1"
+                        value={form.crit_hours}
+                        onChange={(e) => setForm({ ...form, crit_hours: parseFloat(e.target.value) || 0 })}
+                        className="bg-white/10 border-white/20 text-white h-9 text-sm"
+                    />
+                    <p className="text-[10px] text-white/40">Alerta roja</p>
+                </div>
+                <div className="space-y-1.5">
+                    <Label htmlFor="seguro_warn_days" className="text-xs text-white/60">Días seguro</Label>
+                    <Input
+                        id="seguro_warn_days"
+                        type="number"
+                        min="1"
+                        value={form.seguro_warn_days}
+                        onChange={(e) => setForm({ ...form, seguro_warn_days: parseInt(e.target.value) || 0 })}
+                        className="bg-white/10 border-white/20 text-white h-9 text-sm"
+                    />
+                    <p className="text-[10px] text-white/40">Aviso vencimiento</p>
+                </div>
+            </div>
+            <div className="mt-4 flex justify-end">
+                <Button onClick={handleSave} disabled={saving} size="sm" className="bg-gradient-to-r from-purple-500 to-blue-500 text-xs">
+                    {saving ? <Spinner size="sm" className="mr-1" /> : <Save className="w-3 h-3 mr-1" />}
+                    Guardar
+                </Button>
+            </div>
+        </div>
+    );
+}
+
 export function PersonalNotificationSettings() {
     const { currentSite } = useSite();
     const { user } = useAuth();
@@ -314,12 +414,15 @@ export function PersonalNotificationSettings() {
             <div className="space-y-2">
                 <h2 className="text-2xl font-bold flex items-center gap-2">
                     <Bell className="h-6 w-6" />
-                    Preferencias de Notificaciones
+                    Alertas y Notificaciones
                 </h2>
                 <p className="text-muted-foreground">
-                    Personaliza qué alertas quieres recibir en tu dispositivo móvil
+                    Configura umbrales y elige qué alertas recibir
                 </p>
             </div>
+
+            {/* Alert Thresholds - moved from Settings > Obra */}
+            <AlertThresholds />
 
             {alertCategories.map((category) => (
                 <div key={category.name} className="space-y-4">
