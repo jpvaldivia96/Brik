@@ -50,6 +50,25 @@ serve(async (req) => {
             return new Response('ok', { status: 200 })
         }
 
+        if (text === '/debug') {
+            // Debug: test DB connectivity
+            const hasServiceKey = !!Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')
+            const { data: testData, error: testError } = await supabase
+                .from('user_notification_preferences')
+                .select('user_id, site_id, telegram_chat_id')
+                .eq('telegram_chat_id', chatId)
+            
+            await sendTG(chatId,
+                `🔧 Debug Info:\n` +
+                `Service Key: ${hasServiceKey ? 'YES' : 'NO'}\n` +
+                `Chat ID: ${chatId}\n` +
+                `DB Query Error: ${testError ? testError.message : 'none'}\n` +
+                `DB Rows Found: ${testData?.length || 0}\n` +
+                `Data: ${JSON.stringify(testData)}`
+            )
+            return new Response('ok', { status: 200 })
+        }
+
         // ── Resolve user context (auth required) ──
         const ctx = await resolveUserContext(supabase, chatId)
 
@@ -104,6 +123,14 @@ serve(async (req) => {
         return new Response('ok', { status: 200 })
     } catch (error: any) {
         console.error('Webhook error:', error)
+        // Send error to user for debugging
+        try {
+            const body2 = await req.clone().json().catch(() => null)
+            const errChatId = body2?.message?.chat?.id?.toString()
+            if (errChatId) {
+                await sendTG(errChatId, `❌ Error: ${error?.message || String(error)}`)
+            }
+        } catch (_) {}
         return new Response('ok', { status: 200 })
     }
 })
@@ -111,20 +138,39 @@ serve(async (req) => {
 // ─── Context Resolution ──────────────────────────────────────────────────────
 
 async function resolveUserContext(supabase: any, chatId: string): Promise<UserContext | null> {
-    // Find user by telegram_chat_id in preferences
-    const { data } = await supabase
-        .from('user_notification_preferences')
-        .select('user_id, site_id, sites!inner(name)')
-        .eq('telegram_chat_id', chatId)
-        .limit(1)
-        .maybeSingle()
+    try {
+        const { data, error } = await supabase
+            .from('user_notification_preferences')
+            .select('user_id, site_id')
+            .eq('telegram_chat_id', chatId)
+            .limit(1)
 
-    if (!data) return null
+        if (error) {
+            console.error('resolveUserContext error:', error)
+            return null
+        }
+        if (!data || data.length === 0) return null
 
-    return {
-        userId: data.user_id,
-        siteId: data.site_id,
-        siteName: (data as any).sites?.name || 'Obra',
+        const row = data[0]
+
+        // Get site name separately
+        let siteName = 'Obra'
+        const { data: siteData } = await supabase
+            .from('sites')
+            .select('name')
+            .eq('id', row.site_id)
+            .limit(1)
+
+        if (siteData?.[0]?.name) siteName = siteData[0].name
+
+        return {
+            userId: row.user_id,
+            siteId: row.site_id,
+            siteName,
+        }
+    } catch (err) {
+        console.error('resolveUserContext exception:', err)
+        return null
     }
 }
 
@@ -195,46 +241,48 @@ async function handleHelp(chatId: string) {
 // ─── /adentro ────────────────────────────────────────────────────────────────
 
 async function handleAdentro(supabase: any, chatId: string, ctx: UserContext) {
-    // People currently inside (entry without exit)
+    // Get all contractors for this site
+    const { data: allContractors } = await supabase
+        .from('contractors')
+        .select('name')
+        .eq('site_id', ctx.siteId)
+        .order('name')
+
+    // Get people inside
     const { data: inside } = await supabase
         .from('access_logs')
-        .select('person_id, name_snapshot, contractor_snapshot, entry_at')
+        .select('contractor_snapshot')
         .eq('site_id', ctx.siteId)
         .is('exit_at', null)
         .is('voided_at', null)
-        .order('entry_at', { ascending: true })
 
-    if (!inside || inside.length === 0) {
-        await sendTG(chatId, `📊 *${ctx.siteName}*\n\nNo hay nadie adentro en este momento.`)
-        return
-    }
-
-    // Group by contractor
-    const byContractor = new Map<string, any[]>()
-    for (const log of inside) {
+    // Count by contractor from people inside
+    const byC: Record<string, number> = {}
+    for (const log of (inside || [])) {
         const c = log.contractor_snapshot || 'Sin Contratista'
-        if (!byContractor.has(c)) byContractor.set(c, [])
-        byContractor.get(c)!.push(log)
+        byC[c] = (byC[c] || 0) + 1
     }
 
-    // Sort contractors by count (descending)
-    const sorted = [...byContractor.entries()].sort((a, b) => b[1].length - a[1].length)
-
-    let lines = [`📊 *${ctx.siteName}* — ${inside.length} personas adentro\n`]
-
-    for (const [contractor, people] of sorted) {
-        lines.push(`\n*${contractor}* (${people.length})`)
-        // Show up to 5 names per contractor
-        for (const p of people.slice(0, 5)) {
-            const time = formatTime(p.entry_at)
-            lines.push(`  • ${p.name_snapshot} _(${time})_`)
-        }
-        if (people.length > 5) {
-            lines.push(`  _...y ${people.length - 5} más_`)
+    // Merge with all contractors (add 0s for those not inside)
+    for (const c of (allContractors || [])) {
+        if (c.name && !(c.name in byC)) {
+            byC[c.name] = 0
         }
     }
 
-    await sendTG(chatId, lines.join('\n'))
+    const sorted = Object.entries(byC).sort((a, b) => b[1] - a[1])
+    const total = (inside || []).length
+
+    let msg = `📊 *${esc(ctx.siteName)}*\n👷 *${total}* personas adentro\n`
+
+    for (const [c, n] of sorted) {
+        const icon = n > 0 ? '🟢' : '⚪'
+        msg += `\n${icon} ${esc(c)}: *${n}*`
+    }
+
+    msg += `\n\n💡 /contratista nombre`
+
+    await sendTG(chatId, msg)
 }
 
 // ─── /hoy ────────────────────────────────────────────────────────────────────
@@ -587,13 +635,18 @@ async function handleOvertime(supabase: any, chatId: string, ctx: UserContext) {
 async function handleStatus(supabase: any, chatId: string) {
     const { data } = await supabase
         .from('user_notification_preferences')
-        .select('site_id, sites!inner(name)')
+        .select('site_id')
         .eq('telegram_chat_id', chatId)
 
     if (data && data.length > 0) {
-        const sites = data.map((d: any) => `  • ${d.sites?.name || d.site_id}`).join('\n')
+        // Get site names separately
+        const siteNames: string[] = []
+        for (const d of data) {
+            const { data: site } = await supabase.from('sites').select('name').eq('id', d.site_id).maybeSingle()
+            siteNames.push(`  • ${site?.name || d.site_id}`)
+        }
         await sendTG(chatId,
-            `✅ *Estado: Conectado*\n\nObras vinculadas:\n${sites}\n\n` +
+            `✅ *Estado: Conectado*\n\nObras vinculadas:\n${siteNames.join('\n')}\n\n` +
             `Escribe /help para ver comandos.`
         )
     } else {
@@ -666,21 +719,40 @@ function formatTime(isoDate: string): string {
     })
 }
 
+// Escape Markdown special characters in user-supplied text
+function esc(text: string): string {
+    return text.replace(/([_*\[\]()~`>#+\-=|{}.!])/g, '\\$1')
+}
+
 async function sendTG(chatId: string, text: string) {
     try {
+        // Truncate to Telegram limit
+        const maxLen = 4000
+        const truncated = text.length > maxLen ? text.slice(0, maxLen) + '\n\n_...mensaje truncado_' : text
+
         const resp = await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
                 chat_id: chatId,
-                text,
+                text: truncated,
                 parse_mode: 'Markdown',
                 disable_web_page_preview: true,
             }),
         })
         const result = await resp.json()
         if (!result.ok) {
-            console.error('Telegram send error:', result)
+            console.error('Telegram Markdown error, retrying plain:', result)
+            // Fallback: send without Markdown
+            await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    chat_id: chatId,
+                    text: truncated.replace(/[_*`\[\]]/g, ''),
+                    disable_web_page_preview: true,
+                }),
+            })
         }
     } catch (err) {
         console.error('Telegram send error:', err)
