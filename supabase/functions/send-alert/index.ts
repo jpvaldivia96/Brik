@@ -799,12 +799,15 @@ serve(async (req) => {
             .eq('site_id', site_id)
             .maybeSingle()
 
-        if (notifSettings?.slack_webhook_url) {
+        // Skip shared channels for per-user alerts (favorites, dependents)
+        const isSharedChannelAlert = !(data?.target_user_ids && Array.isArray(data.target_user_ids) && data.target_user_ids.length > 0)
+
+        if (notifSettings?.slack_webhook_url && isSharedChannelAlert) {
             const ok = await sendSlackWebhook(notifSettings.slack_webhook_url, title, body, siteName, alert_type)
             if (ok) channels.push('slack')
         }
 
-        if (notifSettings?.teams_webhook_url) {
+        if (notifSettings?.teams_webhook_url && isSharedChannelAlert) {
             const ok = await sendTeamsWebhook(notifSettings.teams_webhook_url, title, body, siteName, alert_type)
             if (ok) channels.push('teams')
         }
@@ -813,7 +816,8 @@ serve(async (req) => {
         const TELEGRAM_BOT_TOKEN = '8825992226:AAGHxy_dAXKo_FHOM6L46Sq4FvkUJ6zapdg'
 
         // 4a. Site-wide Telegram (notification_settings)
-        if (notifSettings?.telegram_bot_token && notifSettings?.telegram_chat_id) {
+        // Skip site-wide channel for per-user alerts (favorites, dependents) — those are personal
+        if (notifSettings?.telegram_bot_token && notifSettings?.telegram_chat_id && isSharedChannelAlert) {
             const ok = await sendTelegram(
                 notifSettings.telegram_bot_token,
                 notifSettings.telegram_chat_id,
