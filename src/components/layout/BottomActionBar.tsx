@@ -539,20 +539,24 @@ export default function BottomActionBar({ activeAction, onActionChange }: Omit<B
           >
             <Star style={{ width: '26px', height: '26px', color: 'white', strokeWidth: 1.6 }} />
           </button>
-
-          {/* AI Assistant */}
-          <button
-            onClick={() => document.dispatchEvent(new CustomEvent('toggle-assistant'))}
-            className="relative flex items-center justify-center transition-all duration-200 hover:scale-125 active:scale-[1.4]"
-            style={{
-              width: '48px', height: '48px',
-              borderRadius: '16px',
-              background: 'transparent',
-            }}
-          >
-            <Sparkles style={{ width: '26px', height: '26px', color: 'white', strokeWidth: 1.6 }} />
-          </button>
         </nav>
+
+        {/* AI Assistant — Floating button separated from nav (Whoop-style) */}
+        <button
+          onClick={() => document.dispatchEvent(new CustomEvent('toggle-assistant'))}
+          className="relative flex items-center justify-center transition-all duration-200 hover:scale-125 active:scale-[1.4] shrink-0 ml-2"
+          style={{
+            width: '50px', height: '50px',
+            borderRadius: '50%',
+            background: 'rgba(30, 30, 40, 0.55)',
+            backdropFilter: 'blur(40px) saturate(1.4)',
+            WebkitBackdropFilter: 'blur(40px) saturate(1.4)',
+            border: '1.5px solid rgba(139, 92, 246, 0.3)',
+            boxShadow: '0 4px 20px rgba(0,0,0,0.3), 0 0 15px rgba(139, 92, 246, 0.1)',
+          }}
+        >
+          <Sparkles style={{ width: '22px', height: '22px', color: '#a78bfa', strokeWidth: 1.6 }} />
+        </button>
       </div>
 
       {/* Camera Modal */}

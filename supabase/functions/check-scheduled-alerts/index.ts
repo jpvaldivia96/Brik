@@ -544,8 +544,18 @@ async function checkMeetingReminders(supabase: any, siteId: string): Promise<num
 async function checkOvertime(supabase: any, siteId: string, settings: any): Promise<number> {
     if (!settings.overtime_enabled) return 0
 
-    const thresholdHours = settings.overtime_hours || 12
-    const cutoffTime = new Date(Date.now() - thresholdHours * 60 * 60 * 1000).toISOString()
+    // Get WARN and CRIT thresholds from site_settings
+    const { data: siteSettings } = await supabase
+        .from('site_settings')
+        .select('warn_hours, crit_hours')
+        .eq('site_id', siteId)
+        .maybeSingle()
+
+    const warnHours = siteSettings?.warn_hours || settings.overtime_hours || 10
+    const critHours = siteSettings?.crit_hours || 12
+
+    // Query everyone inside who entered more than warnHours ago
+    const warnCutoff = new Date(Date.now() - warnHours * 60 * 60 * 1000).toISOString()
 
     const { data: overtime } = await supabase
         .from('access_logs')
@@ -553,25 +563,61 @@ async function checkOvertime(supabase: any, siteId: string, settings: any): Prom
         .eq('site_id', siteId)
         .is('exit_at', null)
         .is('voided_at', null)
-        .lt('entry_at', cutoffTime)
-        .limit(20)
+        .lt('entry_at', warnCutoff)
+        .limit(50)
 
-    if (overtime && overtime.length > 0) {
-        const lines = overtime.map((p: any) => {
-            const hours = Math.round((Date.now() - new Date(p.entry_at).getTime()) / 3600000)
-            const contractor = p.contractor_snapshot ? ` (${p.contractor_snapshot})` : ''
-            return `• ${p.name_snapshot}${contractor} — ${hours}h`
-        })
-        await sendAlert(supabase, {
-            site_id: siteId,
-            alert_type: 'overtime',
-            title: '⏰ Alerta de Horas Extras',
-            body: `${overtime.length} persona(s) superan ${thresholdHours}h:\n${lines.join('\n')}`,
-            data: { count: overtime.length, people: overtime }
-        })
-        return 1
+    if (!overtime || overtime.length === 0) return 0
+
+    // Split into CRIT and WARN categories
+    const critCutoff = Date.now() - critHours * 60 * 60 * 1000
+    const critPeople: any[] = []
+    const warnPeople: any[] = []
+
+    for (const p of overtime) {
+        const entryTime = new Date(p.entry_at).getTime()
+        const hours = ((Date.now() - entryTime) / 3600000).toFixed(1)
+        const entry = { ...p, hours }
+
+        if (entryTime < critCutoff) {
+            critPeople.push(entry)
+        } else {
+            warnPeople.push(entry)
+        }
     }
-    return 0
+
+    // Build message body
+    const lines: string[] = []
+
+    if (critPeople.length > 0) {
+        lines.push(`🔴 CRÍTICO (>${critHours}h):`)
+        for (const p of critPeople) {
+            const contractor = p.contractor_snapshot ? ` (${p.contractor_snapshot})` : ''
+            lines.push(`• ${p.name_snapshot}${contractor} — ${p.hours}h`)
+        }
+    }
+
+    if (warnPeople.length > 0) {
+        if (lines.length > 0) lines.push('') // blank line separator
+        lines.push(`🟡 ALERTA (>${warnHours}h):`)
+        for (const p of warnPeople) {
+            const contractor = p.contractor_snapshot ? ` (${p.contractor_snapshot})` : ''
+            lines.push(`• ${p.name_snapshot}${contractor} — ${p.hours}h`)
+        }
+    }
+
+    const totalCount = critPeople.length + warnPeople.length
+    const title = critPeople.length > 0
+        ? `⏰ ${critPeople.length} en estado CRÍTICO`
+        : `⏰ Alerta de Horas Extras`
+
+    await sendAlert(supabase, {
+        site_id: siteId,
+        alert_type: 'overtime',
+        title,
+        body: `${totalCount} persona(s) exceden horas normales:\n${lines.join('\n')}`,
+        data: { count: totalCount, crit_count: critPeople.length, warn_count: warnPeople.length }
+    })
+    return 1
 }
 
 // ─── Safety Milestone Check ─────────────────────────────────────────────────
