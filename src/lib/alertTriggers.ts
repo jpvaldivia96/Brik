@@ -4,6 +4,9 @@ import { APP_VERSION } from '@/lib/version';
 
 // Cooldown map to prevent spam (in-memory, resets on page reload)
 const capacityCooldowns = new Map<string, number>();
+// Mass entry cooldown: 30 minutes between alerts per site
+const massEntryCooldowns = new Map<string, number>();
+const MASS_ENTRY_COOLDOWN_MS = 30 * 60 * 1000; // 30 minutes
 
 interface AlertTriggerOptions {
     siteId: string;
@@ -129,6 +132,7 @@ export async function checkEntryAlerts(
         if (!favRecords || favRecords.length === 0) return;
 
         const targetUserIds = favRecords.map((f: any) => f.user_id);
+        console.log(`[FAVORITE_ALERT] person=${personName} targetUsers=${targetUserIds.join(',')}`);
 
         await triggerAlert({
             siteId,
@@ -369,12 +373,18 @@ export async function checkUnusualRotation(
 
 /**
  * Detect high volume of entries in short time
- * Call this on every entry
+ * Call this on every entry — but fires only once per 30-min window
  */
 export async function checkMassEntry(siteId: string): Promise<void> {
     try {
         const settings = await getAlertSettings(siteId);
         if (!settings?.mass_entry_enabled) return;
+
+        // Check cooldown — skip if we already sent an alert within 30 min
+        const lastAlert = massEntryCooldowns.get(siteId) || 0;
+        if (Date.now() - lastAlert < MASS_ENTRY_COOLDOWN_MS) {
+            return; // Still in cooldown, don't spam
+        }
 
         const threshold = settings.mass_entry_threshold || 20;
         const minutes = settings.mass_entry_minutes || 15;
@@ -386,25 +396,44 @@ export async function checkMassEntry(siteId: string): Promise<void> {
             .eq('site_id', siteId)
             .gte('entry_at', cutoff)
             .order('entry_at', { ascending: false })
-            .limit(30);
+            .limit(100);
 
         const count = recentEntries?.length || 0;
         if (count >= threshold) {
-            // Group by contractor
-            const byContractor: Record<string, string[]> = {};
+            // Set cooldown immediately to prevent further alerts
+            massEntryCooldowns.set(siteId, Date.now());
+
+            // Group by contractor — only show contractor name + count (no person names)
+            const byContractor: Record<string, number> = {};
             for (const e of recentEntries || []) {
                 const c = e.contractor_snapshot || 'Sin contratista';
-                if (!byContractor[c]) byContractor[c] = [];
-                byContractor[c].push(e.name_snapshot);
+                byContractor[c] = (byContractor[c] || 0) + 1;
             }
-            const lines = Object.entries(byContractor).map(
-                ([contractor, names]) => `• ${contractor}: ${names.length} (${names.slice(0, 5).join(', ')}${names.length > 5 ? '...' : ''})`
-            );
+            // Sort by count descending
+            const lines = Object.entries(byContractor)
+                .sort((a, b) => b[1] - a[1])
+                .map(([contractor, n]) => `• ${contractor}: ${n}`);
+
+            // Detect manual entries in this window (check audit_events)
+            let manualWarning = '';
+            try {
+                const { data: manualLogs } = await (supabase as any)
+                    .from('audit_events')
+                    .select('note')
+                    .eq('site_id', siteId)
+                    .in('action', ['MANUAL_ENTRY'])
+                    .gte('created_at', cutoff);
+                const manualCount = manualLogs?.length || 0;
+                if (manualCount > 0) {
+                    manualWarning = `\n\n⚠️ ${manualCount} ingreso${manualCount > 1 ? 's' : ''} manual${manualCount > 1 ? 'es' : ''} detectado${manualCount > 1 ? 's' : ''}`;
+                }
+            } catch { /* audit_events might not exist */ }
+
             await triggerAlert({
                 siteId,
                 alertType: 'mass_entry',
                 title: 'Entrada masiva detectada',
-                body: `${count} personas en ${minutes} min:\n${lines.join('\n')}`,
+                body: `${count} personas en ${minutes} min:\n${lines.join('\n')}${manualWarning}`,
                 data: { count, threshold, minutes },
             });
         }
