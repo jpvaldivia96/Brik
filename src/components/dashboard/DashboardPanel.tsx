@@ -202,17 +202,18 @@ export default function DashboardPanel() {
         contractorMap.set(c, stat);
       });
 
-      // Today's entries per contractor
-      const todayStart = new Date();
-      todayStart.setHours(0, 0, 0, 0);
-      const { data: todayLogs } = await supabase
+      // Entries per contractor for the selected date
+      const dayStart = `${selectedDate}T00:00:00`;
+      const dayEnd = `${selectedDate}T23:59:59`;
+      const { data: dayLogs } = await supabase
         .from('access_logs')
         .select('contractor_snapshot')
         .eq('site_id', currentSite.id)
         .is('voided_at', null)
-        .gte('entry_at', todayStart.toISOString());
+        .gte('entry_at', dayStart)
+        .lte('entry_at', dayEnd);
 
-      (todayLogs || []).forEach(log => {
+      (dayLogs || []).forEach(log => {
         const c = (log.contractor_snapshot || 'Sin contratista').trim().toUpperCase();
         const stat = contractorMap.get(c) || { inside: 0, entriesToday: 0 };
         stat.entriesToday++;
@@ -573,7 +574,7 @@ export default function DashboardPanel() {
                         >
                           <div className="text-left">
                             <div className="font-medium text-white">{c.contractor}</div>
-                            <div className="text-sm text-white/60">{c.entriesToday} entradas hoy</div>
+                            <div className="text-sm text-white/60">{c.entriesToday} entradas {selectedDate === today ? 'hoy' : new Date(selectedDate + 'T12:00:00').toLocaleDateString('es-BO', { day: 'numeric', month: 'short' })}</div>
                           </div>
                           <div className="text-right flex items-center gap-3">
                             <Button

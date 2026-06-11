@@ -153,13 +153,30 @@ export default function ReportsTab() {
       return acc;
     }, 0);
 
-    // Group by day
-    const byDay: Record<string, { entries: number; exits: number }> = {};
+    // Group by day (with hours)
+    const byDay: Record<string, { entries: number; exits: number; hours: number }> = {};
     (logs || []).forEach(log => {
       const day = log.entry_at.split('T')[0];
-      if (!byDay[day]) byDay[day] = { entries: 0, exits: 0 };
+      if (!byDay[day]) byDay[day] = { entries: 0, exits: 0, hours: 0 };
       byDay[day].entries++;
-      if (log.exit_at) byDay[day].exits++;
+      if (log.exit_at) {
+        byDay[day].exits++;
+        byDay[day].hours += (new Date(log.exit_at).getTime() - new Date(log.entry_at).getTime()) / 3600000;
+      }
+    });
+
+    // Group by day + contractor
+    const byDayContractor: Record<string, Record<string, { entries: number; exits: number; hours: number }>> = {};
+    (logs || []).forEach(log => {
+      const day = log.entry_at.split('T')[0];
+      const c = log.contractor_snapshot || 'Sin contratista';
+      if (!byDayContractor[day]) byDayContractor[day] = {};
+      if (!byDayContractor[day][c]) byDayContractor[day][c] = { entries: 0, exits: 0, hours: 0 };
+      byDayContractor[day][c].entries++;
+      if (log.exit_at) {
+        byDayContractor[day][c].exits++;
+        byDayContractor[day][c].hours += (new Date(log.exit_at).getTime() - new Date(log.entry_at).getTime()) / 3600000;
+      }
     });
 
     // Group by contractor
@@ -257,6 +274,7 @@ export default function ReportsTab() {
       totalExits,
       totalHours: totalHours.toFixed(1),
       byDay,
+      byDayContractor,
       byContractor,
       logs: logsWithNotes,
     };
@@ -267,6 +285,27 @@ export default function ReportsTab() {
     try {
       const data = await generateReportData();
       if (!data) return;
+
+      // Daily summary section for CSV
+      const summaryHeader = ['--- RESUMEN DIARIO ---', '', '', '', '', '', '', '', '', '', ''];
+      const summaryColHeaders = ['Fecha', 'Entradas', 'Salidas', 'Horas', '', '', '', '', '', '', ''];
+      const days = Object.keys(data.byDay).sort();
+      const summaryRows = days.map(day => {
+        const d = data.byDay[day];
+        const dateStr = new Date(day + 'T12:00:00').toLocaleDateString('es-BO');
+        return [dateStr, String(d.entries), String(d.exits), d.hours.toFixed(1), '', '', '', '', '', '', ''].map(v => `"${v}"`).join(',');
+      });
+      const summaryTotals = days.reduce((acc, day) => {
+        acc.entries += data.byDay[day].entries;
+        acc.exits += data.byDay[day].exits;
+        acc.hours += data.byDay[day].hours;
+        return acc;
+      }, { entries: 0, exits: 0, hours: 0 });
+      const summaryTotalRow = ['TOTAL', String(summaryTotals.entries), String(summaryTotals.exits), summaryTotals.hours.toFixed(1), '', '', '', '', '', '', ''].map(v => `"${v}"`).join(',');
+
+      // Detail section
+      const detailSeparator = ['', '', '', '', '', '', '', '', '', '', ''];
+      const detailHeader = ['--- DETALLE DE ACCESOS ---', '', '', '', '', '', '', '', '', '', ''];
 
       // Create CSV content
       const headers = ['Fecha Entrada', 'Hora Entrada', 'Fecha Salida', 'Hora Salida', 'Horas', 'Nombre', 'CI', 'Tipo', 'Contratista', 'Observaciones', 'Comentarios Fiscalización'];
@@ -289,7 +328,16 @@ export default function ReportsTab() {
         ].map(v => `"${v}"`).join(',');
       });
 
-      const csv = [headers.join(','), ...rows].join('\n');
+      const csv = [
+        summaryHeader.map(v => `"${v}"`).join(','),
+        summaryColHeaders.map(v => `"${v}"`).join(','),
+        ...summaryRows,
+        summaryTotalRow,
+        detailSeparator.map(v => `"${v}"`).join(','),
+        detailHeader.map(v => `"${v}"`).join(','),
+        headers.join(','),
+        ...rows,
+      ].join('\n');
       const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
       const url = URL.createObjectURL(blob);
       const link = document.createElement('a');
@@ -525,6 +573,87 @@ export default function ReportsTab() {
                 '</tr></thead><tbody>' + rows + '</tbody></table></div>';
             })() : ''}
 
+            ${(() => {
+              // Daily summary table
+              const days = Object.keys(data.byDay).sort();
+              if (days.length === 0) return '';
+
+              const dayRows = days.map(day => {
+                const d = data.byDay[day];
+                const dateStr = new Date(day + 'T12:00:00').toLocaleDateString('es-BO', { weekday: 'short', day: 'numeric', month: 'short' });
+                return '<tr>' +
+                  '<td style="font-weight:500;">' + dateStr + '</td>' +
+                  '<td style="text-align:center;">' + d.entries + '</td>' +
+                  '<td style="text-align:center;">' + d.exits + '</td>' +
+                  '<td style="text-align:center;font-weight:600;color:#7c3aed;">' + d.hours.toFixed(1) + 'h</td>' +
+                  '</tr>';
+              }).join('');
+
+              const totals = days.reduce((acc, day) => {
+                acc.entries += data.byDay[day].entries;
+                acc.exits += data.byDay[day].exits;
+                acc.hours += data.byDay[day].hours;
+                return acc;
+              }, { entries: 0, exits: 0, hours: 0 });
+
+              const totalRow = '<tr style="background:#7c3aed;color:white;font-weight:700;">' +
+                '<td>TOTAL</td>' +
+                '<td style="text-align:center;">' + totals.entries + '</td>' +
+                '<td style="text-align:center;">' + totals.exits + '</td>' +
+                '<td style="text-align:center;">' + totals.hours.toFixed(1) + 'h</td>' +
+                '</tr>';
+
+              return '<h2>Resumen Diario</h2>' +
+                '<div style="overflow-x:auto;border:1px solid #e5e7eb;border-radius:12px;margin-bottom:32px;">' +
+                '<table><thead><tr>' +
+                '<th>Fecha</th><th style="text-align:center;">Entradas</th><th style="text-align:center;">Salidas</th><th style="text-align:center;">Horas</th>' +
+                '</tr></thead><tbody>' + dayRows + totalRow + '</tbody></table></div>';
+            })()}
+
+            ${(() => {
+              // Per-contractor per-day breakdown (only if NOT filtered by single contractor)
+              if (filterType === 'contractor' && selectedContractor) return '';
+              const days = Object.keys(data.byDayContractor || {}).sort();
+              if (days.length === 0) return '';
+
+              const allContractors = new Set<string>();
+              days.forEach(day => {
+                Object.keys(data.byDayContractor[day]).forEach(c => allContractors.add(c));
+              });
+              const contractorList = Array.from(allContractors).sort();
+
+              // Build a table per contractor with daily entries
+              const tables = contractorList.map(contractor => {
+                const contractorDayRows = days.map(day => {
+                  const d = data.byDayContractor[day]?.[contractor];
+                  if (!d) return null;
+                  const dateStr = new Date(day + 'T12:00:00').toLocaleDateString('es-BO', { weekday: 'short', day: 'numeric', month: 'short' });
+                  return '<tr>' +
+                    '<td>' + dateStr + '</td>' +
+                    '<td style="text-align:center;">' + d.entries + '</td>' +
+                    '<td style="text-align:center;">' + d.hours.toFixed(1) + 'h</td>' +
+                    '</tr>';
+                }).filter(Boolean).join('');
+
+                if (!contractorDayRows) return '';
+
+                const totals = days.reduce((acc, day) => {
+                  const d = data.byDayContractor[day]?.[contractor];
+                  if (d) { acc.entries += d.entries; acc.hours += d.hours; }
+                  return acc;
+                }, { entries: 0, hours: 0 });
+
+                return '<div style="margin-bottom:24px;">' +
+                  '<h3 style="font-size:15px;color:#4b5563;margin:0 0 8px;">' + contractor + ' <span style="color:#7c3aed;font-weight:700;">(' + totals.entries + ' entradas, ' + totals.hours.toFixed(1) + 'h)</span></h3>' +
+                  '<div style="overflow-x:auto;border:1px solid #e5e7eb;border-radius:12px;">' +
+                  '<table><thead><tr>' +
+                  '<th>Fecha</th><th style="text-align:center;">Entradas</th><th style="text-align:center;">Horas</th>' +
+                  '</tr></thead><tbody>' + contractorDayRows + '</tbody></table></div></div>';
+              }).join('');
+
+              return tables ? '<h2>Detalle por Contratista</h2>' + tables : '';
+            })()}
+
             <h2>Detalle de Accesos</h2>
             <div style="overflow-x: auto; border: 1px solid #e5e7eb; border-radius: 12px;">
             <table>
@@ -611,6 +740,14 @@ export default function ReportsTab() {
         .map(([contractor, count]) => `• ${contractor}: ${count} accesos`)
         .join('\n');
 
+      // Daily summary
+      const days = Object.keys(data.byDay).sort();
+      const dailyLines = days.map(day => {
+        const d = data.byDay[day];
+        const dateStr = new Date(day + 'T12:00:00').toLocaleDateString('es-BO', { weekday: 'short', day: 'numeric', month: 'short' });
+        return `📅 ${dateStr}: ${d.entries} entradas, ${d.hours.toFixed(1)}h`;
+      }).join('\n');
+
       // Create comprehensive text report
       const text = `*REPORTE BRIK PRO* 📊
 *Obra:* ${data.site}
@@ -621,6 +758,9 @@ ${data.filter !== 'Todos' ? `*Filtro:* ${data.filter}\n` : ''}
 🚪 Salidas: ${data.totalExits}
 ⏱️ Horas Total: ${data.totalHours}h
 🏢 Contratistas: ${Object.keys(data.byContractor).length}
+
+*RESUMEN DIARIO*
+${dailyLines || 'Sin datos'}
 
 *POR CONTRATISTA*
 ${contractorLines || 'Sin datos'}
