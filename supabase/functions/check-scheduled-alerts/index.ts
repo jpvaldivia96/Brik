@@ -544,6 +544,18 @@ async function checkMeetingReminders(supabase: any, siteId: string): Promise<num
 async function checkOvertime(supabase: any, siteId: string, settings: any): Promise<number> {
     if (!settings.overtime_enabled) return 0
 
+    // Cooldown: skip if we already sent an overtime alert for this site in the last 6 hours
+    const cooldownCutoff = new Date(Date.now() - 6 * 60 * 60 * 1000).toISOString()
+    const { data: recentAlert } = await supabase
+        .from('alert_history')
+        .select('id, data')
+        .eq('site_id', siteId)
+        .eq('alert_type', 'overtime')
+        .gte('sent_at', cooldownCutoff)
+        .order('sent_at', { ascending: false })
+        .limit(1)
+        .maybeSingle()
+
     // Get WARN and CRIT thresholds from site_settings
     const { data: siteSettings } = await supabase
         .from('site_settings')
@@ -567,6 +579,17 @@ async function checkOvertime(supabase: any, siteId: string, settings: any): Prom
         .limit(50)
 
     if (!overtime || overtime.length === 0) return 0
+
+    // If we sent an alert recently and the count hasn't grown, skip (avoid spam)
+    if (recentAlert) {
+        const previousCount = recentAlert.data?.count || 0
+        if (overtime.length <= previousCount) {
+            console.log(`Overtime cooldown: ${overtime.length} people (was ${previousCount}), skipping`)
+            return 0
+        }
+        // New people crossed threshold — send updated alert
+        console.log(`Overtime: new people detected (${previousCount} → ${overtime.length}), sending alert`)
+    }
 
     // Split into CRIT and WARN categories
     const critCutoff = Date.now() - critHours * 60 * 60 * 1000
