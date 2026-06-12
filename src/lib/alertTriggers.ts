@@ -4,8 +4,7 @@ import { APP_VERSION } from '@/lib/version';
 
 // Cooldown map to prevent spam (in-memory, resets on page reload)
 const capacityCooldowns = new Map<string, number>();
-// Mass entry cooldown: 30 minutes between alerts per site
-const massEntryCooldowns = new Map<string, number>();
+// Mass entry cooldown: 30 minutes between alerts per site (checked via alert_history DB)
 const MASS_ENTRY_COOLDOWN_MS = 30 * 60 * 1000; // 30 minutes
 
 interface AlertTriggerOptions {
@@ -380,12 +379,6 @@ export async function checkMassEntry(siteId: string): Promise<void> {
         const settings = await getAlertSettings(siteId);
         if (!settings?.mass_entry_enabled) return;
 
-        // Check cooldown — skip if we already sent an alert within 30 min
-        const lastAlert = massEntryCooldowns.get(siteId) || 0;
-        if (Date.now() - lastAlert < MASS_ENTRY_COOLDOWN_MS) {
-            return; // Still in cooldown, don't spam
-        }
-
         const threshold = settings.mass_entry_threshold || 20;
         const minutes = settings.mass_entry_minutes || 15;
         const cutoff = new Date(Date.now() - minutes * 60 * 1000).toISOString();
@@ -399,44 +392,64 @@ export async function checkMassEntry(siteId: string): Promise<void> {
             .limit(100);
 
         const count = recentEntries?.length || 0;
-        if (count >= threshold) {
-            // Set cooldown immediately to prevent further alerts
-            massEntryCooldowns.set(siteId, Date.now());
+        if (count < threshold) return;
 
-            // Group by contractor — only show contractor name + count (no person names)
-            const byContractor: Record<string, number> = {};
-            for (const e of recentEntries || []) {
-                const c = e.contractor_snapshot || 'Sin contratista';
-                byContractor[c] = (byContractor[c] || 0) + 1;
+        // Persistent cooldown: check alert_history for last mass_entry alert
+        const cooldownCutoff = new Date(Date.now() - MASS_ENTRY_COOLDOWN_MS).toISOString();
+        const { data: lastAlert } = await supabase
+            .from('alert_history')
+            .select('id, data, sent_at')
+            .eq('site_id', siteId)
+            .eq('alert_type', 'mass_entry')
+            .gte('sent_at', cooldownCutoff)
+            .order('sent_at', { ascending: false })
+            .limit(1)
+            .maybeSingle();
+
+        if (lastAlert) {
+            // Already sent a mass entry alert within the cooldown window.
+            // Only send another if count has grown significantly (>= 5 more people)
+            const previousCount = lastAlert.data?.count || 0;
+            if (count < previousCount + 5) {
+                console.log(`Mass entry cooldown: ${count} people (was ${previousCount}), skipping`);
+                return;
             }
-            // Sort by count descending
-            const lines = Object.entries(byContractor)
-                .sort((a, b) => b[1] - a[1])
-                .map(([contractor, n]) => `• ${contractor}: ${n}`);
-
-            // Detect manual entries in this window (check audit_events)
-            let manualWarning = '';
-            try {
-                const { data: manualLogs } = await (supabase as any)
-                    .from('audit_events')
-                    .select('note')
-                    .eq('site_id', siteId)
-                    .in('action', ['MANUAL_ENTRY'])
-                    .gte('created_at', cutoff);
-                const manualCount = manualLogs?.length || 0;
-                if (manualCount > 0) {
-                    manualWarning = `\n\n⚠️ ${manualCount} ingreso${manualCount > 1 ? 's' : ''} manual${manualCount > 1 ? 'es' : ''} detectado${manualCount > 1 ? 's' : ''}`;
-                }
-            } catch { /* audit_events might not exist */ }
-
-            await triggerAlert({
-                siteId,
-                alertType: 'mass_entry',
-                title: 'Entrada masiva detectada',
-                body: `${count} personas en ${minutes} min:\n${lines.join('\n')}${manualWarning}`,
-                data: { count, threshold, minutes },
-            });
+            console.log(`Mass entry: count grew ${previousCount} → ${count}, sending update`);
         }
+
+        // Group by contractor — only show contractor name + count (no person names)
+        const byContractor: Record<string, number> = {};
+        for (const e of recentEntries || []) {
+            const c = e.contractor_snapshot || 'Sin contratista';
+            byContractor[c] = (byContractor[c] || 0) + 1;
+        }
+        // Sort by count descending
+        const lines = Object.entries(byContractor)
+            .sort((a, b) => b[1] - a[1])
+            .map(([contractor, n]) => `• ${contractor}: ${n}`);
+
+        // Detect manual entries in this window (check audit_events)
+        let manualWarning = '';
+        try {
+            const { data: manualLogs } = await (supabase as any)
+                .from('audit_events')
+                .select('note')
+                .eq('site_id', siteId)
+                .in('action', ['MANUAL_ENTRY'])
+                .gte('created_at', cutoff);
+            const manualCount = manualLogs?.length || 0;
+            if (manualCount > 0) {
+                manualWarning = `\n\n⚠️ ${manualCount} ingreso${manualCount > 1 ? 's' : ''} manual${manualCount > 1 ? 'es' : ''} detectado${manualCount > 1 ? 's' : ''}`;
+            }
+        } catch { /* audit_events might not exist */ }
+
+        await triggerAlert({
+            siteId,
+            alertType: 'mass_entry',
+            title: 'Entrada masiva detectada',
+            body: `${count} personas en ${minutes} min:\n${lines.join('\n')}${manualWarning}`,
+            data: { count, threshold, minutes },
+        });
     } catch (err) {
         console.error('Error checking mass entry:', err);
     }

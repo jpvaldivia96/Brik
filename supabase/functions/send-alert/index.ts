@@ -752,35 +752,22 @@ serve(async (req) => {
             }
         }
 
-        // ─── CHANNEL 2: Email via Resend ─────────────────────────────────
+        // ─── CHANNEL 2: Email via Resend (DISABLED — user request) ─────────
         let emailSuccess = 0
         let emailFailed = 0
-
+        // Email alerts disabled permanently per user preference
+        // To re-enable, uncomment the block below
+        /*
         if (resendApiKey) {
             try {
-                // Get supervisor emails from auth.users
                 const { data: { users }, error: usersError } = await supabase.auth.admin.listUsers()
-
-                console.log('Auth admin listUsers error:', usersError)
-                console.log('Total users found:', users?.length || 0)
-                console.log('Filtered user IDs:', filteredUserIds)
-
                 if (!usersError && users) {
                     const supervisorEmails = users
                         .filter(u => filteredUserIds.includes(u.id) && u.email)
                         .map(u => u.email!)
-
-                    console.log('Supervisor emails to send:', supervisorEmails)
-
                     if (supervisorEmails.length > 0) {
                         const emailResult = await sendEmailViaResend(
-                            resendApiKey,
-                            supervisorEmails,
-                            title,
-                            body,
-                            alert_type,
-                            siteName,
-                            appUrl,
+                            resendApiKey, supervisorEmails, title, body, alert_type, siteName, appUrl,
                         )
                         emailSuccess = emailResult.success
                         emailFailed = emailResult.failed
@@ -791,6 +778,7 @@ serve(async (req) => {
                 console.error('Email error:', err)
             }
         }
+        */
 
         // ─── CHANNEL 3: Slack/Teams Webhooks ─────────────────────────────
         const { data: notifSettings } = await supabase
