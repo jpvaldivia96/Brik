@@ -800,18 +800,15 @@ serve(async (req) => {
             if (ok) channels.push('teams')
         }
 
-        // ─── CHANNEL 4: Telegram Bot (site-wide + personal) ────────────────
+        // ─── CHANNEL 4: Telegram Bot (site-wide + personal, DEDUPLICATED) ──
         const TELEGRAM_BOT_TOKEN = '8825992226:AAGHxy_dAXKo_FHOM6L46Sq4FvkUJ6zapdg'
 
-        // 4a. Site-wide Telegram (notification_settings)
-        // Skip site-wide channel for per-user alerts (favorites, dependents) — those are personal
-        if (notifSettings?.telegram_bot_token && notifSettings?.telegram_chat_id && isSharedChannelAlert) {
-            const ok = await sendTelegram(
-                notifSettings.telegram_bot_token,
-                notifSettings.telegram_chat_id,
-                title, body, siteName, alert_type, data
-            )
-            if (ok) channels.push('telegram')
+        // Collect ALL unique chat IDs to avoid sending duplicates
+        const allTelegramChatIds = new Set<string>()
+
+        // 4a. Site-wide Telegram (notification_settings) — only for shared alerts
+        if (notifSettings?.telegram_chat_id && isSharedChannelAlert) {
+            allTelegramChatIds.add(String(notifSettings.telegram_chat_id).trim())
         }
 
         // 4b. Personal Telegram (per-user chat_id from user_notification_preferences)
@@ -823,19 +820,23 @@ serve(async (req) => {
             .not('telegram_chat_id', 'is', null)
 
         if (userTgPrefs && userTgPrefs.length > 0) {
-            const personalChatIds = userTgPrefs
-                .map((p: any) => p.telegram_chat_id)
-                .filter((id: string) => id && id !== notifSettings?.telegram_chat_id) // avoid duplicate to site-wide
-
-            for (const chatId of personalChatIds) {
-                const ok = await sendTelegram(
-                    TELEGRAM_BOT_TOKEN,
-                    chatId,
-                    title, body, siteName, alert_type, data
-                )
-                if (ok && !channels.includes('telegram_personal')) {
-                    channels.push('telegram_personal')
+            for (const p of userTgPrefs) {
+                if (p.telegram_chat_id) {
+                    allTelegramChatIds.add(String(p.telegram_chat_id).trim())
                 }
+            }
+        }
+
+        // Send once per unique chat ID
+        for (const chatId of allTelegramChatIds) {
+            // Use site-wide bot token if available, otherwise hardcoded
+            const botToken = notifSettings?.telegram_bot_token || TELEGRAM_BOT_TOKEN
+            const ok = await sendTelegram(
+                botToken, chatId,
+                title, body, siteName, alert_type, data
+            )
+            if (ok && !channels.includes('telegram')) {
+                channels.push('telegram')
             }
         }
 

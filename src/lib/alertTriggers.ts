@@ -4,7 +4,8 @@ import { APP_VERSION } from '@/lib/version';
 
 // Cooldown map to prevent spam (in-memory, resets on page reload)
 const capacityCooldowns = new Map<string, number>();
-// Mass entry cooldown: 30 minutes between alerts per site (checked via alert_history DB)
+// Mass entry: dual-layer cooldown (in-memory + DB alert_history)
+const massEntryCooldowns = new Map<string, number>();
 const MASS_ENTRY_COOLDOWN_MS = 30 * 60 * 1000; // 30 minutes
 
 interface AlertTriggerOptions {
@@ -379,6 +380,12 @@ export async function checkMassEntry(siteId: string): Promise<void> {
         const settings = await getAlertSettings(siteId);
         if (!settings?.mass_entry_enabled) return;
 
+        // ── Layer 1: In-memory cooldown (instant, prevents race condition) ──
+        const lastInMemory = massEntryCooldowns.get(siteId) || 0;
+        if (Date.now() - lastInMemory < MASS_ENTRY_COOLDOWN_MS) {
+            return; // Blocked by in-memory cooldown
+        }
+
         const threshold = settings.mass_entry_threshold || 20;
         const minutes = settings.mass_entry_minutes || 15;
         const cutoff = new Date(Date.now() - minutes * 60 * 1000).toISOString();
@@ -394,28 +401,32 @@ export async function checkMassEntry(siteId: string): Promise<void> {
         const count = recentEntries?.length || 0;
         if (count < threshold) return;
 
-        // Persistent cooldown: check alert_history for last mass_entry alert
+        // ── Layer 2: DB cooldown (persistent, survives page reloads) ──
         const cooldownCutoff = new Date(Date.now() - MASS_ENTRY_COOLDOWN_MS).toISOString();
-        const { data: lastAlert } = await supabase
-            .from('alert_history')
-            .select('id, data, sent_at')
-            .eq('site_id', siteId)
-            .eq('alert_type', 'mass_entry')
-            .gte('sent_at', cooldownCutoff)
-            .order('sent_at', { ascending: false })
-            .limit(1)
-            .maybeSingle();
+        try {
+            const { data: lastDbAlert } = await supabase
+                .from('alert_history')
+                .select('id, data, sent_at')
+                .eq('site_id', siteId)
+                .eq('alert_type', 'mass_entry')
+                .gte('sent_at', cooldownCutoff)
+                .order('sent_at', { ascending: false })
+                .limit(1)
+                .maybeSingle();
 
-        if (lastAlert) {
-            // Already sent a mass entry alert within the cooldown window.
-            // Only send another if count has grown significantly (>= 5 more people)
-            const previousCount = lastAlert.data?.count || 0;
-            if (count < previousCount + 5) {
-                console.log(`Mass entry cooldown: ${count} people (was ${previousCount}), skipping`);
+            if (lastDbAlert) {
+                // Already sent within cooldown window — block and sync in-memory
+                massEntryCooldowns.set(siteId, new Date(lastDbAlert.sent_at).getTime());
+                console.log(`Mass entry: DB cooldown active (sent at ${lastDbAlert.sent_at}), skipping`);
                 return;
             }
-            console.log(`Mass entry: count grew ${previousCount} → ${count}, sending update`);
+        } catch (dbErr) {
+            // If DB check fails (RLS, network), rely on in-memory only
+            console.warn('Mass entry DB cooldown check failed, using in-memory only:', dbErr);
         }
+
+        // ── Set in-memory cooldown BEFORE sending (prevents parallel calls) ──
+        massEntryCooldowns.set(siteId, Date.now());
 
         // Group by contractor — only show contractor name + count (no person names)
         const byContractor: Record<string, number> = {};
@@ -423,12 +434,11 @@ export async function checkMassEntry(siteId: string): Promise<void> {
             const c = e.contractor_snapshot || 'Sin contratista';
             byContractor[c] = (byContractor[c] || 0) + 1;
         }
-        // Sort by count descending
         const lines = Object.entries(byContractor)
             .sort((a, b) => b[1] - a[1])
             .map(([contractor, n]) => `• ${contractor}: ${n}`);
 
-        // Detect manual entries in this window (check audit_events)
+        // Detect manual entries in this window
         let manualWarning = '';
         try {
             const { data: manualLogs } = await (supabase as any)
