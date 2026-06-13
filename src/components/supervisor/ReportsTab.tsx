@@ -7,7 +7,7 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { AlertCosmos } from '@/components/ui/alert-cosmos';
 import { Spinner } from '@/components/ui/spinner';
-import { FileText, Download, MessageSquare, Filter, Calendar, Building2, User, Users, Search, CheckSquare, Square, X } from 'lucide-react';
+import { FileText, Download, MessageSquare, Filter, Calendar, Building2, User, Users, Search, CheckSquare, Square, X, Layers } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 
 type FilterType = 'all' | 'contractor' | 'worker' | 'visitor';
@@ -31,6 +31,8 @@ export default function ReportsTab() {
   // Filter type
   const [filterType, setFilterType] = useState<FilterType>('all');
   const [selectedContractor, setSelectedContractor] = useState<string>('');
+  const [selectedCategory, setSelectedCategory] = useState<string>('');
+  const [availableCategories, setAvailableCategories] = useState<string[]>([]);
   const [selectedPersonIds, setSelectedPersonIds] = useState<Set<string>>(new Set());
   const [showPeopleSelector, setShowPeopleSelector] = useState(false);
   const [peopleSearchQuery, setPeopleSearchQuery] = useState('');
@@ -123,6 +125,10 @@ export default function ReportsTab() {
     // Apply filters
     if (filterType === 'contractor' && selectedContractor) {
       query = query.ilike('contractor_snapshot', selectedContractor);
+      // Filter by category if selected
+      if (selectedCategory && selectedCategory !== '__all__') {
+        query = query.ilike('categories_snapshot', `%${selectedCategory}%`);
+      }
     } else if (filterType === 'worker') {
       query = query.eq('type_snapshot', 'worker');
     } else if (filterType === 'visitor') {
@@ -867,18 +873,67 @@ _Generado el ${new Date().toLocaleString('es-BO')}_`;
         </div>
 
         {filterType === 'contractor' && (
-          <div className="pt-2 animate-in fade-in slide-in-from-top-2">
-            <Label className="text-white/70 mb-2 block">Seleccionar Contratista</Label>
-            <Select value={selectedContractor} onValueChange={setSelectedContractor}>
-              <SelectTrigger className="bg-white/10 border-white/20 text-white">
-                <SelectValue placeholder="Seleccionar..." />
-              </SelectTrigger>
-              <SelectContent className="bg-slate-800/95 backdrop-blur-xl border-white/10">
-                {contractors.map(c => (
-                  <SelectItem key={c} value={c} className="text-white/80 focus:bg-white/10">{c}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+          <div className="pt-2 animate-in fade-in slide-in-from-top-2 space-y-3">
+            <div>
+              <Label className="text-white/70 mb-2 block">Seleccionar Contratista</Label>
+              <Select value={selectedContractor} onValueChange={(val) => {
+                setSelectedContractor(val);
+                setSelectedCategory('');
+                // Load categories for this contractor
+                if (currentSite && val) {
+                  (supabase as any)
+                    .from('contractor_categories')
+                    .select('category_name')
+                    .eq('site_id', currentSite.id)
+                    .ilike('contractor_name', val)
+                    .order('sort_order', { ascending: true })
+                    .then(({ data }: any) => {
+                      setAvailableCategories((data || []).map((d: any) => d.category_name));
+                    });
+                } else {
+                  setAvailableCategories([]);
+                }
+              }}>
+                <SelectTrigger className="bg-white/10 border-white/20 text-white">
+                  <SelectValue placeholder="Seleccionar..." />
+                </SelectTrigger>
+                <SelectContent className="bg-slate-800/95 backdrop-blur-xl border-white/10">
+                  {contractors.map(c => (
+                    <SelectItem key={c} value={c} className="text-white/80 focus:bg-white/10">{c}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            {/* Category filter (optional) */}
+            {selectedContractor && availableCategories.length > 0 && (
+              <div className="animate-in fade-in slide-in-from-top-1">
+                <Label className="text-white/70 mb-2 flex items-center gap-2">
+                  <Layers className="w-3 h-3 text-blue-400" />
+                  Filtrar por Categoría de Trabajo (Opcional)
+                </Label>
+                <Select value={selectedCategory} onValueChange={setSelectedCategory}>
+                  <SelectTrigger className="bg-white/10 border-white/20 text-white">
+                    <SelectValue placeholder="Todas las categorías" />
+                  </SelectTrigger>
+                  <SelectContent className="bg-slate-800/95 backdrop-blur-xl border-white/10">
+                    <SelectItem value="__all__" className="text-white/80 focus:bg-white/10">Todas las categorías</SelectItem>
+                    {availableCategories.map(c => (
+                      <SelectItem key={c} value={c} className="text-white/80 focus:bg-white/10">{c}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                {selectedCategory && selectedCategory !== '__all__' && (
+                  <button
+                    type="button"
+                    onClick={() => setSelectedCategory('')}
+                    className="mt-1 text-xs text-blue-400 hover:text-blue-300 flex items-center gap-1"
+                  >
+                    <X className="w-3 h-3" /> Quitar filtro de categoría
+                  </button>
+                )}
+              </div>
+            )}
           </div>
         )}
 

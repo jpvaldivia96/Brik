@@ -2,10 +2,11 @@ import { useState, useEffect } from 'react';
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Button } from '@/components/ui/button';
-import { Plus, X, Layers } from 'lucide-react';
+import { Plus, X, Layers, Trash2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { supabase } from '@/integrations/supabase/client';
 import { useSite } from '@/contexts/SiteContext';
+import { useToast } from '@/hooks/use-toast';
 
 export interface CategoryDefinition {
     id: string;
@@ -40,33 +41,34 @@ export function CategoryAutocomplete({
     className
 }: CategoryAutocompleteProps) {
     const { currentSite } = useSite();
+    const { toast } = useToast();
     const [open, setOpen] = useState(false);
     const [availableCategories, setAvailableCategories] = useState<CategoryDefinition[]>([]);
     const [search, setSearch] = useState('');
     const [loading, setLoading] = useState(false);
 
     // Load categories for this contractor
+    const loadCategories = async () => {
+        if (!currentSite || !contractorName) {
+            setAvailableCategories([]);
+            return;
+        }
+        setLoading(true);
+
+        const { data, error } = await (supabase as any)
+            .from('contractor_categories')
+            .select('id, category_name, color')
+            .eq('site_id', currentSite.id)
+            .ilike('contractor_name', contractorName.trim())
+            .order('sort_order', { ascending: true });
+
+        if (data && !error) {
+            setAvailableCategories(data as CategoryDefinition[]);
+        }
+        setLoading(false);
+    };
+
     useEffect(() => {
-        const loadCategories = async () => {
-            if (!currentSite || !contractorName) {
-                setAvailableCategories([]);
-                return;
-            }
-            setLoading(true);
-
-            const { data, error } = await (supabase as any)
-                .from('contractor_categories')
-                .select('id, category_name, color')
-                .eq('site_id', currentSite.id)
-                .ilike('contractor_name', contractorName.trim())
-                .order('sort_order', { ascending: true });
-
-            if (data && !error) {
-                setAvailableCategories(data as CategoryDefinition[]);
-            }
-            setLoading(false);
-        };
-
         if (open || contractorName) {
             loadCategories();
         }
@@ -112,6 +114,28 @@ export function CategoryAutocomplete({
             setAvailableCategories([...availableCategories, newCat]);
             setSearch('');
         }
+    };
+
+    const handleDeleteDefinition = async (e: React.MouseEvent, catId: string) => {
+        e.stopPropagation();
+        e.preventDefault();
+
+        // Delete the definition (cascade deletes worker_categories)
+        const { error } = await (supabase as any)
+            .from('contractor_categories')
+            .delete()
+            .eq('id', catId);
+
+        if (error) {
+            toast({ title: 'Error', description: 'No se pudo eliminar la categoría', variant: 'destructive' });
+            return;
+        }
+
+        // Remove from local state
+        setAvailableCategories(prev => prev.filter(c => c.id !== catId));
+        // Also remove from selected if it was selected
+        onChange(selectedCategories.filter(c => c.id !== catId));
+        toast({ title: 'Categoría eliminada' });
     };
 
     const handleRemove = (catId: string) => {
@@ -164,7 +188,7 @@ export function CategoryAutocomplete({
                             </span>
                         </Button>
                     </PopoverTrigger>
-                    <PopoverContent className="w-[280px] p-0" align="start">
+                    <PopoverContent className="w-[300px] p-0" align="start">
                         <Command>
                             <CommandInput
                                 placeholder="Buscar o crear categoría..."
@@ -193,13 +217,25 @@ export function CategoryAutocomplete({
                                             key={cat.id}
                                             value={cat.category_name}
                                             onSelect={() => handleSelect(cat)}
-                                            className="cursor-pointer"
+                                            className="cursor-pointer group"
                                         >
-                                            <span
-                                                className="w-3 h-3 rounded-full mr-2 flex-shrink-0"
-                                                style={{ backgroundColor: cat.color }}
-                                            />
-                                            {cat.category_name}
+                                            <div className="flex items-center justify-between w-full">
+                                                <div className="flex items-center gap-2">
+                                                    <span
+                                                        className="w-3 h-3 rounded-full flex-shrink-0"
+                                                        style={{ backgroundColor: cat.color }}
+                                                    />
+                                                    {cat.category_name}
+                                                </div>
+                                                <button
+                                                    type="button"
+                                                    onClick={(e) => handleDeleteDefinition(e, cat.id)}
+                                                    className="opacity-0 group-hover:opacity-100 p-1 rounded hover:bg-red-500/20 text-red-400 transition-opacity"
+                                                    title="Eliminar categoría"
+                                                >
+                                                    <Trash2 className="w-3 h-3" />
+                                                </button>
+                                            </div>
                                         </CommandItem>
                                     ))}
                                 </CommandGroup>

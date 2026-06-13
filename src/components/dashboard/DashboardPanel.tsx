@@ -280,7 +280,8 @@ export default function DashboardPanel() {
       result = result.filter(l =>
         l.full_name.toLowerCase().includes(q) ||
         l.ci.toLowerCase().includes(q) ||
-        (l.contractor_snapshot || '').toLowerCase().includes(q)
+        (l.contractor_snapshot || '').toLowerCase().includes(q) ||
+        (l.categories_snapshot || '').toLowerCase().includes(q)
       );
     }
 
