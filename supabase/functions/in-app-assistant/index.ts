@@ -6,26 +6,50 @@ const corsHeaders = {
     'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 }
 
-// Helper: call Gemini
+// Helper: call Gemini with fallback models and API versions
 async function callGemini(key: string, prompt: string, json = false): Promise<string> {
-    const resp = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-lite:generateContent?key=${key}`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-            contents: [{ parts: [{ text: prompt }] }],
-            generationConfig: {
-                temperature: json ? 0 : 0.7,
-                ...(json ? { responseMimeType: "application/json" } : {})
+    // Try both v1 and v1beta with various model names
+    const attempts = [
+        { version: 'v1beta', model: 'gemini-2.0-flash' },
+        { version: 'v1beta', model: 'gemini-2.0-flash-lite' },
+        { version: 'v1', model: 'gemini-2.0-flash' },
+        { version: 'v1', model: 'gemini-2.0-flash-lite' },
+        { version: 'v1beta', model: 'gemini-pro' },
+    ]
+    let lastError = ''
+    
+    for (const { version, model } of attempts) {
+        try {
+            const resp = await fetch(`https://generativelanguage.googleapis.com/${version}/models/${model}:generateContent?key=${key}`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    contents: [{ parts: [{ text: prompt }] }],
+                    generationConfig: {
+                        temperature: json ? 0 : 0.7,
+                        ...(json ? { responseMimeType: "application/json" } : {})
+                    }
+                })
+            })
+            if (!resp.ok) {
+                lastError = `${version}/${model}: ${resp.status}`
+                console.error("Gemini API Error:", lastError)
+                continue
             }
-        })
-    })
-    if (!resp.ok) {
-        const errorText = await resp.text()
-        console.error("Gemini API Error:", resp.status, errorText)
-        throw new Error(`Gemini ${resp.status}`)
+            const d = await resp.json()
+            const text = d.candidates?.[0]?.content?.parts?.[0]?.text || ''
+            if (!text) {
+                lastError = `${version}/${model}: empty response`
+                continue
+            }
+            console.log(`Success with ${version}/${model}`)
+            return text
+        } catch (e) {
+            lastError = `${version}/${model}: ${e.message}`
+            continue
+        }
     }
-    const d = await resp.json()
-    return d.candidates?.[0]?.content?.parts?.[0]?.text || ''
+    throw new Error(`All Gemini models failed. Last: ${lastError}`)
 }
 
 serve(async (req) => {
@@ -35,9 +59,12 @@ serve(async (req) => {
 
     try {
         const { message, siteId, userId } = await req.json()
+        console.log("Request:", { message, siteId, userId: userId?.substring(0, 8) })
+        
         const geminiKey = Deno.env.get('GEMINI_API_KEY')
 
         if (!geminiKey) {
+            console.error("GEMINI_API_KEY not set")
             return new Response(
                 JSON.stringify({ text: "⚠️ El asistente AI no está configurado aún." }),
                 { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -52,129 +79,130 @@ serve(async (req) => {
         const { data: site } = await supabase.from('sites').select('name').eq('id', siteId).single()
         const siteName = site?.name || 'la obra'
 
+        // Bolivia time
         const now = new Date()
-        const boliviaOffset = -4 * 60
-        const boliviaNow = new Date(now.getTime() + (boliviaOffset + now.getTimezoneOffset()) * 60000)
+        const boliviaNow = new Date(now.toLocaleString('en-US', { timeZone: 'America/La_Paz' }))
+        const todayStr = boliviaNow.toISOString().split('T')[0]
+        const timeStr = boliviaNow.toLocaleTimeString('es-BO', { hour: '2-digit', minute: '2-digit' })
 
-        // 2. Classify intent and extract query parameters
+        // 2. Classify intent
         const classifyPrompt = `You are a query router for a construction site access control system called BRIK.
-The site is "${siteName}". Today's date is ${boliviaNow.toISOString().split('T')[0]} (Bolivia time). The current time is ${boliviaNow.toLocaleTimeString('es-BO')}.
-Analyze the user's message and output a JSON object to query the database.
+The site is "${siteName}". Today is ${todayStr}. Current time: ${timeStr} (Bolivia).
+
+Classify the user's message and extract query parameters.
 User message: "${message}"
 
-Output JSON strictly with these optional fields:
-- intent: "query" (needs database search) or "greeting" (no data needed)
-- startDate: YYYY-MM-DD (if user mentions a date range or a specific day. "hoy" = today's date, "ayer" = yesterday's date, "mes" = start of month, etc)
-- endDate: YYYY-MM-DD (inclusive. "ayer" = yesterday's date. Default to today if only start is given but user implies up to now)
-- contractor: string (if user mentions a contractor name, e.g. "kuattro", "mariscal")
-- name: string (if user mentions a person's name)
-- status: "inside" (if user asks who is currently inside/working right now) or "all"
-- limit: integer (default 1000, max 5000)
+Return a JSON object with these fields:
+- "intent": "query" or "greeting"
+- "startDate": "YYYY-MM-DD" or null (hoy=${todayStr}, ayer=yesterday)
+- "endDate": "YYYY-MM-DD" or null
+- "contractor": contractor name string or null
+- "name": person name string or null
+- "status": "inside" (who is currently inside) or "all" or null
+- "metric": "hours" or "count" or "list" or null
 
-If the user is asking about historical data (e.g. "horas trabajadas desde el 1 de junio"), make sure to provide startDate and endDate.
-If the user asks "quien esta adentro" or "quienes siguen en la obra", use status: "inside".
-If it's just a greeting like "hola", "gracias", return {"intent":"greeting"}.`
+If greeting (hola, gracias, etc), return: {"intent":"greeting"}
+For "quien esta adentro", use status:"inside" with no dates.
+For "horas trabajadas", include dates and metric:"hours".`
 
-        let rawJsonText = await callGemini(geminiKey, classifyPrompt, true)
-        // Clean up markdown block if present
-        rawJsonText = rawJsonText.replace(/```json/g, '').replace(/```/g, '').trim()
+        console.log("Calling Gemini for classification...")
+        const rawJsonText = await callGemini(geminiKey, classifyPrompt, true)
+        console.log("Classification result:", rawJsonText)
         
-        let queryParams: any = {}
+        // Parse JSON - handle markdown wrapping
+        const cleaned = rawJsonText.replace(/```json\s*/g, '').replace(/```\s*/g, '').trim()
+        let queryParams: any
         try {
-            queryParams = JSON.parse(rawJsonText)
+            queryParams = JSON.parse(cleaned)
         } catch (e) {
-            console.error("Failed to parse Gemini classification JSON:", rawJsonText)
-            throw new Error("Invalid JSON from Gemini")
+            console.error("JSON parse error:", e.message, "Raw:", cleaned)
+            // Fallback: treat as general query for today
+            queryParams = { intent: 'query', status: 'inside' }
         }
+
+        console.log("Query params:", queryParams)
+
+        // Handle greeting
+        if (queryParams.intent === 'greeting') {
+            return new Response(
+                JSON.stringify({ text: '¡Hola! 👋 ¿En qué puedo ayudarte? Puedo darte reportes de horas, buscar personas, decirte quién está en la obra, y más.' }),
+                { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+            )
+        }
+
+        // 3. Build query
+        let query = supabase
+            .from('access_logs')
+            .select('name_snapshot, contractor_snapshot, categories_snapshot, entry_at, exit_at')
+            .eq('site_id', siteId)
+            .is('voided_at', null)
+            .order('entry_at', { ascending: false })
+        
+        if (queryParams.status === 'inside') {
+            query = query.is('exit_at', null)
+        }
+        
+        if (queryParams.startDate) {
+            query = query.gte('entry_at', queryParams.startDate + 'T04:00:00Z')
+        }
+        
+        if (queryParams.endDate) {
+            // End of day in Bolivia = next day 03:59:59 UTC
+            query = query.lte('entry_at', queryParams.endDate + 'T27:59:59Z'.replace('27', '03'))
+        }
+
+        if (queryParams.contractor) {
+            query = query.ilike('contractor_snapshot', `%${queryParams.contractor}%`)
+        }
+
+        if (queryParams.name) {
+            query = query.ilike('name_snapshot', `%${queryParams.name}%`)
+        }
+
+        const { data: logs, error: queryError } = await query.limit(1000)
+
+        if (queryError) {
+            console.error("Supabase query error:", queryError)
+            throw queryError
+        }
+
+        console.log(`Found ${logs?.length || 0} records`)
 
         let rawData = ''
-
-        if (queryParams.intent === 'greeting') {
-            rawData = 'GREETING'
+        if (!logs || logs.length === 0) {
+            rawData = 'No se encontraron registros.'
         } else {
-            // Build the Supabase query
-            let query = supabase
-                .from('access_logs')
-                .select('name_snapshot, contractor_snapshot, categories_snapshot, type_snapshot, entry_at, exit_at')
-                .eq('site_id', siteId)
-                .is('voided_at', null)
-                .order('entry_at', { ascending: false })
+            // Build CSV data
+            const rows = logs.map(l => {
+                const entry = new Date(l.entry_at).toLocaleString('es-BO', { timeZone: 'America/La_Paz' })
+                const exit = l.exit_at ? new Date(l.exit_at).toLocaleString('es-BO', { timeZone: 'America/La_Paz' }) : 'ADENTRO'
+                return `${l.name_snapshot}|${l.contractor_snapshot || '-'}|${l.categories_snapshot || '-'}|${entry}|${exit}`
+            })
+            rawData = `Registros: ${logs.length}\nNombre|Contratista|Categoria|Entrada|Salida\n${rows.join('\n')}`
             
-            if (queryParams.status === 'inside') {
-                query = query.is('exit_at', null)
-            }
-            
-            if (queryParams.startDate) {
-                // Bolivia is UTC-4. So a day starts at 04:00:00Z
-                const d = new Date(queryParams.startDate + 'T00:00:00-04:00')
-                query = query.gte('entry_at', d.toISOString())
-            }
-            
-            if (queryParams.endDate) {
-                const d = new Date(queryParams.endDate + 'T23:59:59-04:00')
-                query = query.lte('entry_at', d.toISOString())
-            }
-
-            if (queryParams.contractor) {
-                query = query.ilike('contractor_snapshot', `%${queryParams.contractor}%`)
-            }
-
-            if (queryParams.name) {
-                query = query.ilike('name_snapshot', `%${queryParams.name}%`)
-            }
-
-            const { data: logs, error } = await query.limit(queryParams.limit || 1000)
-
-            if (error) {
-                console.error("Supabase query error:", error)
-                throw error
-            }
-
-            if (!logs || logs.length === 0) {
-                rawData = `No se encontraron registros para la consulta solicitada.`
-            } else {
-                // Compress data into CSV format to save context window and make it easy for Gemini to read
-                const headers = ["Nombre", "Contratista", "Categoria", "Entrada", "Salida"]
-                const rows = logs.map(l => {
-                    const entry = new Date(l.entry_at).toLocaleString('es-BO', { timeZone: 'America/La_Paz' })
-                    const exit = l.exit_at ? new Date(l.exit_at).toLocaleString('es-BO', { timeZone: 'America/La_Paz' }) : 'ADENTRO'
-                    return `${l.name_snapshot}|${l.contractor_snapshot || '-'}|${l.categories_snapshot || '-'}|${entry}|${exit}`
-                })
-                rawData = `Registros encontrados: ${logs.length}\n\n${headers.join('|')}\n${rows.join('\n')}`
-                
-                // Truncate if too large, though 1000 rows is fine for Gemini Flash
-                if (rawData.length > 500000) {
-                    rawData = rawData.substring(0, 500000) + "\n...[DATA TRUNCATED]..."
-                }
+            if (rawData.length > 200000) {
+                rawData = rawData.substring(0, 200000) + '\n...[TRUNCADO]...'
             }
         }
 
-        // 4. Generate natural response using Gemini
-        let finalResponse = ''
-        if (rawData === 'GREETING') {
-            finalResponse = '¡Hola! 👋 ¿En qué puedo ayudarte? Puedo darte reportes de horas, buscar personas, decirte quién está en la obra, y revisar el historial de accesos.'
-        } else {
-            const responsePrompt = `Eres BRIK AI, el asistente inteligente de un sistema de control de acceso para obras de construcción.
-La obra actual es: "${siteName}".
-Hoy es: ${boliviaNow.toLocaleString('es-BO')}.
-El usuario preguntó: "${message}"
+        // 4. Generate response
+        const responsePrompt = `Eres BRIK AI, asistente de control de acceso para obras de construcción.
+Obra: "${siteName}". Hoy: ${todayStr} ${timeStr}.
+Pregunta del usuario: "${message}"
 
-Aquí están los datos extraídos de la base de datos según lo que pidió el usuario (Formato CSV separado por |):
----
+Datos del sistema (CSV con |):
 ${rawData}
----
 
 Instrucciones:
-1. Responde de forma natural, amigable y profesional en español.
-2. Si el usuario pide calcular "cuántas horas trabajaron", usa la fecha de entrada y salida para calcular la diferencia. Si dice 'ADENTRO', esa persona sigue trabajando (puedes calcular horas hasta la hora actual). Suma las horas si pide un total, o desglósalo si es relevante.
-3. Puedes usar markdown para tablas o listas si la información es larga y útil (ej. top de trabajadores con más horas).
-4. Usa negritas (**texto**) para destacar números totales y nombres.
-5. NO inventes datos. Si los datos no responden completamente, indícalo. Si los datos están truncados, menciónalo.
-6. Sé directo con la respuesta.
-7. Mantén el tono de un experto en datos de la obra.`
+- Responde en español, amigable y profesional.
+- Si piden horas trabajadas, calcula diferencia entre Entrada y Salida. Si dice ADENTRO, calcula hasta ahora.
+- Usa **negritas** para números importantes.
+- NO inventes datos. Sé conciso.
+- Máximo 300 palabras.`
 
-            finalResponse = await callGemini(geminiKey, responsePrompt)
-        }
+        console.log("Calling Gemini for response...")
+        const finalResponse = await callGemini(geminiKey, responsePrompt)
+        console.log("Response generated, length:", finalResponse.length)
 
         return new Response(
             JSON.stringify({ text: finalResponse }),
@@ -182,10 +210,10 @@ Instrucciones:
         )
 
     } catch (error: any) {
-        console.error('Assistant error:', error)
+        console.error('Assistant error:', error.message, error.stack)
         return new Response(
-            JSON.stringify({ text: "Lo siento, ocurrió un error interno al procesar los datos. Intenta de nuevo. 🙏" }),
-            { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 500 }
+            JSON.stringify({ text: `⚠️ Error: ${error.message}. Intenta de nuevo.` }),
+            { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 }
         )
     }
 })

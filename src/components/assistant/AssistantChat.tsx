@@ -50,34 +50,6 @@ export function AssistantChat() {
     }
   }, [open]);
 
-  // Handle mobile keyboard: adjust sheet height using visualViewport
-  useEffect(() => {
-    if (!open) return;
-
-    const vv = window.visualViewport;
-    if (!vv) return;
-
-    const handleResize = () => {
-      if (sheetRef.current) {
-        const keyboardHeight = window.innerHeight - vv.height;
-        if (keyboardHeight > 100) {
-          // Keyboard is open — shrink the sheet
-          sheetRef.current.style.height = `${vv.height - 70}px`;
-        } else {
-          // Keyboard closed — reset
-          sheetRef.current.style.height = '70vh';
-        }
-      }
-    };
-
-    vv.addEventListener('resize', handleResize);
-    vv.addEventListener('scroll', handleResize);
-    return () => {
-      vv.removeEventListener('resize', handleResize);
-      vv.removeEventListener('scroll', handleResize);
-    };
-  }, [open]);
-
   // Prevent body scroll when sheet is open
   useEffect(() => {
     if (open) {
@@ -155,32 +127,26 @@ export function AssistantChat() {
     el.style.height = Math.min(el.scrollHeight, 100) + 'px';
   };
 
+  if (!open) return null;
+
   return (
     <>
       {/* Backdrop */}
-      {open && (
-        <div
-          className="fixed inset-0 z-[59] animate-in fade-in duration-200"
-          style={{ background: 'rgba(0,0,0,0.5)' }}
-          onClick={() => setOpen(false)}
-        />
-      )}
+      <div
+        className="fixed inset-0 z-[59] animate-in fade-in duration-200"
+        style={{ background: 'rgba(0,0,0,0.5)' }}
+        onClick={() => setOpen(false)}
+      />
 
-      {/* Bottom Sheet */}
-      {open && (
-        <div
-          className="fixed inset-x-0 bottom-0 z-[60] flex justify-center"
-          style={{ pointerEvents: 'none' }}
-        >
+      {/* Bottom Sheet - centering wrapper */}
+      <div className="fixed inset-0 z-[60] pointer-events-none flex items-end justify-center">
         <div
           ref={sheetRef}
-          className="flex flex-col animate-in slide-in-from-bottom duration-300"
+          className="pointer-events-auto w-full flex flex-col animate-in slide-in-from-bottom duration-300"
           style={{
-            pointerEvents: 'auto',
-            width: '100%',
             maxWidth: '672px',
-            height: '70vh',
-            maxHeight: 'calc(100vh - 40px)',
+            height: '70dvh',
+            maxHeight: 'calc(100dvh - 40px)',
             borderRadius: '20px 20px 0 0',
             background: 'rgba(18, 18, 24, 0.95)',
             backdropFilter: 'blur(40px) saturate(1.4)',
@@ -191,7 +157,7 @@ export function AssistantChat() {
           }}
         >
           {/* Drag handle */}
-          <div className="flex justify-center pt-2.5 pb-1">
+          <div className="flex justify-center pt-2.5 pb-1 shrink-0">
             <div
               className="rounded-full"
               style={{
@@ -203,7 +169,7 @@ export function AssistantChat() {
           </div>
 
           {/* Header */}
-          <div className="flex items-center justify-between px-4 pb-3 pt-1" style={{ borderBottom: '1px solid rgba(255,255,255,0.08)' }}>
+          <div className="flex items-center justify-between px-4 pb-3 pt-1 shrink-0" style={{ borderBottom: '1px solid rgba(255,255,255,0.08)' }}>
             <div className="flex items-center gap-2.5">
               <div
                 className="w-8 h-8 rounded-full flex items-center justify-center"
@@ -238,7 +204,7 @@ export function AssistantChat() {
           </div>
 
           {/* Messages */}
-          <div ref={scrollRef} className="flex-1 overflow-y-auto px-4 py-4 space-y-4" style={{ scrollBehavior: 'smooth', overscrollBehavior: 'contain' }}>
+          <div ref={scrollRef} className="flex-1 overflow-y-auto px-4 py-4 space-y-4 min-h-0" style={{ overscrollBehavior: 'contain' }}>
             {messages.map((msg) => (
               <div
                 key={msg.id}
@@ -297,12 +263,13 @@ export function AssistantChat() {
             )}
           </div>
 
-          {/* Input Area — sticky bottom, adapts to keyboard */}
+          {/* Input Area */}
           <div
-            className="px-4 py-3"
+            className="px-4 py-3 shrink-0"
             style={{
               borderTop: '1px solid rgba(255,255,255,0.08)',
               background: 'rgba(18, 18, 24, 0.98)',
+              borderRadius: '0 0 0 0',
             }}
           >
             <div
@@ -348,8 +315,7 @@ export function AssistantChat() {
             </div>
           </div>
         </div>
-        </div>
-      )}
+      </div>
     </>
   );
 }
