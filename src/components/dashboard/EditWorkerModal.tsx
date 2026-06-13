@@ -9,9 +9,10 @@ import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/contexts/AuthContext';
 import { useSite } from '@/contexts/SiteContext';
 import { logAuditEvent } from '@/lib/auditLog';
-import { Save, X, Pencil, User, Moon, Calendar, Tag } from 'lucide-react';
+import { Save, X, Pencil, User, Moon, Calendar, Tag, Briefcase } from 'lucide-react';
 import { ContractorAutocomplete } from '@/components/ui/contractor-autocomplete';
 import { TagAutocomplete, TagBadge } from '@/components/ui/tag-autocomplete';
+import { CategoryAutocomplete, CategoryBadge, CategoryDefinition } from '@/components/ui/category-autocomplete';
 import { PhotoEditor } from './PhotoEditor';
 
 interface EditWorkerModalProps {
@@ -97,6 +98,14 @@ const ViewForm = ({ workerData, form, handleClose, setEditing, isExternalInspect
                             ))}
                         </div>
                     )}
+                    {/* Work Categories */}
+                    {(form.categories || []).length > 0 && (
+                        <div className="flex flex-wrap gap-1 mt-1">
+                            {(form.categories || []).map((cat: CategoryDefinition) => (
+                                <CategoryBadge key={cat.id} name={cat.category_name} color={cat.color} />
+                            ))}
+                        </div>
+                    )}
                 </div>
             </div>
 
@@ -174,10 +183,25 @@ const EditForm = ({ form, setForm, saving, handleSave, setEditing, shouldMaskPho
                 <Label>Contratista</Label>
                 <ContractorAutocomplete
                     value={form.contractor}
-                    onChange={(val) => setForm({ ...form, contractor: val })}
+                    onChange={(val) => setForm({ ...form, contractor: val, categories: [] })}
                     placeholder="Seleccionar contratista"
                 />
             </div>
+
+            {/* Work Categories */}
+            {form.contractor && (
+                <div className="col-span-2 space-y-2">
+                    <Label className="flex items-center gap-2">
+                        <Briefcase className="w-4 h-4 text-blue-400" />
+                        Categoría de Trabajo
+                    </Label>
+                    <CategoryAutocomplete
+                        contractorName={form.contractor}
+                        selectedCategories={form.categories || []}
+                        onChange={(cats) => setForm({ ...form, categories: cats })}
+                    />
+                </div>
+            )}
 
             <div className="space-y-2">
                 <Label>Cargo / Rol</Label>
@@ -386,6 +410,7 @@ export function EditWorkerModal({ open, onClose, personId, onSaved }: EditWorker
         isInspector: false,
         isDependent: false,
         tags: [],
+        categories: [] as CategoryDefinition[],
     });
     const { toast } = useToast();
 
@@ -426,6 +451,18 @@ export function EditWorkerModal({ open, onClose, personId, onSaved }: EditWorker
             color: t.worker_tags_definitions.color,
         }));
 
+        // Load categories for this worker
+        const { data: catsData } = await (supabase as any)
+            .from('worker_categories')
+            .select('category_id, contractor_categories(id, category_name, color)')
+            .eq('person_id', personId);
+
+        const categories: CategoryDefinition[] = (catsData || []).map((c: any) => ({
+            id: c.contractor_categories.id,
+            category_name: c.contractor_categories.category_name,
+            color: c.contractor_categories.color,
+        }));
+
         setWorkerData(worker);
         setForm({
             ci: worker.ci || '',
@@ -443,6 +480,7 @@ export function EditWorkerModal({ open, onClose, personId, onSaved }: EditWorker
             isInspector: wp?.is_inspector || false,
             isDependent: wp?.is_dependent || false,
             tags,
+            categories,
         });
         setLoading(false);
 
@@ -603,6 +641,20 @@ export function EditWorkerModal({ open, onClose, personId, onSaved }: EditWorker
                 tag_id: t.id,
             }));
             await (supabase as any).from('worker_tags').insert(tagInserts);
+        }
+
+        // Update work categories
+        await (supabase as any)
+            .from('worker_categories')
+            .delete()
+            .eq('person_id', personId);
+
+        if ((form.categories || []).length > 0) {
+            const catInserts = form.categories.map((c: CategoryDefinition) => ({
+                person_id: personId,
+                category_id: c.id,
+            }));
+            await (supabase as any).from('worker_categories').insert(catInserts);
         }
 
         // Audit log

@@ -340,6 +340,21 @@ export default function EntryTab() {
         return;
       }
 
+      // Fetch worker categories for snapshot
+      let categoriesSnapshot: string | null = null;
+      if (selected.type === 'worker') {
+        const { data: catData } = await (supabase as any)
+          .from('worker_categories')
+          .select('contractor_categories(category_name)')
+          .eq('person_id', selected.id);
+        if (catData && catData.length > 0) {
+          categoriesSnapshot = catData
+            .map((c: any) => c.contractor_categories?.category_name)
+            .filter(Boolean)
+            .join(', ');
+        }
+      }
+
       // Insert access log
       const { error } = await supabase
         .from('access_logs')
@@ -352,6 +367,7 @@ export default function EntryTab() {
           name_snapshot: selected.full_name,
           type_snapshot: selected.type,
           contractor_snapshot: selected.contractor,
+          categories_snapshot: categoriesSnapshot,
         });
 
       if (error) throw error;

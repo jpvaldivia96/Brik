@@ -12,6 +12,7 @@ interface PersonRowProps {
     photoUrl?: string | null;
     insuranceExpiry?: string | null;
     inductionDate?: string | null;
+    categories?: string | null; // comma-separated category names from snapshot
     className?: string;
     onClick?: () => void;
 }
@@ -143,7 +144,7 @@ function Avatar({
     );
 }
 
-export function PersonRow({ name, role, contractor, status, checkedIn, hours, totalHoursToday, photoUrl, insuranceExpiry, inductionDate, className, onClick }: PersonRowProps) {
+export function PersonRow({ name, role, contractor, status, checkedIn, hours, totalHoursToday, photoUrl, insuranceExpiry, inductionDate, categories, className, onClick }: PersonRowProps) {
     const statusConfig = getStatusConfig(status);
 
     return (
@@ -166,6 +167,15 @@ export function PersonRow({ name, role, contractor, status, checkedIn, hours, to
                     {role && contractor && <span className="mx-1 text-white/60">·</span>}
                     <span className="text-white/70">{contractor || (!role && 'Sin contratista')}</span>
                 </div>
+                {categories && (
+                    <div className="flex flex-wrap gap-1 mt-0.5">
+                        {categories.split(',').map((cat, i) => (
+                            <span key={i} className="inline-flex items-center px-1.5 py-0 rounded text-[9px] font-medium bg-blue-500/20 text-blue-300 border border-blue-500/30">
+                                {cat.trim()}
+                            </span>
+                        ))}
+                    </div>
+                )}
             </div>
 
             {/* Compliance Icons */}
@@ -194,7 +204,7 @@ export function PersonRow({ name, role, contractor, status, checkedIn, hours, to
 }
 
 // Mobile card variant
-export function PersonCard({ name, role, contractor, status, checkedIn, hours, totalHoursToday, photoUrl, insuranceExpiry, inductionDate, className, onClick }: PersonRowProps) {
+export function PersonCard({ name, role, contractor, status, checkedIn, hours, totalHoursToday, photoUrl, insuranceExpiry, inductionDate, categories, className, onClick }: PersonRowProps) {
     const statusConfig = getStatusConfig(status);
 
     return (
@@ -225,6 +235,15 @@ export function PersonCard({ name, role, contractor, status, checkedIn, hours, t
                     {role && contractor && <span className="mx-1 text-white/60">·</span>}
                     <span className="text-white/70">{contractor || (!role && 'Sin contratista')}</span>
                 </div>
+                {categories && (
+                    <div className="flex flex-wrap gap-1 mt-0.5">
+                        {categories.split(',').map((cat, i) => (
+                            <span key={i} className="inline-flex items-center px-1.5 py-0 rounded text-[9px] font-medium bg-blue-500/20 text-blue-300 border border-blue-500/30">
+                                {cat.trim()}
+                            </span>
+                        ))}
+                    </div>
+                )}
                 <div className="flex items-center justify-between mt-1">
                     <div className="text-xs text-white/70">
                         {checkedIn}

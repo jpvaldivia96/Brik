@@ -34,6 +34,7 @@ interface InsideLog {
   // Compliance fields
   insurance_expiry: string | null;
   induction_date: string | null;
+  categories_snapshot: string | null;
 }
 
 interface ContractorStat {
@@ -189,7 +190,8 @@ export default function DashboardPanel() {
           photo_url: log.people?.photo_url || null,
           role: wp?.role || null,
           insurance_expiry: wp?.insurance_expiry || null,
-          induction_date: wp?.induction_date || null
+          induction_date: wp?.induction_date || null,
+          categories_snapshot: (log as any).categories_snapshot || null,
         };
       }).filter(Boolean).sort((a, b) => (b?.hours || 0) - (a?.hours || 0)) as InsideLog[];
 
@@ -516,6 +518,7 @@ export default function DashboardPanel() {
                         photoUrl={log.photo_url}
                         insuranceExpiry={log.insurance_expiry}
                         inductionDate={log.induction_date}
+                        categories={log.categories_snapshot}
                         onClick={!isInspector ? () => setEditingPersonId(log.person_id) : undefined}
                       />
                     ))}
@@ -540,6 +543,7 @@ export default function DashboardPanel() {
                         photoUrl={log.photo_url}
                         insuranceExpiry={log.insurance_expiry}
                         inductionDate={log.induction_date}
+                        categories={log.categories_snapshot}
                         onClick={!isInspector ? () => setEditingPersonId(log.person_id) : undefined}
                       />
                     ))}

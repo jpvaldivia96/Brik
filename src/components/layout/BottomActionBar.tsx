@@ -232,6 +232,21 @@ export default function BottomActionBar({ activeAction, onActionChange }: Omit<B
                 .single();
 
               if (personData) {
+                // Fetch worker categories for snapshot
+                let categoriesSnapshot: string | null = null;
+                if (personData.type === 'worker') {
+                  const { data: catData } = await (supabase as any)
+                    .from('worker_categories')
+                    .select('contractor_categories(category_name)')
+                    .eq('person_id', match.id);
+                  if (catData && catData.length > 0) {
+                    categoriesSnapshot = catData
+                      .map((c: any) => c.contractor_categories?.category_name)
+                      .filter(Boolean)
+                      .join(', ');
+                  }
+                }
+
                 // Create entry
                 await supabase.from('access_logs').insert({
                   site_id: currentSite.id,
@@ -241,6 +256,7 @@ export default function BottomActionBar({ activeAction, onActionChange }: Omit<B
                   name_snapshot: personData.full_name,
                   type_snapshot: personData.type,
                   contractor_snapshot: personData.contractor,
+                  categories_snapshot: categoriesSnapshot,
                 });
                 toast({ title: '✓ Entrada registrada', description: personData.full_name });
                 triggerDashboardRefresh();
@@ -385,6 +401,21 @@ export default function BottomActionBar({ activeAction, onActionChange }: Omit<B
           toast({ title: 'Error', description: 'Ya está adentro', variant: 'destructive' });
           return;
         }
+        // Fetch worker categories for snapshot
+        let categoriesSnapshot: string | null = null;
+        if (selected.type === 'worker') {
+          const { data: catData } = await (supabase as any)
+            .from('worker_categories')
+            .select('contractor_categories(category_name)')
+            .eq('person_id', selected.id);
+          if (catData && catData.length > 0) {
+            categoriesSnapshot = catData
+              .map((c: any) => c.contractor_categories?.category_name)
+              .filter(Boolean)
+              .join(', ');
+          }
+        }
+
         await supabase.from('access_logs').insert({
           site_id: currentSite.id,
           person_id: selected.id,
@@ -393,6 +424,7 @@ export default function BottomActionBar({ activeAction, onActionChange }: Omit<B
           name_snapshot: selected.full_name,
           type_snapshot: selected.type,
           contractor_snapshot: selected.contractor,
+          categories_snapshot: categoriesSnapshot,
         });
         toast({ title: '✓ Entrada registrada', description: selected.full_name });
         triggerDashboardRefresh();

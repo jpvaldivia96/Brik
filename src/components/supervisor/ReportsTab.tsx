@@ -308,7 +308,7 @@ export default function ReportsTab() {
       const detailHeader = ['--- DETALLE DE ACCESOS ---', '', '', '', '', '', '', '', '', '', ''];
 
       // Create CSV content
-      const headers = ['Fecha Entrada', 'Hora Entrada', 'Fecha Salida', 'Hora Salida', 'Horas', 'Nombre', 'CI', 'Tipo', 'Contratista', 'Observaciones', 'Comentarios Fiscalización'];
+      const headers = ['Fecha Entrada', 'Hora Entrada', 'Fecha Salida', 'Hora Salida', 'Horas', 'Nombre', 'CI', 'Tipo', 'Contratista', 'Categoría', 'Observaciones', 'Comentarios Fiscalización'];
       const rows = data.logs.map(log => {
         const entryDate = new Date(log.entry_at);
         const exitDate = log.exit_at ? new Date(log.exit_at) : null;
@@ -323,6 +323,7 @@ export default function ReportsTab() {
           log.ci_snapshot || '',
           log.type_snapshot || '',
           log.contractor_snapshot || '',
+          log.categories_snapshot || '',
           log.observations || '',
           log.inspection_notes || '',
         ].map(v => `"${v}"`).join(',');
@@ -666,12 +667,13 @@ export default function ReportsTab() {
                   <th>Nombre</th>
                   <th>CI</th>
                   <th>Contratista</th>
+                  <th>Categoría</th>
                   <th>Fiscalización</th>
                 </tr>
               </thead>
               <tbody>
                 ${data.logs.length === 0 ?
-          '<tr><td colspan="8" style="text-align: center; padding: 40px; color: #9ca3af;">No hay registros en el período seleccionado</td></tr>' :
+          '<tr><td colspan="9" style="text-align: center; padding: 40px; color: #9ca3af;">No hay registros en el período seleccionado</td></tr>' :
           data.logs.map((log: any) => {
             const entry = new Date(log.entry_at);
             const exit = log.exit_at ? new Date(log.exit_at) : null;
@@ -685,6 +687,7 @@ export default function ReportsTab() {
               '<td><span style="font-weight: 600; color: #1f2937;">' + (log.name_snapshot || '-') + '</span></td>' +
               '<td>' + (log.ci_snapshot || '-') + '</td>' +
               '<td>' + (log.contractor_snapshot || '-') + '</td>' +
+              '<td style="font-size: 11px; color: #3b82f6;">' + (log.categories_snapshot || '-') + '</td>' +
               '<td style="font-size: 11px; color: #f97316; max-width: 150px;">' + notesText + '</td>' +
               '</tr>';
           }).join('')

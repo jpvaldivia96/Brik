@@ -17,6 +17,7 @@ import { useRateLimit } from '@/hooks/useRateLimit';
 import { logAuditEvent } from '@/lib/auditLog';
 import { ContractorAutocomplete } from '@/components/ui/contractor-autocomplete';
 import { TagAutocomplete } from '@/components/ui/tag-autocomplete';
+import { CategoryAutocomplete, CategoryDefinition } from '@/components/ui/category-autocomplete';
 import { workerFormSchema, WorkerFormData, workerFormDefaults } from '@/lib/schemas/workerSchema';
 
 export default function NewWorkerTab() {
@@ -32,6 +33,7 @@ export default function NewWorkerTab() {
   const [faceDescriptor, setFaceDescriptor] = useState<Float32Array | null>(null);
   const [isProcessingFace, setIsProcessingFace] = useState(false);
   const [selectedTags, setSelectedTags] = useState<{ id: string; name: string; color: string }[]>([]);
+  const [selectedCategories, setSelectedCategories] = useState<CategoryDefinition[]>([]);
 
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -284,6 +286,15 @@ export default function NewWorkerTab() {
         await (supabase as any).from('worker_tags').insert(tagInserts);
       }
 
+      // Save work categories if any selected
+      if (selectedCategories.length > 0) {
+        const catInserts = selectedCategories.map(c => ({
+          person_id: person.id,
+          category_id: c.id,
+        }));
+        await (supabase as any).from('worker_categories').insert(catInserts);
+      }
+
       // If createEntry, also create access log
       if (createEntry) {
         const { error: logError } = await supabase
@@ -296,6 +307,9 @@ export default function NewWorkerTab() {
             name_snapshot: data.fullName.trim(),
             type_snapshot: 'worker',
             contractor_snapshot: data.contractor.trim() || null,
+            categories_snapshot: selectedCategories.length > 0
+              ? selectedCategories.map(c => c.category_name).join(', ')
+              : null,
           });
 
         if (logError) throw logError;
@@ -328,6 +342,7 @@ export default function NewWorkerTab() {
       setCapturedImage(null);
       setFaceDescriptor(null);
       setSelectedTags([]);
+      setSelectedCategories([]);
     } catch (err: any) {
       if (err.message?.includes('duplicate')) {
         setMessage({ type: 'error', text: 'Ya existe un trabajador con ese CI en esta obra.' });
@@ -446,11 +461,32 @@ export default function NewWorkerTab() {
             <Label htmlFor="contractor">Contratista</Label>
             <ContractorAutocomplete
               value={formValues.contractor}
-              onChange={(val) => setValue('contractor', val)}
+              onChange={(val) => {
+                setValue('contractor', val);
+                setSelectedCategories([]); // Clear categories on contractor change
+              }}
               placeholder="Seleccionar contratista"
             />
             {errors.contractor && <p className="text-xs text-red-500">{errors.contractor.message}</p>}
           </div>
+
+          {/* Work Categories (from contractor) */}
+          {formValues.contractor && (
+            <div className="space-y-2">
+              <Label className="flex items-center gap-2">
+                <Briefcase className="w-4 h-4 text-blue-400" />
+                Categoría de Trabajo
+              </Label>
+              <p className="text-xs text-muted-foreground">
+                Ítems de trabajo del contratista (ej: Vidrio, Aluminio, Ventanas)
+              </p>
+              <CategoryAutocomplete
+                contractorName={formValues.contractor}
+                selectedCategories={selectedCategories}
+                onChange={setSelectedCategories}
+              />
+            </div>
+          )}
           <div className="space-y-2">
             <Label htmlFor="role">Cargo / Rol</Label>
             <Input
