@@ -63,11 +63,9 @@ export function AssistantChat() {
         if (keyboardHeight > 100) {
           // Keyboard is open — shrink the sheet
           sheetRef.current.style.height = `${vv.height - 70}px`;
-          sheetRef.current.style.bottom = `${keyboardHeight}px`;
         } else {
           // Keyboard closed — reset
           sheetRef.current.style.height = '70vh';
-          sheetRef.current.style.bottom = '0px';
         }
       }
     };
@@ -171,16 +169,18 @@ export function AssistantChat() {
       {/* Bottom Sheet */}
       {open && (
         <div
+          className="fixed inset-x-0 bottom-0 z-[60] flex justify-center"
+          style={{ pointerEvents: 'none' }}
+        >
+        <div
           ref={sheetRef}
-          className="fixed z-[60] flex flex-col animate-in slide-in-from-bottom duration-300"
+          className="flex flex-col animate-in slide-in-from-bottom duration-300"
           style={{
-            bottom: 0,
-            left: 0,
-            right: 0,
+            pointerEvents: 'auto',
+            width: '100%',
+            maxWidth: '672px',
             height: '70vh',
             maxHeight: 'calc(100vh - 40px)',
-            maxWidth: '672px',
-            margin: '0 auto',
             borderRadius: '20px 20px 0 0',
             background: 'rgba(18, 18, 24, 0.95)',
             backdropFilter: 'blur(40px) saturate(1.4)',
@@ -347,6 +347,7 @@ export function AssistantChat() {
               </button>
             </div>
           </div>
+        </div>
         </div>
       )}
     </>
