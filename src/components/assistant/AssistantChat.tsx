@@ -66,8 +66,8 @@ export function AssistantChat() {
           sheetRef.current.style.bottom = `${keyboardHeight}px`;
         } else {
           // Keyboard closed — reset
-          sheetRef.current.style.height = '';
-          sheetRef.current.style.bottom = '';
+          sheetRef.current.style.height = '70vh';
+          sheetRef.current.style.bottom = '0px';
         }
       }
     };
@@ -172,11 +172,15 @@ export function AssistantChat() {
       {open && (
         <div
           ref={sheetRef}
-          className="fixed left-0 right-0 z-[60] flex flex-col animate-in slide-in-from-bottom duration-300"
+          className="fixed z-[60] flex flex-col animate-in slide-in-from-bottom duration-300"
           style={{
             bottom: 0,
+            left: 0,
+            right: 0,
             height: '70vh',
             maxHeight: 'calc(100vh - 40px)',
+            maxWidth: '672px',
+            margin: '0 auto',
             borderRadius: '20px 20px 0 0',
             background: 'rgba(18, 18, 24, 0.95)',
             backdropFilter: 'blur(40px) saturate(1.4)',
