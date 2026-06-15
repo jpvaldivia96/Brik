@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
-import { Send, X, Loader2, Bot, Sparkles, Download, BarChart3 } from 'lucide-react';
+import { Send, X, Loader2, Bot, Sparkles, Download, BarChart3, Mic, Plus } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend } from 'recharts';
 import { supabase } from '@/integrations/supabase/client';
 import { useSite } from '@/contexts/SiteContext';
@@ -510,32 +510,195 @@ export function AssistantChat() {
   // MOBILE: Fullscreen takeover (like WHOOP)
   // ═══════════════════════════════════════════════════════════════════
   if (isMobile) {
+    // Quick suggestion chips (only show when no user messages yet)
+    const hasUserMessages = messages.some(m => m.role === 'user');
+    const suggestions = [
+      '¿Quién está en obra?',
+      'Reporte de hoy',
+      'Horas extras',
+    ];
+
     return (
-      <div
-        ref={containerRef}
-        className="fixed left-0 right-0 top-0 z-[60] flex flex-col"
-        style={{
-          height: vpHeight ? `${vpHeight}px` : '100dvh',
-          background: 'rgba(12, 12, 18, 1)',
-          overflow: 'hidden',
-        }}
-      >
-        {/* Safe area top */}
-        <div className="shrink-0" style={{ paddingTop: 'env(safe-area-inset-top, 0px)' }} />
-
-        {renderHeader()}
-        {renderMessages()}
-
-        {/* Input — safe area bottom */}
+      <div className="fixed inset-0 z-[60]" style={{ background: '#0c0c12' }}>
+        {/* Inner: sized to visualViewport so keyboard doesn't push content */}
         <div
-          className="shrink-0 px-3 pt-2"
+          ref={containerRef}
+          className="flex flex-col"
           style={{
-            borderTop: '1px solid rgba(255,255,255,0.08)',
-            background: 'rgba(12, 12, 18, 1)',
-            paddingBottom: vpHeight ? '8px' : 'max(8px, env(safe-area-inset-bottom, 8px))',
+            height: vpHeight ? `${vpHeight}px` : '100dvh',
+            overflow: 'hidden',
           }}
         >
-          {renderInput()}
+          {/* Safe area top */}
+          <div className="shrink-0" style={{ paddingTop: 'env(safe-area-inset-top, 0px)' }} />
+
+          {/* ── Header (WHOOP-style) ── */}
+          <div className="flex items-center justify-between px-4 py-2.5 shrink-0">
+            <div className="flex items-center gap-2">
+              <div
+                className="w-7 h-7 rounded-full flex items-center justify-center"
+                style={{ background: 'rgba(139, 92, 246, 0.2)', border: '1px solid rgba(139, 92, 246, 0.4)' }}
+              >
+                <Sparkles className="w-3.5 h-3.5" style={{ color: '#a78bfa' }} />
+              </div>
+              <span className="text-[13px] font-semibold text-white">{BOT_NAME}</span>
+              <span
+                className="text-[9px] px-1.5 py-0.5 rounded-full"
+                style={{ background: 'rgba(255,255,255,0.08)', color: 'rgba(255,255,255,0.4)' }}
+              >
+                v{VERSION.display}
+              </span>
+            </div>
+            {/* Drag handle center */}
+            <div className="absolute left-1/2 -translate-x-1/2">
+              <div className="rounded-full" style={{ width: '32px', height: '4px', background: 'rgba(255,255,255,0.15)' }} />
+            </div>
+            <button
+              onClick={() => setOpen(false)}
+              className="w-8 h-8 rounded-full flex items-center justify-center active:scale-90"
+              style={{ background: 'rgba(255,255,255,0.08)' }}
+            >
+              <X className="w-4 h-4 text-white/50" />
+            </button>
+          </div>
+
+          {/* ── Messages (WHOOP-style: no bubbles, plain text) ── */}
+          <div ref={scrollRef} className="flex-1 overflow-y-auto px-5 py-4 space-y-5 min-h-0" style={{ overscrollBehavior: 'contain' }}>
+            {messages.map((msg) => (
+              <div
+                key={msg.id}
+                className={cn("flex flex-col", msg.role === 'user' ? "items-end" : "items-start")}
+              >
+                {msg.role === 'user' ? (
+                  // User messages: subtle bubble
+                  <div
+                    className="px-4 py-2.5 text-[15px] leading-relaxed max-w-[85%]"
+                    dangerouslySetInnerHTML={{
+                      __html: msg.content
+                        .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+                        .replace(/\n/g, '<br/>')
+                    }}
+                    style={{
+                      borderRadius: '18px 18px 4px 18px',
+                      background: 'rgba(139, 92, 246, 0.2)',
+                      border: '1px solid rgba(139, 92, 246, 0.25)',
+                      color: 'rgba(255,255,255,0.9)',
+                    }}
+                  />
+                ) : (
+                  // Assistant: WHOOP-style plain text, no bubble
+                  <div
+                    className="text-[15px] leading-[1.6] max-w-full"
+                    dangerouslySetInnerHTML={{
+                      __html: msg.content
+                        .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+                        .replace(/\n/g, '<br/>')
+                    }}
+                    style={{
+                      color: 'rgba(255,255,255,0.88)',
+                      ...(msg.typing ? { animation: 'brix-content-fade 0.3s ease-out' } : {}),
+                    }}
+                  />
+                )}
+                {/* Attachments */}
+                {!msg.typing && msg.attachments && msg.attachments.length > 0 && (
+                  <div className="w-full mt-2">
+                    <AttachmentRenderer attachments={msg.attachments} />
+                  </div>
+                )}
+              </div>
+            ))}
+
+            {loading && (
+              <div className="flex items-center gap-2 py-1">
+                <Loader2 className="w-4 h-4 animate-spin" style={{ color: '#a78bfa' }} />
+                <span className="text-[14px]" style={{ color: 'rgba(255,255,255,0.4)' }}>Pensando...</span>
+              </div>
+            )}
+          </div>
+
+          {/* ── Quick suggestions (WHOOP-style chips) ── */}
+          {!hasUserMessages && !loading && (
+            <div className="shrink-0 px-4 pb-2 flex gap-2 overflow-x-auto" style={{ scrollbarWidth: 'none' }}>
+              {suggestions.map((s) => (
+                <button
+                  key={s}
+                  onClick={() => { setInput(s); setTimeout(() => handleSend(), 50); }}
+                  className="shrink-0 px-3.5 py-2 rounded-full text-[13px] font-medium transition-all active:scale-95"
+                  style={{
+                    background: 'rgba(255,255,255,0.06)',
+                    border: '1px solid rgba(255,255,255,0.12)',
+                    color: 'rgba(255,255,255,0.7)',
+                  }}
+                >
+                  {s}
+                </button>
+              ))}
+            </div>
+          )}
+
+          {/* ── Input bar (WHOOP-style) ── */}
+          <div
+            className="shrink-0 px-3 pt-2"
+            style={{
+              paddingBottom: vpHeight ? '6px' : 'max(6px, env(safe-area-inset-bottom, 6px))',
+            }}
+          >
+            <div className="flex items-end gap-2">
+              {/* + button */}
+              <button
+                className="w-9 h-9 rounded-full flex items-center justify-center shrink-0 active:scale-90"
+                style={{ background: 'rgba(255,255,255,0.08)' }}
+              >
+                <Plus className="w-4 h-4 text-white/50" />
+              </button>
+
+              {/* Text input */}
+              <div
+                className="flex-1 flex items-end"
+                style={{
+                  borderRadius: '22px',
+                  background: 'rgba(255,255,255,0.06)',
+                  border: '1px solid rgba(255,255,255,0.1)',
+                  padding: '4px 4px 4px 14px',
+                }}
+              >
+                <textarea
+                  ref={inputRef}
+                  value={input}
+                  onChange={handleInputChange}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' && !e.shiftKey) {
+                      e.preventDefault();
+                      handleSend();
+                    }
+                  }}
+                  placeholder="Pregunta algo..."
+                  disabled={loading || isTyping}
+                  rows={1}
+                  className="flex-1 py-2 outline-none placeholder:text-white/25 resize-none bg-transparent"
+                  style={{ color: 'white', maxHeight: '80px', lineHeight: '1.4', fontSize: '16px' }}
+                />
+                {input.trim() ? (
+                  <button
+                    onClick={handleSend}
+                    disabled={loading || isTyping}
+                    className="w-8 h-8 rounded-full flex items-center justify-center shrink-0 active:scale-90"
+                    style={{ background: 'rgba(139, 92, 246, 0.5)' }}
+                  >
+                    <Send className="w-3.5 h-3.5 text-white" />
+                  </button>
+                ) : (
+                  <button
+                    className="w-8 h-8 rounded-full flex items-center justify-center shrink-0"
+                    style={{ background: 'transparent' }}
+                  >
+                    <Mic className="w-4 h-4 text-white/40" />
+                  </button>
+                )}
+              </div>
+            </div>
+          </div>
         </div>
       </div>
     );
