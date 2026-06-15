@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useCallback } from 'react';
 import { Send, X, Loader2, Bot, Sparkles } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useSite } from '@/contexts/SiteContext';
@@ -6,11 +6,28 @@ import { useAuth } from '@/contexts/AuthContext';
 import { cn } from '@/lib/utils';
 import { VERSION } from '@/lib/version';
 
+const BOT_NAME = 'Brix';
+
 interface Message {
   id: string;
   role: 'user' | 'assistant';
   content: string;
   createdAt: Date;
+  typing?: boolean; // true while typewriter effect is running
+}
+
+// Extract a clean first name from email
+function getFirstName(email?: string | null): string {
+  if (!email) return '';
+  const raw = email.split('@')[0] || '';
+  // Remove numbers and special chars at the end
+  const cleaned = raw.replace(/[\d_\-.]+$/g, '');
+  // Try to split camelCase or common patterns
+  // "juanpablo" → "Juan Pablo" (heuristic: insert space before uppercase)
+  const spaced = cleaned.replace(/([a-z])([A-Z])/g, '$1 $2');
+  // Take first 2 words max
+  const words = spaced.split(/[\s._-]+/).filter(Boolean).slice(0, 2);
+  return words.map(w => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase()).join(' ');
 }
 
 export function AssistantChat() {
@@ -19,9 +36,10 @@ export function AssistantChat() {
   const { currentSite } = useSite();
   const { user } = useAuth();
 
-  // Personalized greeting
-  const userName = user?.email?.split('@')[0] || '';
-  const displayName = userName.charAt(0).toUpperCase() + userName.slice(1);
+  const displayName = user?.user_metadata?.full_name
+    || user?.user_metadata?.name
+    || getFirstName(user?.email)
+    || '';
 
   const [messages, setMessages] = useState<Message[]>([
     {
@@ -35,15 +53,16 @@ export function AssistantChat() {
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const sheetRef = useRef<HTMLDivElement>(null);
+  const typingRef = useRef<number | null>(null);
 
-  // Auto-scroll to bottom on new messages
+  // Auto-scroll to bottom
   useEffect(() => {
     if (scrollRef.current) {
       scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
     }
   }, [messages, loading]);
 
-  // Focus input when opened (delayed for animation)
+  // Focus input when opened
   useEffect(() => {
     if (open && inputRef.current) {
       setTimeout(() => inputRef.current?.focus(), 400);
@@ -60,9 +79,39 @@ export function AssistantChat() {
     return () => { document.body.style.overflow = ''; };
   }, [open]);
 
+  // Cleanup typing interval on unmount
+  useEffect(() => {
+    return () => {
+      if (typingRef.current) clearInterval(typingRef.current);
+    };
+  }, []);
+
+  // Typewriter effect: reveals text character by character
+  const typewriterReveal = useCallback((msgId: string, fullText: string) => {
+    let i = 0;
+    const chunkSize = 3; // chars per tick for speed
+    const interval = 15; // ms between ticks
+
+    typingRef.current = window.setInterval(() => {
+      i += chunkSize;
+      if (i >= fullText.length) {
+        // Done typing
+        setMessages(prev => prev.map(m =>
+          m.id === msgId ? { ...m, content: fullText, typing: false } : m
+        ));
+        if (typingRef.current) clearInterval(typingRef.current);
+        typingRef.current = null;
+      } else {
+        setMessages(prev => prev.map(m =>
+          m.id === msgId ? { ...m, content: fullText.substring(0, i) } : m
+        ));
+      }
+    }, interval);
+  }, []);
+
   const handleSend = async () => {
     const trimmed = input.trim();
-    if (!trimmed || !currentSite || !user) return;
+    if (!trimmed || !currentSite || !user || loading) return;
 
     const userMessage: Message = {
       id: Date.now().toString(),
@@ -71,14 +120,20 @@ export function AssistantChat() {
       createdAt: new Date(),
     };
 
-    setMessages(prev => [...prev, userMessage]);
+    const updatedMessages = [...messages, userMessage];
+    setMessages(updatedMessages);
     setInput('');
     setLoading(true);
 
-    // Reset textarea height
     if (inputRef.current) {
       inputRef.current.style.height = 'auto';
     }
+
+    // Build conversation history (last 10 messages, excluding welcome)
+    const history = updatedMessages
+      .filter(m => m.id !== 'welcome')
+      .slice(-10)
+      .map(m => ({ role: m.role, content: m.content }));
 
     try {
       const { data, error } = await supabase.functions.invoke('in-app-assistant', {
@@ -86,19 +141,29 @@ export function AssistantChat() {
           message: userMessage.content,
           siteId: currentSite.id,
           userId: user.id,
+          history,
         }
       });
 
       if (error) throw error;
 
-      const assistantMessage: Message = {
-        id: (Date.now() + 1).toString(),
-        role: 'assistant',
-        content: data?.text || 'No pude procesar tu solicitud.',
-        createdAt: new Date(),
-      };
+      const fullText = data?.text || 'No pude procesar tu solicitud.';
+      const assistantMsgId = (Date.now() + 1).toString();
 
-      setMessages(prev => [...prev, assistantMessage]);
+      // Add message with empty content, then start typewriter
+      setMessages(prev => [...prev, {
+        id: assistantMsgId,
+        role: 'assistant',
+        content: '',
+        createdAt: new Date(),
+        typing: true,
+      }]);
+
+      setLoading(false);
+
+      // Start typewriter after a tiny delay for the DOM to update
+      setTimeout(() => typewriterReveal(assistantMsgId, fullText), 50);
+
     } catch (error) {
       console.error('Error calling assistant:', error);
       setMessages(prev => [...prev, {
@@ -107,12 +172,11 @@ export function AssistantChat() {
         content: '❌ Ocurrió un error. Intenta de nuevo.',
         createdAt: new Date(),
       }]);
-    } finally {
       setLoading(false);
     }
   };
 
-  // Listen for toggle event from bottom bar Sparkles icon
+  // Listen for toggle event
   useEffect(() => {
     const handler = () => setOpen(prev => !prev);
     document.addEventListener('toggle-assistant', handler);
@@ -129,6 +193,8 @@ export function AssistantChat() {
 
   if (!open) return null;
 
+  const isTyping = messages.some(m => m.typing);
+
   return (
     <>
       {/* Backdrop */}
@@ -138,7 +204,7 @@ export function AssistantChat() {
         onClick={() => setOpen(false)}
       />
 
-      {/* Bottom Sheet - centering wrapper */}
+      {/* Bottom Sheet */}
       <div className="fixed inset-0 z-[60] pointer-events-none flex items-end justify-center">
         <div
           ref={sheetRef}
@@ -160,11 +226,7 @@ export function AssistantChat() {
           <div className="flex justify-center pt-2.5 pb-1 shrink-0">
             <div
               className="rounded-full"
-              style={{
-                width: '36px',
-                height: '4px',
-                background: 'rgba(255,255,255,0.2)',
-              }}
+              style={{ width: '36px', height: '4px', background: 'rgba(255,255,255,0.2)' }}
             />
           </div>
 
@@ -181,7 +243,7 @@ export function AssistantChat() {
                 <Sparkles className="w-4 h-4" style={{ color: '#a78bfa' }} />
               </div>
               <div className="flex items-center gap-2">
-                <span className="text-sm font-bold text-white">BRIK AI</span>
+                <span className="text-sm font-bold text-white">{BOT_NAME}</span>
                 <span
                   className="text-[10px] px-1.5 py-0.5 rounded-full"
                   style={{
@@ -216,7 +278,7 @@ export function AssistantChat() {
                 {msg.role === 'assistant' && (
                   <div className="flex items-center gap-1.5 mb-1.5 px-1">
                     <Bot className="w-3 h-3" style={{ color: 'rgba(167, 139, 250, 0.6)' }} />
-                    <span className="text-[10px]" style={{ color: 'rgba(255,255,255,0.3)' }}>BRIK AI</span>
+                    <span className="text-[10px]" style={{ color: 'rgba(255,255,255,0.3)' }}>{BOT_NAME}</span>
                   </div>
                 )}
                 <div
@@ -235,14 +297,16 @@ export function AssistantChat() {
                     color: 'rgba(255,255,255,0.9)',
                   }}
                   dangerouslySetInnerHTML={{
-                    __html: msg.content
+                    __html: (msg.content + (msg.typing ? '▌' : ''))
                       .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
                       .replace(/\n/g, '<br/>')
                   }}
                 />
-                <span className="text-[10px] mt-1 px-1" style={{ color: 'rgba(255,255,255,0.2)' }}>
-                  {msg.createdAt.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                </span>
+                {!msg.typing && (
+                  <span className="text-[10px] mt-1 px-1" style={{ color: 'rgba(255,255,255,0.2)' }}>
+                    {msg.createdAt.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                  </span>
+                )}
               </div>
             ))}
 
@@ -269,7 +333,6 @@ export function AssistantChat() {
             style={{
               borderTop: '1px solid rgba(255,255,255,0.08)',
               background: 'rgba(18, 18, 24, 0.98)',
-              borderRadius: '0 0 0 0',
             }}
           >
             <div
@@ -292,7 +355,7 @@ export function AssistantChat() {
                   }
                 }}
                 placeholder="Pregunta algo..."
-                disabled={loading}
+                disabled={loading || isTyping}
                 rows={1}
                 className="flex-1 py-2 text-[14px] outline-none placeholder:text-white/25 resize-none bg-transparent"
                 style={{
@@ -303,7 +366,7 @@ export function AssistantChat() {
               />
               <button
                 onClick={handleSend}
-                disabled={!input.trim() || loading}
+                disabled={!input.trim() || loading || isTyping}
                 className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0 transition-all disabled:opacity-20"
                 style={{
                   background: input.trim() ? 'rgba(139, 92, 246, 0.3)' : 'rgba(255,255,255,0.06)',

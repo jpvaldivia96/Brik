@@ -65,8 +65,8 @@ serve(async (req) => {
     }
 
     try {
-        const { message, siteId, userId } = await req.json()
-        console.log("Request:", { message, siteId, userId: userId?.substring(0, 8) })
+        const { message, siteId, userId, history } = await req.json()
+        console.log("Request:", { message, siteId, historyLen: history?.length || 0 })
         
         const geminiKey = Deno.env.get('GEMINI_API_KEY')
 
@@ -92,15 +92,19 @@ serve(async (req) => {
         const todayStr = boliviaNow.toISOString().split('T')[0]
         const timeStr = boliviaNow.toLocaleTimeString('es-BO', { hour: '2-digit', minute: '2-digit' })
 
-        // 2. Classify intent
+        // 2. Classify intent — include recent conversation for context
+        const recentContext = (history || []).slice(-4).map((m: any) => 
+            `${m.role === 'user' ? 'Usuario' : 'Brix'}: ${m.content.substring(0, 200)}`
+        ).join('\n')
+
         const classifyPrompt = `You are a query router for a construction site access control system called BRIK.
 The site is "${siteName}". Today is ${todayStr}. Current time: ${timeStr} (Bolivia).
 
-Classify the user's message and extract query parameters.
+${recentContext ? `Recent conversation:\n${recentContext}\n\n` : ''}Classify the user's LATEST message and extract query parameters. Consider the conversation context for follow-up questions.
 User message: "${message}"
 
 Return a JSON object with these fields:
-- "intent": "query" or "greeting"
+- "intent": "query" or "greeting" or "followup"
 - "startDate": "YYYY-MM-DD" or null (hoy=${todayStr}, ayer=yesterday)
 - "endDate": "YYYY-MM-DD" or null
 - "contractor": contractor name string or null
@@ -109,6 +113,7 @@ Return a JSON object with these fields:
 - "metric": "hours" or "count" or "list" or null
 
 If greeting (hola, gracias, etc), return: {"intent":"greeting"}
+If it's a follow-up question that refers to previous context ("se repiten?", "los mismos?", "dame mas detalles"), use intent:"followup" and infer the same query params from context.
 For "quien esta adentro", use status:"inside" with no dates.
 For "horas trabajadas", include dates and metric:"hours".`
 
@@ -192,18 +197,24 @@ For "horas trabajadas", include dates and metric:"hours".`
             }
         }
 
-        // 4. Generate response
-        const responsePrompt = `Eres BRIK AI, asistente de control de acceso para obras de construcción.
+        // 4. Generate response with conversation history
+        const historyForPrompt = (history || []).slice(-6).map((m: any) => 
+            `${m.role === 'user' ? 'Usuario' : 'Brix'}: ${m.content.substring(0, 500)}`
+        ).join('\n')
+
+        const responsePrompt = `Eres Brix, el asistente inteligente de BRIK — un sistema de control de acceso para obras de construcción.
 Obra: "${siteName}". Hoy: ${todayStr} ${timeStr}.
-Pregunta del usuario: "${message}"
+
+${historyForPrompt ? `Conversación previa:\n${historyForPrompt}\n\n` : ''}Pregunta actual del usuario: "${message}"
 
 Datos del sistema (CSV con |):
 ${rawData}
 
 Instrucciones:
-- Responde en español, amigable y profesional.
+- Responde en español, amigable y profesional. Tu nombre es Brix.
 - Si piden horas trabajadas, calcula diferencia entre Entrada y Salida. Si dice ADENTRO, calcula hasta ahora.
 - Usa **negritas** para números importantes.
+- Considera el contexto de la conversación previa para responder follow-ups coherentes.
 - NO inventes datos. Sé conciso.
 - Máximo 300 palabras.`
 
