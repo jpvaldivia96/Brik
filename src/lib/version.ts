@@ -22,7 +22,7 @@
 export const VERSION = {
   major: 2,
   minor: 2,
-  patch: 3,
+  patch: 4,
   build: 20260615,
   
   /** Display string: "2.1.0" */

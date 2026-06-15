@@ -35,12 +35,21 @@ interface Message {
   attachments?: Attachment[];
 }
 
-// Extract a clean first name from email
-function getFirstName(email?: string | null): string {
-  if (!email) return '';
-  const raw = email.split('@')[0] || '';
+// Extract a clean first name from full name or email
+function getFirstName(nameOrEmail?: string | null): string {
+  if (!nameOrEmail) return '';
+  // If it's an email, get the part before @
+  const raw = nameOrEmail.includes('@') ? nameOrEmail.split('@')[0] : nameOrEmail;
   const cleaned = raw.replace(/[\d_\-.]+$/g, '');
-  const spaced = cleaned.replace(/([a-z])([A-Z])/g, '$1 $2');
+  let spaced = cleaned.replace(/([a-z])([A-Z])/g, '$1 $2');
+  
+  // Heuristic for common glued email prefixes
+  spaced = spaced.replace(/^juanpablo/i, 'Juan Pablo ');
+  spaced = spaced.replace(/^mariateresa/i, 'Maria Teresa ');
+  spaced = spaced.replace(/^luisfernando/i, 'Luis Fernando ');
+  spaced = spaced.replace(/^mariadel/i, 'Maria del ');
+
+  // Take up to 2 words for names like "Juan Pablo"
   const words = spaced.split(/[\s._-]+/).filter(Boolean).slice(0, 2);
   return words.map(w => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase()).join(' ');
 }
@@ -166,8 +175,8 @@ export function AssistantChat() {
   const { currentSite } = useSite();
   const { user } = useAuth();
 
-  const displayName = user?.user_metadata?.full_name
-    || user?.user_metadata?.name
+  const displayName = getFirstName(user?.user_metadata?.full_name)
+    || getFirstName(user?.user_metadata?.name)
     || getFirstName(user?.email)
     || '';
 
