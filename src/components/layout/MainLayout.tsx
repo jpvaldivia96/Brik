@@ -99,7 +99,16 @@ export default function MainLayout() {
   const { currentSite, sites, selectSite, isSupervisor, isInspector, isInAdminMode, exitAdminMode, isPlatformAdmin } = useSite();
   const { signOut, user } = useAuth();
   const [activeAction, setActiveAction] = useState('');
-  const [activeAdminPanel, setActiveAdminPanel] = useState('dashboard');
+  
+  // Persist the active tab to localStorage so PWA state isn't lost on iOS reload
+  const [activeAdminPanel, setActiveAdminPanel] = useState(() => {
+    return localStorage.getItem('brik_active_panel') || 'dashboard';
+  });
+
+  useEffect(() => {
+    localStorage.setItem('brik_active_panel', activeAdminPanel);
+  }, [activeAdminPanel]);
+
   const [adminDrawerOpen, setAdminDrawerOpen] = useState(false);
   const [showLimitModal, setShowLimitModal] = useState(false);
   const [showWelcome, setShowWelcome] = useState(false);
