@@ -13,7 +13,10 @@ interface Message {
   role: 'user' | 'assistant';
   content: string;
   createdAt: Date;
-  typing?: boolean; // true while typewriter effect is running
+  typing?: boolean;
+  revealedWords?: number; // how many words are currently visible
+  totalWords?: number;    // total words in the full response
+  fullContent?: string;   // full response text for reveal
 }
 
 // Extract a clean first name from email
@@ -86,24 +89,25 @@ export function AssistantChat() {
     };
   }, []);
 
-  // Typewriter effect: reveals text character by character
-  const typewriterReveal = useCallback((msgId: string, fullText: string) => {
-    let i = 0;
-    const chunkSize = 3; // chars per tick for speed
-    const interval = 15; // ms between ticks
+  // Word-by-word fade-in reveal
+  const fadeReveal = useCallback((msgId: string, fullText: string) => {
+    const words = fullText.split(/(?<=\s)/); // split keeping whitespace
+    const totalWords = words.length;
+    let revealed = 0;
+    const wordsPerTick = 2;
+    const interval = 30; // ms between reveals
 
     typingRef.current = window.setInterval(() => {
-      i += chunkSize;
-      if (i >= fullText.length) {
-        // Done typing
+      revealed += wordsPerTick;
+      if (revealed >= totalWords) {
         setMessages(prev => prev.map(m =>
-          m.id === msgId ? { ...m, content: fullText, typing: false } : m
+          m.id === msgId ? { ...m, content: fullText, typing: false, revealedWords: totalWords, totalWords } : m
         ));
         if (typingRef.current) clearInterval(typingRef.current);
         typingRef.current = null;
       } else {
         setMessages(prev => prev.map(m =>
-          m.id === msgId ? { ...m, content: fullText.substring(0, i) } : m
+          m.id === msgId ? { ...m, content: words.slice(0, revealed).join(''), revealedWords: revealed, totalWords, fullContent: fullText } : m
         ));
       }
     }, interval);
@@ -161,8 +165,8 @@ export function AssistantChat() {
 
       setLoading(false);
 
-      // Start typewriter after a tiny delay for the DOM to update
-      setTimeout(() => typewriterReveal(assistantMsgId, fullText), 50);
+      // Start fade-in reveal after a tiny delay
+      setTimeout(() => fadeReveal(assistantMsgId, fullText), 50);
 
     } catch (error) {
       console.error('Error calling assistant:', error);
@@ -286,6 +290,11 @@ export function AssistantChat() {
                     "px-4 py-3 text-[14px] leading-relaxed whitespace-pre-wrap",
                     msg.role === 'user' ? "max-w-[80%]" : "max-w-[90%]"
                   )}
+                  dangerouslySetInnerHTML={{
+                    __html: msg.content
+                      .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+                      .replace(/\n/g, '<br/>')
+                  }}
                   style={{
                     borderRadius: msg.role === 'user' ? '16px 16px 4px 16px' : '16px 16px 16px 4px',
                     background: msg.role === 'user'
@@ -295,11 +304,7 @@ export function AssistantChat() {
                       ? '1px solid rgba(139, 92, 246, 0.3)'
                       : '1px solid rgba(255,255,255,0.06)',
                     color: 'rgba(255,255,255,0.9)',
-                  }}
-                  dangerouslySetInnerHTML={{
-                    __html: (msg.content + (msg.typing ? '▌' : ''))
-                      .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
-                      .replace(/\n/g, '<br/>')
+                    ...(msg.typing ? { animation: 'brix-content-fade 0.3s ease-out' } : {}),
                   }}
                 />
                 {!msg.typing && (
