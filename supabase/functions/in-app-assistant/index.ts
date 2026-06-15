@@ -6,50 +6,40 @@ const corsHeaders = {
     'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 }
 
-// Helper: call Gemini with fallback models and API versions
+// Helper: call Gemini
 async function callGemini(key: string, prompt: string, json = false): Promise<string> {
-    // Try both v1 and v1beta with various model names
-    const attempts = [
-        { version: 'v1beta', model: 'gemini-2.0-flash' },
-        { version: 'v1beta', model: 'gemini-2.0-flash-lite' },
-        { version: 'v1', model: 'gemini-2.0-flash' },
-        { version: 'v1', model: 'gemini-2.0-flash-lite' },
-        { version: 'v1beta', model: 'gemini-pro' },
-    ]
-    let lastError = ''
+    const url = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-latest:generateContent'
     
-    for (const { version, model } of attempts) {
-        try {
-            const resp = await fetch(`https://generativelanguage.googleapis.com/${version}/models/${model}:generateContent?key=${key}`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    contents: [{ parts: [{ text: prompt }] }],
-                    generationConfig: {
-                        temperature: json ? 0 : 0.7,
-                        ...(json ? { responseMimeType: "application/json" } : {})
-                    }
-                })
-            })
-            if (!resp.ok) {
-                lastError = `${version}/${model}: ${resp.status}`
-                console.error("Gemini API Error:", lastError)
-                continue
+    const resp = await fetch(url, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-goog-api-key': key,
+        },
+        body: JSON.stringify({
+            contents: [{ parts: [{ text: prompt }] }],
+            generationConfig: {
+                temperature: json ? 0 : 0.7,
+                ...(json ? { responseMimeType: "application/json" } : {})
             }
-            const d = await resp.json()
-            const text = d.candidates?.[0]?.content?.parts?.[0]?.text || ''
-            if (!text) {
-                lastError = `${version}/${model}: empty response`
-                continue
-            }
-            console.log(`Success with ${version}/${model}`)
-            return text
-        } catch (e) {
-            lastError = `${version}/${model}: ${e.message}`
-            continue
-        }
+        })
+    })
+    
+    if (!resp.ok) {
+        const errText = await resp.text()
+        console.error("Gemini API Error:", resp.status, errText)
+        throw new Error(`Gemini API ${resp.status}: ${errText.substring(0, 200)}`)
     }
-    throw new Error(`All Gemini models failed. Last: ${lastError}`)
+    
+    const d = await resp.json()
+    const text = d.candidates?.[0]?.content?.parts?.[0]?.text || ''
+    if (!text) {
+        console.error("Gemini empty response:", JSON.stringify(d).substring(0, 500))
+        throw new Error('Gemini returned empty response')
+    }
+    
+    console.log(`Gemini OK (model: ${d.modelVersion || 'unknown'}, tokens: ${d.usageMetadata?.totalTokenCount || '?'})`)
+    return text
 }
 
 serve(async (req) => {
