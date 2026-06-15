@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
-import { Send, X, Loader2, Bot, Sparkles } from 'lucide-react';
+import { Send, X, Loader2, Bot, Sparkles, Download, BarChart3 } from 'lucide-react';
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend } from 'recharts';
 import { supabase } from '@/integrations/supabase/client';
 import { useSite } from '@/contexts/SiteContext';
 import { useAuth } from '@/contexts/AuthContext';
@@ -8,29 +9,155 @@ import { VERSION } from '@/lib/version';
 
 const BOT_NAME = 'Brix';
 
+const CHART_COLORS = ['#8b5cf6', '#06b6d4', '#f59e0b', '#10b981', '#ef4444', '#ec4899', '#6366f1', '#14b8a6'];
+
+interface Attachment {
+  type: 'csv' | 'chart';
+  // CSV
+  filename?: string;
+  data?: string;
+  // Chart
+  chartType?: 'bar' | 'pie' | 'line';
+  title?: string;
+  labels?: string[];
+  datasets?: { label: string; data: number[]; color?: string }[];
+}
+
 interface Message {
   id: string;
   role: 'user' | 'assistant';
   content: string;
   createdAt: Date;
   typing?: boolean;
-  revealedWords?: number; // how many words are currently visible
-  totalWords?: number;    // total words in the full response
-  fullContent?: string;   // full response text for reveal
+  revealedWords?: number;
+  totalWords?: number;
+  fullContent?: string;
+  attachments?: Attachment[];
 }
 
 // Extract a clean first name from email
 function getFirstName(email?: string | null): string {
   if (!email) return '';
   const raw = email.split('@')[0] || '';
-  // Remove numbers and special chars at the end
   const cleaned = raw.replace(/[\d_\-.]+$/g, '');
-  // Try to split camelCase or common patterns
-  // "juanpablo" → "Juan Pablo" (heuristic: insert space before uppercase)
   const spaced = cleaned.replace(/([a-z])([A-Z])/g, '$1 $2');
-  // Take first 2 words max
   const words = spaced.split(/[\s._-]+/).filter(Boolean).slice(0, 2);
   return words.map(w => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase()).join(' ');
+}
+
+// CSV download helper
+function downloadCsv(filename: string, csvData: string) {
+  const blob = new Blob(['\ufeff' + csvData], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = filename;
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  URL.revokeObjectURL(url);
+}
+
+// Mini chart component for bar charts
+function BrixBarChart({ attachment }: { attachment: Attachment }) {
+  const data = (attachment.labels || []).map((label, i) => ({
+    name: label,
+    value: attachment.datasets?.[0]?.data?.[i] || 0,
+  }));
+
+  return (
+    <div style={{ background: 'rgba(255,255,255,0.03)', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.08)', padding: '12px', marginTop: '8px' }}>
+      <p style={{ color: 'rgba(255,255,255,0.6)', fontSize: '11px', fontWeight: 600, marginBottom: '8px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+        <BarChart3 className="w-3 h-3 inline mr-1" style={{ verticalAlign: '-2px' }} />
+        {attachment.title}
+      </p>
+      <ResponsiveContainer width="100%" height={180}>
+        <BarChart data={data} margin={{ top: 4, right: 4, left: -20, bottom: 0 }}>
+          <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.06)" />
+          <XAxis dataKey="name" tick={{ fill: 'rgba(255,255,255,0.4)', fontSize: 10 }} axisLine={false} tickLine={false} />
+          <YAxis tick={{ fill: 'rgba(255,255,255,0.3)', fontSize: 10 }} axisLine={false} tickLine={false} />
+          <Tooltip
+            contentStyle={{ background: 'rgba(18,18,24,0.95)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '8px', color: 'white', fontSize: '12px' }}
+            labelStyle={{ color: 'rgba(255,255,255,0.6)' }}
+          />
+          <Bar dataKey="value" fill={attachment.datasets?.[0]?.color || '#8b5cf6'} radius={[4, 4, 0, 0]} />
+        </BarChart>
+      </ResponsiveContainer>
+    </div>
+  );
+}
+
+// Mini chart component for pie charts
+function BrixPieChart({ attachment }: { attachment: Attachment }) {
+  const data = (attachment.labels || []).map((label, i) => ({
+    name: label,
+    value: attachment.datasets?.[0]?.data?.[i] || 0,
+  }));
+
+  return (
+    <div style={{ background: 'rgba(255,255,255,0.03)', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.08)', padding: '12px', marginTop: '8px' }}>
+      <p style={{ color: 'rgba(255,255,255,0.6)', fontSize: '11px', fontWeight: 600, marginBottom: '4px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+        {attachment.title}
+      </p>
+      <ResponsiveContainer width="100%" height={200}>
+        <PieChart>
+          <Pie
+            data={data}
+            cx="50%"
+            cy="50%"
+            innerRadius={40}
+            outerRadius={70}
+            paddingAngle={2}
+            dataKey="value"
+            label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
+            labelLine={false}
+            style={{ fontSize: '9px', fill: 'rgba(255,255,255,0.6)' }}
+          >
+            {data.map((_entry, index) => (
+              <Cell key={`cell-${index}`} fill={CHART_COLORS[index % CHART_COLORS.length]} />
+            ))}
+          </Pie>
+          <Tooltip
+            contentStyle={{ background: 'rgba(18,18,24,0.95)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '8px', color: 'white', fontSize: '12px' }}
+          />
+        </PieChart>
+      </ResponsiveContainer>
+    </div>
+  );
+}
+
+// CSV download button
+function CsvDownloadButton({ attachment }: { attachment: Attachment }) {
+  return (
+    <button
+      onClick={() => downloadCsv(attachment.filename || 'reporte.csv', attachment.data || '')}
+      className="flex items-center gap-2 mt-2 px-3 py-2 rounded-lg transition-all hover:scale-[1.02] active:scale-[0.98]"
+      style={{
+        background: 'rgba(16, 185, 129, 0.15)',
+        border: '1px solid rgba(16, 185, 129, 0.3)',
+        color: '#34d399',
+        fontSize: '13px',
+        fontWeight: 500,
+      }}
+    >
+      <Download className="w-3.5 h-3.5" />
+      {attachment.filename || 'Descargar CSV'}
+    </button>
+  );
+}
+
+// Attachment renderer
+function AttachmentRenderer({ attachments }: { attachments: Attachment[] }) {
+  return (
+    <div className="space-y-2 animate-fade-in">
+      {attachments.map((att, i) => {
+        if (att.type === 'csv') return <CsvDownloadButton key={i} attachment={att} />;
+        if (att.type === 'chart' && att.chartType === 'bar') return <BrixBarChart key={i} attachment={att} />;
+        if (att.type === 'chart' && att.chartType === 'pie') return <BrixPieChart key={i} attachment={att} />;
+        return null;
+      })}
+    </div>
+  );
 }
 
 export function AssistantChat() {
@@ -72,7 +199,7 @@ export function AssistantChat() {
     }
   }, [open]);
 
-  // Prevent body scroll when sheet is open
+  // Prevent body scroll
   useEffect(() => {
     if (open) {
       document.body.style.overflow = 'hidden';
@@ -82,26 +209,24 @@ export function AssistantChat() {
     return () => { document.body.style.overflow = ''; };
   }, [open]);
 
-  // Cleanup typing interval on unmount
+  // Cleanup
   useEffect(() => {
-    return () => {
-      if (typingRef.current) clearInterval(typingRef.current);
-    };
+    return () => { if (typingRef.current) clearInterval(typingRef.current); };
   }, []);
 
   // Word-by-word fade-in reveal
-  const fadeReveal = useCallback((msgId: string, fullText: string) => {
-    const words = fullText.split(/(?<=\s)/); // split keeping whitespace
+  const fadeReveal = useCallback((msgId: string, fullText: string, attachments?: Attachment[]) => {
+    const words = fullText.split(/(?<=\s)/);
     const totalWords = words.length;
     let revealed = 0;
     const wordsPerTick = 2;
-    const interval = 30; // ms between reveals
+    const interval = 30;
 
     typingRef.current = window.setInterval(() => {
       revealed += wordsPerTick;
       if (revealed >= totalWords) {
         setMessages(prev => prev.map(m =>
-          m.id === msgId ? { ...m, content: fullText, typing: false, revealedWords: totalWords, totalWords } : m
+          m.id === msgId ? { ...m, content: fullText, typing: false, revealedWords: totalWords, totalWords, attachments } : m
         ));
         if (typingRef.current) clearInterval(typingRef.current);
         typingRef.current = null;
@@ -133,7 +258,6 @@ export function AssistantChat() {
       inputRef.current.style.height = 'auto';
     }
 
-    // Build conversation history (last 10 messages, excluding welcome)
     const history = updatedMessages
       .filter(m => m.id !== 'welcome')
       .slice(-10)
@@ -152,9 +276,9 @@ export function AssistantChat() {
       if (error) throw error;
 
       const fullText = data?.text || 'No pude procesar tu solicitud.';
+      const attachments: Attachment[] | undefined = data?.attachments;
       const assistantMsgId = (Date.now() + 1).toString();
 
-      // Add message with empty content, then start typewriter
       setMessages(prev => [...prev, {
         id: assistantMsgId,
         role: 'assistant',
@@ -164,9 +288,7 @@ export function AssistantChat() {
       }]);
 
       setLoading(false);
-
-      // Start fade-in reveal after a tiny delay
-      setTimeout(() => fadeReveal(assistantMsgId, fullText), 50);
+      setTimeout(() => fadeReveal(assistantMsgId, fullText, attachments), 50);
 
     } catch (error) {
       console.error('Error calling assistant:', error);
@@ -180,7 +302,7 @@ export function AssistantChat() {
     }
   };
 
-  // Listen for toggle event
+  // Toggle event
   useEffect(() => {
     const handler = () => setOpen(prev => !prev);
     document.addEventListener('toggle-assistant', handler);
@@ -215,7 +337,7 @@ export function AssistantChat() {
           className="pointer-events-auto w-full flex flex-col animate-in slide-in-from-bottom duration-300"
           style={{
             maxWidth: '672px',
-            height: '70dvh',
+            height: '75dvh',
             maxHeight: 'calc(100dvh - 40px)',
             borderRadius: '20px 20px 0 0',
             background: 'rgba(18, 18, 24, 0.95)',
@@ -228,10 +350,7 @@ export function AssistantChat() {
         >
           {/* Drag handle */}
           <div className="flex justify-center pt-2.5 pb-1 shrink-0">
-            <div
-              className="rounded-full"
-              style={{ width: '36px', height: '4px', background: 'rgba(255,255,255,0.2)' }}
-            />
+            <div className="rounded-full" style={{ width: '36px', height: '4px', background: 'rgba(255,255,255,0.2)' }} />
           </div>
 
           {/* Header */}
@@ -239,10 +358,7 @@ export function AssistantChat() {
             <div className="flex items-center gap-2.5">
               <div
                 className="w-8 h-8 rounded-full flex items-center justify-center"
-                style={{
-                  background: 'rgba(139, 92, 246, 0.15)',
-                  border: '1.5px solid rgba(139, 92, 246, 0.4)',
-                }}
+                style={{ background: 'rgba(139, 92, 246, 0.15)', border: '1.5px solid rgba(139, 92, 246, 0.4)' }}
               >
                 <Sparkles className="w-4 h-4" style={{ color: '#a78bfa' }} />
               </div>
@@ -250,11 +366,7 @@ export function AssistantChat() {
                 <span className="text-sm font-bold text-white">{BOT_NAME}</span>
                 <span
                   className="text-[10px] px-1.5 py-0.5 rounded-full"
-                  style={{
-                    background: 'rgba(255,255,255,0.08)',
-                    color: 'rgba(255,255,255,0.5)',
-                    border: '1px solid rgba(255,255,255,0.06)',
-                  }}
+                  style={{ background: 'rgba(255,255,255,0.08)', color: 'rgba(255,255,255,0.5)', border: '1px solid rgba(255,255,255,0.06)' }}
                 >
                   Beta v{VERSION.display}
                 </span>
@@ -274,10 +386,7 @@ export function AssistantChat() {
             {messages.map((msg) => (
               <div
                 key={msg.id}
-                className={cn(
-                  "flex flex-col",
-                  msg.role === 'user' ? "items-end" : "items-start"
-                )}
+                className={cn("flex flex-col", msg.role === 'user' ? "items-end" : "items-start")}
               >
                 {msg.role === 'assistant' && (
                   <div className="flex items-center gap-1.5 mb-1.5 px-1">
@@ -297,16 +406,18 @@ export function AssistantChat() {
                   }}
                   style={{
                     borderRadius: msg.role === 'user' ? '16px 16px 4px 16px' : '16px 16px 16px 4px',
-                    background: msg.role === 'user'
-                      ? 'rgba(139, 92, 246, 0.2)'
-                      : 'rgba(255,255,255,0.04)',
-                    border: msg.role === 'user'
-                      ? '1px solid rgba(139, 92, 246, 0.3)'
-                      : '1px solid rgba(255,255,255,0.06)',
+                    background: msg.role === 'user' ? 'rgba(139, 92, 246, 0.2)' : 'rgba(255,255,255,0.04)',
+                    border: msg.role === 'user' ? '1px solid rgba(139, 92, 246, 0.3)' : '1px solid rgba(255,255,255,0.06)',
                     color: 'rgba(255,255,255,0.9)',
                     ...(msg.typing ? { animation: 'brix-content-fade 0.3s ease-out' } : {}),
                   }}
                 />
+                {/* Attachments (charts, CSV download) */}
+                {!msg.typing && msg.attachments && msg.attachments.length > 0 && (
+                  <div className="w-full max-w-[90%] mt-1">
+                    <AttachmentRenderer attachments={msg.attachments} />
+                  </div>
+                )}
                 {!msg.typing && (
                   <span className="text-[10px] mt-1 px-1" style={{ color: 'rgba(255,255,255,0.2)' }}>
                     {msg.createdAt.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
@@ -335,10 +446,7 @@ export function AssistantChat() {
           {/* Input Area */}
           <div
             className="px-4 py-3 shrink-0"
-            style={{
-              borderTop: '1px solid rgba(255,255,255,0.08)',
-              background: 'rgba(18, 18, 24, 0.98)',
-            }}
+            style={{ borderTop: '1px solid rgba(255,255,255,0.08)', background: 'rgba(18, 18, 24, 0.98)' }}
           >
             <div
               className="flex items-end gap-2"
@@ -363,11 +471,7 @@ export function AssistantChat() {
                 disabled={loading || isTyping}
                 rows={1}
                 className="flex-1 py-2 text-[14px] outline-none placeholder:text-white/25 resize-none bg-transparent"
-                style={{
-                  color: 'white',
-                  maxHeight: '100px',
-                  lineHeight: '1.4',
-                }}
+                style={{ color: 'white', maxHeight: '100px', lineHeight: '1.4' }}
               />
               <button
                 onClick={handleSend}

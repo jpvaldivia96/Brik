@@ -37,26 +37,119 @@ async function callGemini(key: string, prompt: string, json = false): Promise<st
                 
                 if (!resp.ok) {
                     console.error(`${model}: HTTP ${resp.status}`)
-                    break // try next model
+                    break
                 }
                 
                 const d = await resp.json()
                 const text = d.candidates?.[0]?.content?.parts?.[0]?.text || ''
                 if (!text) {
                     console.warn(`${model}: empty response`)
-                    break // try next model
+                    break
                 }
                 
                 console.log(`OK: ${model} (${d.modelVersion}, ${d.usageMetadata?.totalTokenCount} tokens)`)
                 return text
             } catch (e) {
                 console.error(`${model}: fetch error: ${e.message}`)
-                break // try next model
+                break
             }
         }
         console.warn(`${model} failed, trying next...`)
     }
     throw new Error('OVERLOADED')
+}
+
+// Helper: calculate hours between two dates
+function calcHours(entry: string, exit: string | null): number {
+    const entryDate = new Date(entry)
+    const exitDate = exit ? new Date(exit) : new Date()
+    return Math.round((exitDate.getTime() - entryDate.getTime()) / 3600000 * 10) / 10
+}
+
+// Helper: format date for Bolivia
+function formatBolivia(dateStr: string): string {
+    return new Date(dateStr).toLocaleString('es-BO', { timeZone: 'America/La_Paz' })
+}
+
+// Helper: build chart data from logs
+function buildChartData(logs: any[], queryParams: any) {
+    // Group by day
+    const byDay: Record<string, { count: number, unique: Set<string>, hours: number }> = {}
+    
+    for (const log of logs) {
+        const day = new Date(log.entry_at).toLocaleDateString('es-BO', { 
+            timeZone: 'America/La_Paz', weekday: 'short', day: '2-digit', month: '2-digit' 
+        })
+        if (!byDay[day]) byDay[day] = { count: 0, unique: new Set(), hours: 0 }
+        byDay[day].count++
+        byDay[day].unique.add(log.name_snapshot)
+        byDay[day].hours += calcHours(log.entry_at, log.exit_at)
+    }
+
+    const labels = Object.keys(byDay)
+    const attendanceData = labels.map(d => byDay[d].unique.size)
+    const hoursData = labels.map(d => Math.round(byDay[d].hours * 10) / 10)
+
+    const attachments: any[] = []
+
+    // Attendance by day chart
+    attachments.push({
+        type: 'chart',
+        chartType: 'bar',
+        title: queryParams.contractor 
+            ? `Asistencia diaria — ${queryParams.contractor}` 
+            : 'Asistencia diaria',
+        labels,
+        datasets: [{ label: 'Personas únicas', data: attendanceData, color: '#8b5cf6' }]
+    })
+
+    // If multiple contractors, add pie chart
+    const byContractor: Record<string, number> = {}
+    for (const log of logs) {
+        const c = log.contractor_snapshot || 'Sin contratista'
+        byContractor[c] = (byContractor[c] || 0) + 1
+    }
+    if (Object.keys(byContractor).length > 1) {
+        const pieLabels = Object.keys(byContractor)
+        const pieData = pieLabels.map(c => byContractor[c])
+        attachments.push({
+            type: 'chart',
+            chartType: 'pie',
+            title: 'Distribución por contratista',
+            labels: pieLabels,
+            datasets: [{ label: 'Marcaciones', data: pieData }]
+        })
+    }
+
+    return attachments
+}
+
+// Helper: build CSV attachment
+function buildCsvAttachment(logs: any[], siteName: string, queryParams: any) {
+    const header = 'Nombre,Contratista,Categoría,Entrada,Salida,Horas'
+    const rows = logs.map(l => {
+        const entry = formatBolivia(l.entry_at)
+        const exit = l.exit_at ? formatBolivia(l.exit_at) : 'ADENTRO'
+        const hours = calcHours(l.entry_at, l.exit_at)
+        // Escape commas in names
+        const name = `"${(l.name_snapshot || '').replace(/"/g, '""')}"`
+        const contractor = `"${(l.contractor_snapshot || '-').replace(/"/g, '""')}"`
+        const category = `"${(l.categories_snapshot || '-').replace(/"/g, '""')}"`
+        return `${name},${contractor},${category},${entry},${exit},${hours}`
+    })
+    
+    const csv = `${header}\n${rows.join('\n')}`
+    const dateRange = queryParams.startDate 
+        ? `${queryParams.startDate}_${queryParams.endDate || queryParams.startDate}`
+        : new Date().toISOString().split('T')[0]
+    const contractor = queryParams.contractor ? `_${queryParams.contractor}` : ''
+    const filename = `reporte_${siteName}${contractor}_${dateRange}.csv`
+
+    return {
+        type: 'csv',
+        filename: filename.replace(/[^a-zA-Z0-9_\-.]/g, '_'),
+        data: csv
+    }
 }
 
 serve(async (req) => {
@@ -104,31 +197,34 @@ ${recentContext ? `Recent conversation:\n${recentContext}\n\n` : ''}Classify the
 User message: "${message}"
 
 Return a JSON object with these fields:
-- "intent": "query" or "greeting" or "followup"
-- "startDate": "YYYY-MM-DD" or null (hoy=${todayStr}, ayer=yesterday)
+- "intent": "query" or "greeting" or "followup" or "report_csv" or "report_chart" or "report_full"
+- "startDate": "YYYY-MM-DD" or null (hoy=${todayStr}, ayer=yesterday, esta semana=monday of current week)
 - "endDate": "YYYY-MM-DD" or null
 - "contractor": contractor name string or null
 - "name": person name string or null
 - "status": "inside" (who is currently inside) or "all" or null
 - "metric": "hours" or "count" or "list" or null
 
-If greeting (hola, gracias, etc), return: {"intent":"greeting"}
-If it's a follow-up question that refers to previous context ("se repiten?", "los mismos?", "dame mas detalles"), use intent:"followup" and infer the same query params from context.
-For "quien esta adentro", use status:"inside" with no dates.
-For "horas trabajadas", include dates and metric:"hours".`
+Intent rules:
+- If greeting (hola, gracias, etc), return: {"intent":"greeting"}
+- If user asks for CSV/excel/exportar/descargar datos, use "report_csv"
+- If user asks for gráfico/chart/visual/mostrar gráfico, use "report_chart"
+- If user asks for reporte completo/reporte/informe, use "report_full" (includes CSV + chart + text)
+- If it's a follow-up question, use "followup" and infer params from context.
+- For "quien esta adentro", use status:"inside" with no dates.
+- For "horas trabajadas", include dates and metric:"hours".
+- Default startDate for reports without date specified: monday of current week.`
 
         console.log("Calling Gemini for classification...")
         const rawJsonText = await callGemini(geminiKey, classifyPrompt, true)
         console.log("Classification result:", rawJsonText)
         
-        // Parse JSON - handle markdown wrapping
         const cleaned = rawJsonText.replace(/```json\s*/g, '').replace(/```\s*/g, '').trim()
         let queryParams: any
         try {
             queryParams = JSON.parse(cleaned)
         } catch (e) {
             console.error("JSON parse error:", e.message, "Raw:", cleaned)
-            // Fallback: treat as general query for today
             queryParams = { intent: 'query', status: 'inside' }
         }
 
@@ -137,10 +233,14 @@ For "horas trabajadas", include dates and metric:"hours".`
         // Handle greeting
         if (queryParams.intent === 'greeting') {
             return new Response(
-                JSON.stringify({ text: '¡Hola! 👋 ¿En qué puedo ayudarte? Puedo darte reportes de horas, buscar personas, decirte quién está en la obra, y más.' }),
+                JSON.stringify({ 
+                    text: '¡Hola! 👋 ¿En qué puedo ayudarte? Puedo darte reportes, generar gráficos, exportar CSV, buscar personas, y más.' 
+                }),
                 { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
             )
         }
+
+        const isReport = ['report_csv', 'report_chart', 'report_full'].includes(queryParams.intent)
 
         // 3. Build query
         let query = supabase
@@ -159,8 +259,7 @@ For "horas trabajadas", include dates and metric:"hours".`
         }
         
         if (queryParams.endDate) {
-            // End of day in Bolivia = next day 03:59:59 UTC
-            query = query.lte('entry_at', queryParams.endDate + 'T27:59:59Z'.replace('27', '03'))
+            query = query.lte('entry_at', queryParams.endDate + 'T03:59:59Z')
         }
 
         if (queryParams.contractor) {
@@ -171,7 +270,7 @@ For "horas trabajadas", include dates and metric:"hours".`
             query = query.ilike('name_snapshot', `%${queryParams.name}%`)
         }
 
-        const { data: logs, error: queryError } = await query.limit(1000)
+        const { data: logs, error: queryError } = await query.limit(2000)
 
         if (queryError) {
             console.error("Supabase query error:", queryError)
@@ -180,14 +279,26 @@ For "horas trabajadas", include dates and metric:"hours".`
 
         console.log(`Found ${logs?.length || 0} records`)
 
+        // 4. Build attachments for report intents
+        const attachments: any[] = []
+
+        if (isReport && logs && logs.length > 0) {
+            if (queryParams.intent === 'report_csv' || queryParams.intent === 'report_full') {
+                attachments.push(buildCsvAttachment(logs, siteName, queryParams))
+            }
+            if (queryParams.intent === 'report_chart' || queryParams.intent === 'report_full') {
+                attachments.push(...buildChartData(logs, queryParams))
+            }
+        }
+
+        // 5. Build raw data for Gemini context
         let rawData = ''
         if (!logs || logs.length === 0) {
             rawData = 'No se encontraron registros.'
         } else {
-            // Build CSV data
             const rows = logs.map(l => {
-                const entry = new Date(l.entry_at).toLocaleString('es-BO', { timeZone: 'America/La_Paz' })
-                const exit = l.exit_at ? new Date(l.exit_at).toLocaleString('es-BO', { timeZone: 'America/La_Paz' }) : 'ADENTRO'
+                const entry = formatBolivia(l.entry_at)
+                const exit = l.exit_at ? formatBolivia(l.exit_at) : 'ADENTRO'
                 return `${l.name_snapshot}|${l.contractor_snapshot || '-'}|${l.categories_snapshot || '-'}|${entry}|${exit}`
             })
             rawData = `Registros: ${logs.length}\nNombre|Contratista|Categoria|Entrada|Salida\n${rows.join('\n')}`
@@ -197,15 +308,20 @@ For "horas trabajadas", include dates and metric:"hours".`
             }
         }
 
-        // 4. Generate response with conversation history
+        // 6. Generate response
         const historyForPrompt = (history || []).slice(-6).map((m: any) => 
             `${m.role === 'user' ? 'Usuario' : 'Brix'}: ${m.content.substring(0, 500)}`
         ).join('\n')
+
+        const reportContext = isReport 
+            ? `\nEl usuario pidió un reporte. ${attachments.length > 0 ? 'Se adjuntarán archivos/gráficos automáticamente junto a tu respuesta. Menciona brevemente qué se adjunta.' : 'No hay datos para generar el reporte.'}`
+            : ''
 
         const responsePrompt = `Eres Brix, el asistente inteligente de BRIK — un sistema de control de acceso para obras de construcción.
 Obra: "${siteName}". Hoy: ${todayStr} ${timeStr}.
 
 ${historyForPrompt ? `Conversación previa:\n${historyForPrompt}\n\n` : ''}Pregunta actual del usuario: "${message}"
+${reportContext}
 
 Datos del sistema (CSV con |):
 ${rawData}
@@ -215,21 +331,26 @@ Instrucciones:
 - Si piden horas trabajadas, calcula diferencia entre Entrada y Salida. Si dice ADENTRO, calcula hasta ahora.
 - Usa **negritas** para números importantes.
 - Considera el contexto de la conversación previa para responder follow-ups coherentes.
+- Si hay attachments (CSV/gráficos), menciona brevemente: "Te adjunto el CSV con X registros" o "Aquí tienes el gráfico de asistencia".
 - NO inventes datos. Sé conciso.
 - Máximo 300 palabras.`
 
         console.log("Calling Gemini for response...")
         const finalResponse = await callGemini(geminiKey, responsePrompt)
-        console.log("Response generated, length:", finalResponse.length)
+        console.log("Response generated, length:", finalResponse.length, "attachments:", attachments.length)
+
+        const responseBody: any = { text: finalResponse }
+        if (attachments.length > 0) {
+            responseBody.attachments = attachments
+        }
 
         return new Response(
-            JSON.stringify({ text: finalResponse }),
+            JSON.stringify(responseBody),
             { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         )
 
     } catch (error: any) {
         console.error('Assistant error:', error.message, error.stack)
-        // User-friendly error messages
         let userMsg = '❌ Ocurrió un error. Intenta de nuevo en unos segundos.'
         if (error.message === 'OVERLOADED') {
             userMsg = '⏳ El servidor de IA está saturado en este momento. Intenta de nuevo en unos segundos.'
