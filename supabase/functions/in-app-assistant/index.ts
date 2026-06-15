@@ -6,53 +6,57 @@ const corsHeaders = {
     'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 }
 
-// Helper: call Gemini with automatic retries on 503
+// Helper: call Gemini with retries + fallback models
+const GEMINI_MODELS = ['gemini-flash-latest', 'gemini-2.0-flash-lite']
+
 async function callGemini(key: string, prompt: string, json = false): Promise<string> {
-    const url = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-latest:generateContent'
-    const maxRetries = 3
-    
-    for (let attempt = 1; attempt <= maxRetries; attempt++) {
-        const resp = await fetch(url, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'X-goog-api-key': key,
-            },
-            body: JSON.stringify({
-                contents: [{ parts: [{ text: prompt }] }],
-                generationConfig: {
-                    temperature: json ? 0 : 0.7,
-                    ...(json ? { responseMimeType: "application/json" } : {})
+    const body = JSON.stringify({
+        contents: [{ parts: [{ text: prompt }] }],
+        generationConfig: {
+            temperature: json ? 0 : 0.7,
+            ...(json ? { responseMimeType: "application/json" } : {})
+        }
+    })
+
+    for (const model of GEMINI_MODELS) {
+        const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`
+        
+        for (let attempt = 1; attempt <= 2; attempt++) {
+            try {
+                const resp = await fetch(url, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'X-goog-api-key': key },
+                    body
+                })
+                
+                if (resp.status === 503 || resp.status === 429) {
+                    console.warn(`${model}: ${resp.status} attempt ${attempt}/2`)
+                    await new Promise(r => setTimeout(r, attempt * 1500))
+                    continue
                 }
-            })
-        })
-        
-        if (resp.status === 503 || resp.status === 429) {
-            console.warn(`Gemini ${resp.status} on attempt ${attempt}/${maxRetries}, retrying...`)
-            if (attempt < maxRetries) {
-                await new Promise(r => setTimeout(r, attempt * 2000)) // 2s, 4s backoff
-                continue
+                
+                if (!resp.ok) {
+                    console.error(`${model}: HTTP ${resp.status}`)
+                    break // try next model
+                }
+                
+                const d = await resp.json()
+                const text = d.candidates?.[0]?.content?.parts?.[0]?.text || ''
+                if (!text) {
+                    console.warn(`${model}: empty response`)
+                    break // try next model
+                }
+                
+                console.log(`OK: ${model} (${d.modelVersion}, ${d.usageMetadata?.totalTokenCount} tokens)`)
+                return text
+            } catch (e) {
+                console.error(`${model}: fetch error: ${e.message}`)
+                break // try next model
             }
-            throw new Error('OVERLOADED')
         }
-        
-        if (!resp.ok) {
-            const errText = await resp.text()
-            console.error("Gemini API Error:", resp.status, errText)
-            throw new Error('API_ERROR')
-        }
-        
-        const d = await resp.json()
-        const text = d.candidates?.[0]?.content?.parts?.[0]?.text || ''
-        if (!text) {
-            console.error("Gemini empty response:", JSON.stringify(d).substring(0, 500))
-            throw new Error('EMPTY_RESPONSE')
-        }
-        
-        console.log(`Gemini OK (model: ${d.modelVersion || 'unknown'}, tokens: ${d.usageMetadata?.totalTokenCount || '?'})`)
-        return text
+        console.warn(`${model} failed, trying next...`)
     }
-    throw new Error('MAX_RETRIES')
+    throw new Error('OVERLOADED')
 }
 
 serve(async (req) => {
