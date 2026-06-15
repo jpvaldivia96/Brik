@@ -239,7 +239,7 @@ async function checkFirstEntry(
 
     const todayStart = getTodayStartUTC()
 
-    // Check dedup
+    // Check dedup — only 1 first_entry alert per day
     const { count: alertsToday } = await supabase
         .from('alert_history')
         .select('*', { count: 'exact', head: true })
@@ -249,7 +249,7 @@ async function checkFirstEntry(
 
     if (alertsToday && alertsToday > 0) return null
 
-    // Count entries today
+    // Count entries today — must be exactly the first one
     const { count } = await supabase
         .from('access_logs')
         .select('*', { count: 'exact', head: true })
@@ -257,7 +257,23 @@ async function checkFirstEntry(
         .gte('entry_at', todayStart)
         .is('voided_at', null)
 
-    if (count !== null && count <= 2) {
+    if (count !== null && count <= 1) {
+        // Optimistic lock: insert dedup record first to prevent race condition
+        const { error: dedupError } = await supabase
+            .from('alert_history')
+            .insert({
+                site_id: siteId,
+                alert_type: 'first_entry',
+                sent_at: new Date().toISOString(),
+                message: `Dedup lock: ${personName}`,
+            })
+
+        // If insert fails (another trigger already inserted), skip
+        if (dedupError) {
+            console.log('[DEDUP] first_entry already locked by another trigger')
+            return null
+        }
+
         const timeStr = getBoliviaNow().toLocaleTimeString('es-BO', { hour: '2-digit', minute: '2-digit' })
         const contractor = contractorName ? `\n${contractorName}` : ''
 
@@ -352,41 +368,109 @@ async function checkNightActivity(
     return null
 }
 
-// ─── TRIGGER: Mass Entry ─────────────────────────────────────────────────────
+// ─── TRIGGER: Mass Entry (Wave-based, max 2 alerts/day) ──────────────────────
 
 async function checkMassEntry(supabase: any, siteId: string, settings: any): Promise<string | null> {
     if (!settings.mass_entry_enabled) return null
 
     const threshold = settings.mass_entry_threshold || 20
     const minutes = settings.mass_entry_minutes || 15
+    const todayStart = getTodayStartUTC()
     const cutoff = new Date(Date.now() - minutes * 60 * 1000).toISOString()
 
+    // Count recent entries in the window
     const { data: recentEntries } = await supabase
         .from('access_logs')
-        .select('name_snapshot, contractor_snapshot')
+        .select('name_snapshot, contractor_snapshot, entry_method')
         .eq('site_id', siteId)
         .gte('entry_at', cutoff)
         .is('voided_at', null)
-        .limit(30)
+        .limit(200)
 
     const count = recentEntries?.length || 0
-    if (count >= threshold) {
-        const byC: Record<string, number> = {}
-        for (const e of recentEntries || []) {
-            const c = e.contractor_snapshot || 'Sin contratista'
-            byC[c] = (byC[c] || 0) + 1
-        }
-        const lines = Object.entries(byC).map(([c, n]) => `• ${c}: ${n}`)
+    if (count < threshold) return null
 
-        return await sendAlert({
-            site_id: siteId,
-            alert_type: 'mass_entry',
-            title: 'Entrada masiva detectada',
-            body: `${count} personas en ${minutes} min:\n${lines.join('\n')}`,
-            data: { count, threshold, minutes },
-        })
+    // We have a mass entry event — check if we already sent "wave_started" today
+    const { count: waveStartedToday } = await supabase
+        .from('alert_history')
+        .select('*', { count: 'exact', head: true })
+        .eq('site_id', siteId)
+        .eq('alert_type', 'mass_entry_wave_started')
+        .gte('sent_at', todayStart)
+
+    if (waveStartedToday && waveStartedToday > 0) {
+        // Already sent wave_started — just accumulate, don't spam
+        console.log('[MASS ENTRY] Wave already started, skipping alert')
+        return null
     }
-    return null
+
+    // Optimistic lock: insert dedup first
+    const { error: dedupError } = await supabase
+        .from('alert_history')
+        .insert({
+            site_id: siteId,
+            alert_type: 'mass_entry_wave_started',
+            sent_at: new Date().toISOString(),
+            message: `Wave started: ${count} entries`,
+        })
+
+    if (dedupError) {
+        console.log('[DEDUP] mass_entry_wave_started already locked')
+        return null
+    }
+
+    // Build contractor summary
+    const byContractor: Record<string, number> = {}
+    let manualCount = 0
+    for (const e of recentEntries || []) {
+        const c = e.contractor_snapshot || 'Sin contratista'
+        byContractor[c] = (byContractor[c] || 0) + 1
+        if (e.entry_method === 'manual') manualCount++
+    }
+
+    const lines = Object.entries(byContractor)
+        .sort((a, b) => b[1] - a[1])
+        .map(([c, n]) => `• ${c}: ${n}`)
+
+    const timeStr = getBoliviaNow().toLocaleTimeString('es-BO', { hour: '2-digit', minute: '2-digit' })
+
+    // Get historical average for comparison
+    const { data: patterns } = await supabase
+        .from('site_entry_patterns')
+        .select('total_entries, wave_start_time')
+        .eq('site_id', siteId)
+        .order('date', { ascending: false })
+        .limit(20)
+
+    let historyNote = ''
+    if (patterns && patterns.length >= 5) {
+        const avgTotal = Math.round(patterns.reduce((s: number, p: any) => s + (p.total_entries || 0), 0) / patterns.length)
+        historyNote = `\n📈 Promedio histórico: ${avgTotal} personas/día`
+    }
+
+    const manualNote = manualCount > 0 
+        ? `\n⚠️ ${manualCount} entrada${manualCount > 1 ? 's' : ''} manual${manualCount > 1 ? 'es' : ''} detectada${manualCount > 1 ? 's' : ''}` 
+        : ''
+
+    // Save wave start time for the summary later
+    await supabase
+        .from('site_entry_patterns')
+        .upsert({
+            site_id: siteId,
+            date: getBoliviaNow().toISOString().split('T')[0],
+            wave_start_time: timeStr,
+            total_entries: count,
+            manual_entries: manualCount,
+            contractors: byContractor,
+        }, { onConflict: 'site_id,date' })
+
+    return await sendAlert({
+        site_id: siteId,
+        alert_type: 'mass_entry_wave_started',
+        title: '🏗️ ¡Ingreso matutino comenzó!',
+        body: `${count} personas ingresaron — ${timeStr}\n\n${lines.join('\n')}${manualNote}${historyNote}`,
+        data: { count, threshold, minutes, contractors: byContractor },
+    })
 }
 
 // ─── TRIGGER: Inspector Visit ────────────────────────────────────────────────

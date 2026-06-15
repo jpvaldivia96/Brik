@@ -90,6 +90,8 @@ function getAlertEmoji(alertType: string): string {
         birthday: '🎂',
         worker_of_month: '🏆',
         meeting_reminder: '📅',
+        mass_entry_wave_started: '🏗️',
+        mass_entry_wave_ended: '📊',
     }
     return emojis[alertType] || '🔔'
 }
@@ -109,6 +111,8 @@ function getAlertColor(alertType: string): string {
         worker_of_month: '#eab308',
         meeting_reminder: '#06b6d4',
         contractor_attendance: '#10b981',
+        mass_entry_wave_started: '#8b5cf6',
+        mass_entry_wave_ended: '#06b6d4',
     }
     return colors[alertType] || '#8b5cf6'
 }
@@ -318,7 +322,14 @@ async function sendTelegram(botToken: string, chatId: string, title: string, bod
                 break
 
             case 'mass_entry':
-                text = `<b>Entrada masiva</b>\n\n`
+            case 'mass_entry_wave_started':
+                text = `<b>🏗️ ¡Ingreso matutino comenzó!</b>\n\n`
+                    + `${body}\n`
+                    + `\n${siteName} — ${timestamp}`
+                break
+
+            case 'mass_entry_wave_ended':
+                text = `<b>📊 Resumen de ingreso matutino</b>\n\n`
                     + `${body}\n`
                     + `\n${siteName} — ${timestamp}`
                 break

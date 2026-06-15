@@ -717,27 +717,49 @@ Respond ONLY with a valid JSON object matching this schema, nothing else:
 {"command": "/command_name", "arg": "argument if required, or null"}
 `
 
-        const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-latest:generateContent?key=${geminiKey}`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                contents: [{ parts: [{ text: prompt }] }],
-                generationConfig: {
-                    temperature: 0,
-                    responseMimeType: "application/json"
-                }
-            })
-        })
+        // Try with multiple models + retries
+        const models = ['gemini-flash-latest', 'gemini-2.0-flash-lite']
+        let resultText: string | null = null
 
-        if (!response.ok) {
-            throw new Error(`Gemini API error: ${response.statusText}`)
+        for (const model of models) {
+            for (let attempt = 1; attempt <= 2; attempt++) {
+                try {
+                    const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json', 'X-goog-api-key': geminiKey },
+                        body: JSON.stringify({
+                            contents: [{ parts: [{ text: prompt }] }],
+                            generationConfig: {
+                                temperature: 0,
+                                responseMimeType: "application/json"
+                            }
+                        })
+                    })
+
+                    if (response.status === 503 || response.status === 429) {
+                        console.warn(`Telegram NLP: ${model} ${response.status}, attempt ${attempt}/2`)
+                        await new Promise(r => setTimeout(r, attempt * 1500))
+                        continue
+                    }
+
+                    if (!response.ok) {
+                        console.error(`Telegram NLP: ${model} HTTP ${response.status}`)
+                        break // try next model
+                    }
+
+                    const data = await response.json()
+                    resultText = data.candidates?.[0]?.content?.parts?.[0]?.text || null
+                    if (resultText) break // success
+                } catch (e) {
+                    console.error(`Telegram NLP: ${model} error: ${e.message}`)
+                    break
+                }
+            }
+            if (resultText) break
         }
 
-        const data = await response.json()
-        const resultText = data.candidates?.[0]?.content?.parts?.[0]?.text
-        
         if (!resultText) {
-            throw new Error('Empty response from Gemini')
+            throw new Error('All Gemini models failed')
         }
 
         const parsed = JSON.parse(resultText)
