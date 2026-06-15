@@ -192,26 +192,33 @@ export function AssistantChat() {
     }
   }, [messages, loading]);
 
-  // Focus input immediately when opened — keyboard ready
+  // Focus input when opened — delay on mobile to prevent iOS viewport issues
   useEffect(() => {
     if (open && inputRef.current) {
-      // Use requestAnimationFrame for fastest possible focus
-      requestAnimationFrame(() => {
-        inputRef.current?.focus();
-        // Fallback: some mobile browsers need a second attempt
-        setTimeout(() => inputRef.current?.focus(), 100);
-      });
+      if (window.innerWidth >= 768) {
+        // Desktop: focus immediately
+        requestAnimationFrame(() => inputRef.current?.focus());
+      }
+      // Mobile: don't auto-focus, let user tap
     }
   }, [open]);
 
-  // Prevent body scroll
+  // Prevent body scroll + lock scroll position on iOS
   useEffect(() => {
     if (open) {
+      const scrollY = window.scrollY;
       document.body.style.overflow = 'hidden';
-    } else {
-      document.body.style.overflow = '';
+      document.body.style.position = 'fixed';
+      document.body.style.top = `-${scrollY}px`;
+      document.body.style.width = '100%';
+      return () => {
+        document.body.style.overflow = '';
+        document.body.style.position = '';
+        document.body.style.top = '';
+        document.body.style.width = '';
+        window.scrollTo(0, scrollY);
+      };
     }
-    return () => { document.body.style.overflow = ''; };
   }, [open]);
 
   // Cleanup
@@ -315,6 +322,36 @@ export function AssistantChat() {
     window.addEventListener('resize', check);
     return () => window.removeEventListener('resize', check);
   }, []);
+
+  // Track visualViewport height for iOS keyboard handling
+  const [vpHeight, setVpHeight] = useState<number | null>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
+  
+  useEffect(() => {
+    if (!open || !isMobile) return;
+    
+    const vv = window.visualViewport;
+    if (!vv) return;
+
+    const onResize = () => {
+      setVpHeight(vv.height);
+      // Prevent iOS from scrolling the page behind our overlay
+      if (containerRef.current) {
+        containerRef.current.style.height = `${vv.height}px`;
+      }
+      // Reset any scroll offset iOS applied
+      window.scrollTo(0, 0);
+    };
+
+    // Set initial
+    onResize();
+
+    vv.addEventListener('resize', onResize);
+    vv.addEventListener('scroll', () => window.scrollTo(0, 0));
+    return () => {
+      vv.removeEventListener('resize', onResize);
+    };
+  }, [open, isMobile]);
 
   // Toggle event
   useEffect(() => {
@@ -475,9 +512,12 @@ export function AssistantChat() {
   if (isMobile) {
     return (
       <div
-        className="fixed inset-0 z-[60] flex flex-col"
+        ref={containerRef}
+        className="fixed left-0 right-0 top-0 z-[60] flex flex-col"
         style={{
+          height: vpHeight ? `${vpHeight}px` : '100dvh',
           background: 'rgba(12, 12, 18, 1)',
+          overflow: 'hidden',
         }}
       >
         {/* Safe area top */}
@@ -492,7 +532,7 @@ export function AssistantChat() {
           style={{
             borderTop: '1px solid rgba(255,255,255,0.08)',
             background: 'rgba(12, 12, 18, 1)',
-            paddingBottom: 'max(8px, env(safe-area-inset-bottom, 8px))',
+            paddingBottom: vpHeight ? '8px' : 'max(8px, env(safe-area-inset-bottom, 8px))',
           }}
         >
           {renderInput()}

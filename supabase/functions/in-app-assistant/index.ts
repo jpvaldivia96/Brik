@@ -6,11 +6,13 @@ const corsHeaders = {
     'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 }
 
-// Helper: call Gemini with retries + fallback models
-const GEMINI_MODELS = ['gemini-flash-latest', 'gemini-2.0-flash-lite']
+// Helper: call AI with retries + multi-provider fallback
+// Chain: Gemini (3 models, 3 attempts each) → Groq Llama → smart local fallback
+const GEMINI_MODELS = ['gemini-2.0-flash', 'gemini-flash-latest', 'gemini-2.0-flash-lite', 'gemini-1.5-flash-latest']
 
 async function callGemini(key: string, prompt: string, json = false): Promise<string> {
-    const body = JSON.stringify({
+    // ─── Try Gemini first ───
+    const geminiBody = JSON.stringify({
         contents: [{ parts: [{ text: prompt }] }],
         generationConfig: {
             temperature: json ? 0 : 0.7,
@@ -21,41 +23,76 @@ async function callGemini(key: string, prompt: string, json = false): Promise<st
     for (const model of GEMINI_MODELS) {
         const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`
         
-        for (let attempt = 1; attempt <= 2; attempt++) {
+        for (let attempt = 1; attempt <= 3; attempt++) {
             try {
                 const resp = await fetch(url, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json', 'X-goog-api-key': key },
-                    body
+                    body: geminiBody
                 })
                 
                 if (resp.status === 503 || resp.status === 429) {
-                    console.warn(`${model}: ${resp.status} attempt ${attempt}/2`)
-                    await new Promise(r => setTimeout(r, attempt * 1500))
+                    console.warn(`[Gemini] ${model}: ${resp.status} attempt ${attempt}/3`)
+                    await new Promise(r => setTimeout(r, attempt * 2000))
                     continue
                 }
                 
                 if (!resp.ok) {
-                    console.error(`${model}: HTTP ${resp.status}`)
+                    console.error(`[Gemini] ${model}: HTTP ${resp.status}`)
                     break
                 }
                 
                 const d = await resp.json()
                 const text = d.candidates?.[0]?.content?.parts?.[0]?.text || ''
-                if (!text) {
-                    console.warn(`${model}: empty response`)
-                    break
-                }
+                if (!text) { console.warn(`[Gemini] ${model}: empty`); break }
                 
-                console.log(`OK: ${model} (${d.modelVersion}, ${d.usageMetadata?.totalTokenCount} tokens)`)
+                console.log(`[OK] Gemini ${model} (${d.usageMetadata?.totalTokenCount} tokens)`)
                 return text
             } catch (e) {
-                console.error(`${model}: fetch error: ${e.message}`)
+                console.error(`[Gemini] ${model}: ${e.message}`)
                 break
             }
         }
-        console.warn(`${model} failed, trying next...`)
     }
+
+    // ─── Try Groq (Llama) as fallback ───
+    const groqKey = Deno.env.get('GROQ_API_KEY')
+    if (groqKey) {
+        console.log('[FALLBACK] Trying Groq...')
+        const groqModels = ['llama-3.3-70b-versatile', 'llama-3.1-8b-instant']
+        
+        for (const model of groqModels) {
+            try {
+                const resp = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${groqKey}`,
+                    },
+                    body: JSON.stringify({
+                        model,
+                        messages: [{ role: 'user', content: prompt }],
+                        temperature: json ? 0 : 0.7,
+                        ...(json ? { response_format: { type: 'json_object' } } : {}),
+                    })
+                })
+
+                if (resp.ok) {
+                    const d = await resp.json()
+                    const text = d.choices?.[0]?.message?.content || ''
+                    if (text) {
+                        console.log(`[OK] Groq ${model} (${d.usage?.total_tokens} tokens)`)
+                        return text
+                    }
+                } else {
+                    console.warn(`[Groq] ${model}: HTTP ${resp.status}`)
+                }
+            } catch (e) {
+                console.error(`[Groq] ${model}: ${e.message}`)
+            }
+        }
+    }
+
     throw new Error('OVERLOADED')
 }
 
