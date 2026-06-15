@@ -16,13 +16,14 @@
 //   v1.5 → Suscripciones, PWA, Android APK
 //   v2.0 → Alertas avanzadas (22 tipos), preferencias per-user
 //   v2.1 → Favoritos per-user, auditoría de alertas, version tracking
+//   v2.2 → Brix fullscreen mobile, wave alerts, Telegram AI fix
 // ────────────────────────────────────────────────────────────────────────────
 
 export const VERSION = {
   major: 2,
-  minor: 1,
+  minor: 2,
   patch: 0,
-  build: 20260606,
+  build: 20260615,
   
   /** Display string: "2.1.0" */
   get display(): string {
