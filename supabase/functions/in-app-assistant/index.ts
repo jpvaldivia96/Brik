@@ -6,40 +6,53 @@ const corsHeaders = {
     'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 }
 
-// Helper: call Gemini
+// Helper: call Gemini with automatic retries on 503
 async function callGemini(key: string, prompt: string, json = false): Promise<string> {
     const url = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-latest:generateContent'
+    const maxRetries = 3
     
-    const resp = await fetch(url, {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-            'X-goog-api-key': key,
-        },
-        body: JSON.stringify({
-            contents: [{ parts: [{ text: prompt }] }],
-            generationConfig: {
-                temperature: json ? 0 : 0.7,
-                ...(json ? { responseMimeType: "application/json" } : {})
-            }
+    for (let attempt = 1; attempt <= maxRetries; attempt++) {
+        const resp = await fetch(url, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-goog-api-key': key,
+            },
+            body: JSON.stringify({
+                contents: [{ parts: [{ text: prompt }] }],
+                generationConfig: {
+                    temperature: json ? 0 : 0.7,
+                    ...(json ? { responseMimeType: "application/json" } : {})
+                }
+            })
         })
-    })
-    
-    if (!resp.ok) {
-        const errText = await resp.text()
-        console.error("Gemini API Error:", resp.status, errText)
-        throw new Error(`Gemini API ${resp.status}: ${errText.substring(0, 200)}`)
+        
+        if (resp.status === 503 || resp.status === 429) {
+            console.warn(`Gemini ${resp.status} on attempt ${attempt}/${maxRetries}, retrying...`)
+            if (attempt < maxRetries) {
+                await new Promise(r => setTimeout(r, attempt * 2000)) // 2s, 4s backoff
+                continue
+            }
+            throw new Error('OVERLOADED')
+        }
+        
+        if (!resp.ok) {
+            const errText = await resp.text()
+            console.error("Gemini API Error:", resp.status, errText)
+            throw new Error('API_ERROR')
+        }
+        
+        const d = await resp.json()
+        const text = d.candidates?.[0]?.content?.parts?.[0]?.text || ''
+        if (!text) {
+            console.error("Gemini empty response:", JSON.stringify(d).substring(0, 500))
+            throw new Error('EMPTY_RESPONSE')
+        }
+        
+        console.log(`Gemini OK (model: ${d.modelVersion || 'unknown'}, tokens: ${d.usageMetadata?.totalTokenCount || '?'})`)
+        return text
     }
-    
-    const d = await resp.json()
-    const text = d.candidates?.[0]?.content?.parts?.[0]?.text || ''
-    if (!text) {
-        console.error("Gemini empty response:", JSON.stringify(d).substring(0, 500))
-        throw new Error('Gemini returned empty response')
-    }
-    
-    console.log(`Gemini OK (model: ${d.modelVersion || 'unknown'}, tokens: ${d.usageMetadata?.totalTokenCount || '?'})`)
-    return text
+    throw new Error('MAX_RETRIES')
 }
 
 serve(async (req) => {
@@ -201,8 +214,15 @@ Instrucciones:
 
     } catch (error: any) {
         console.error('Assistant error:', error.message, error.stack)
+        // User-friendly error messages
+        let userMsg = '❌ Ocurrió un error. Intenta de nuevo en unos segundos.'
+        if (error.message === 'OVERLOADED') {
+            userMsg = '⏳ El servidor de IA está saturado en este momento. Intenta de nuevo en unos segundos.'
+        } else if (error.message === 'EMPTY_RESPONSE') {
+            userMsg = '🤔 No pude generar una respuesta. Intenta reformular tu pregunta.'
+        }
         return new Response(
-            JSON.stringify({ text: `⚠️ Error: ${error.message}. Intenta de nuevo.` }),
+            JSON.stringify({ text: userMsg }),
             { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 }
         )
     }
