@@ -6,13 +6,64 @@ const corsHeaders = {
     'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 }
 
-// Helper: call AI with retries + multi-provider fallback
-// Chain: Gemini (3 models, 3 attempts each) → Groq Llama → smart local fallback
-const GEMINI_MODELS = ['gemini-2.0-flash', 'gemini-flash-latest', 'gemini-2.0-flash-lite', 'gemini-1.5-flash-latest']
+// ══════════════════════════════════════════════════════════════════════
+// Multi-provider AI chain: OpenRouter → Groq → Gemini (last resort)
+// Each provider tries multiple models with retries = ~30+ attempts
+// ══════════════════════════════════════════════════════════════════════
 
-async function callGemini(key: string, prompt: string, json = false): Promise<string> {
-    // ─── Try Gemini first ───
-    const geminiBody = JSON.stringify({
+// OpenAI-compatible helper (works with OpenRouter, Groq, etc.)
+async function callOpenAICompatible(
+    baseUrl: string, apiKey: string, model: string,
+    prompt: string, json = false, providerName = 'Provider'
+): Promise<string | null> {
+    for (let attempt = 1; attempt <= 2; attempt++) {
+        try {
+            const resp = await fetch(`${baseUrl}/chat/completions`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${apiKey}`,
+                },
+                body: JSON.stringify({
+                    model,
+                    messages: [{ role: 'user', content: prompt }],
+                    temperature: json ? 0 : 0.7,
+                    ...(json ? { response_format: { type: 'json_object' } } : {}),
+                })
+            })
+
+            if (resp.status === 429 || resp.status === 503) {
+                console.warn(`[${providerName}] ${model}: ${resp.status} attempt ${attempt}/2`)
+                await new Promise(r => setTimeout(r, attempt * 1500))
+                continue
+            }
+
+            if (!resp.ok) {
+                const errBody = await resp.text().catch(() => '')
+                console.warn(`[${providerName}] ${model}: HTTP ${resp.status} ${errBody.substring(0, 200)}`)
+                return null
+            }
+
+            const d = await resp.json()
+            const text = d.choices?.[0]?.message?.content || ''
+            if (!text) { console.warn(`[${providerName}] ${model}: empty response`); return null }
+
+            console.log(`[OK] ${providerName} ${model} (${d.usage?.total_tokens || '?'} tokens)`)
+            return text
+        } catch (e) {
+            console.error(`[${providerName}] ${model}: ${e.message}`)
+            return null
+        }
+    }
+    return null
+}
+
+// Gemini-native caller (different API format)
+async function callGeminiNative(
+    key: string, model: string, prompt: string, json = false
+): Promise<string | null> {
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`
+    const body = JSON.stringify({
         contents: [{ parts: [{ text: prompt }] }],
         generationConfig: {
             temperature: json ? 0 : 0.7,
@@ -20,76 +71,81 @@ async function callGemini(key: string, prompt: string, json = false): Promise<st
         }
     })
 
-    for (const model of GEMINI_MODELS) {
-        const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`
-        
-        for (let attempt = 1; attempt <= 3; attempt++) {
-            try {
-                const resp = await fetch(url, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json', 'X-goog-api-key': key },
-                    body: geminiBody
-                })
-                
-                if (resp.status === 503 || resp.status === 429) {
-                    console.warn(`[Gemini] ${model}: ${resp.status} attempt ${attempt}/3`)
-                    await new Promise(r => setTimeout(r, attempt * 2000))
-                    continue
-                }
-                
-                if (!resp.ok) {
-                    console.error(`[Gemini] ${model}: HTTP ${resp.status}`)
-                    break
-                }
-                
-                const d = await resp.json()
-                const text = d.candidates?.[0]?.content?.parts?.[0]?.text || ''
-                if (!text) { console.warn(`[Gemini] ${model}: empty`); break }
-                
-                console.log(`[OK] Gemini ${model} (${d.usageMetadata?.totalTokenCount} tokens)`)
-                return text
-            } catch (e) {
-                console.error(`[Gemini] ${model}: ${e.message}`)
-                break
+    for (let attempt = 1; attempt <= 2; attempt++) {
+        try {
+            const resp = await fetch(url, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'X-goog-api-key': key },
+                body
+            })
+
+            if (resp.status === 503 || resp.status === 429) {
+                console.warn(`[Gemini] ${model}: ${resp.status} attempt ${attempt}/2`)
+                await new Promise(r => setTimeout(r, attempt * 2000))
+                continue
             }
+
+            if (!resp.ok) {
+                console.warn(`[Gemini] ${model}: HTTP ${resp.status}`)
+                return null
+            }
+
+            const d = await resp.json()
+            const text = d.candidates?.[0]?.content?.parts?.[0]?.text || ''
+            if (!text) { console.warn(`[Gemini] ${model}: empty`); return null }
+
+            console.log(`[OK] Gemini ${model} (${d.usageMetadata?.totalTokenCount} tokens)`)
+            return text
+        } catch (e) {
+            console.error(`[Gemini] ${model}: ${e.message}`)
+            return null
+        }
+    }
+    return null
+}
+
+// Main orchestrator: tries providers in priority order
+async function callAI(prompt: string, json = false): Promise<string> {
+    // ─── 1. OpenRouter (FREE models, 20 RPM, multiple models) ───
+    const openrouterKey = Deno.env.get('OPENROUTER_API_KEY')
+    if (openrouterKey) {
+        const models = [
+            'qwen/qwen3-30b-a3b:free',
+            'deepseek/deepseek-r1-0528:free',
+            'meta-llama/llama-4-maverick:free',
+            'google/gemma-3-27b-it:free',
+        ]
+        for (const model of models) {
+            const result = await callOpenAICompatible(
+                'https://openrouter.ai/api/v1', openrouterKey, model,
+                prompt, json, 'OpenRouter'
+            )
+            if (result) return result
         }
     }
 
-    // ─── Try Groq (Llama) as fallback ───
+    // ─── 2. Groq (30 RPM, very fast) ───
     const groqKey = Deno.env.get('GROQ_API_KEY')
     if (groqKey) {
         console.log('[FALLBACK] Trying Groq...')
-        const groqModels = ['llama-3.3-70b-versatile', 'llama-3.1-8b-instant']
-        
-        for (const model of groqModels) {
-            try {
-                const resp = await fetch('https://api.groq.com/openai/v1/chat/completions', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'Authorization': `Bearer ${groqKey}`,
-                    },
-                    body: JSON.stringify({
-                        model,
-                        messages: [{ role: 'user', content: prompt }],
-                        temperature: json ? 0 : 0.7,
-                        ...(json ? { response_format: { type: 'json_object' } } : {}),
-                    })
-                })
+        const models = ['llama-3.3-70b-versatile', 'llama-3.1-8b-instant']
+        for (const model of models) {
+            const result = await callOpenAICompatible(
+                'https://api.groq.com/openai/v1', groqKey, model,
+                prompt, json, 'Groq'
+            )
+            if (result) return result
+        }
+    }
 
-                if (resp.ok) {
-                    const d = await resp.json()
-                    const text = d.choices?.[0]?.message?.content || ''
-                    if (text) {
-                        console.log(`[OK] Groq ${model} (${d.usage?.total_tokens} tokens)`)
-                        return text
-                    }
-                } else {
-                    console.warn(`[Groq] ${model}: HTTP ${resp.status}`)
-                }
-            } catch (e) {
-                console.error(`[Groq] ${model}: ${e.message}`)
-            }
+    // ─── 3. Gemini native (last resort, 15 RPM free) ───
+    const geminiKey = Deno.env.get('GEMINI_API_KEY')
+    if (geminiKey) {
+        console.log('[FALLBACK] Trying Gemini...')
+        const models = ['gemini-2.0-flash', 'gemini-2.0-flash-lite', 'gemini-1.5-flash-latest']
+        for (const model of models) {
+            const result = await callGeminiNative(geminiKey, model, prompt, json)
+            if (result) return result
         }
     }
 
@@ -197,11 +253,11 @@ serve(async (req) => {
     try {
         const { message, siteId, userId, history } = await req.json()
         console.log("Request:", { message, siteId, historyLen: history?.length || 0 })
-        
-        const geminiKey = Deno.env.get('GEMINI_API_KEY')
 
-        if (!geminiKey) {
-            console.error("GEMINI_API_KEY not set")
+        // Verify at least one AI provider is configured
+        const hasProvider = Deno.env.get('OPENROUTER_API_KEY') || Deno.env.get('GROQ_API_KEY') || Deno.env.get('GEMINI_API_KEY')
+        if (!hasProvider) {
+            console.error("No AI provider keys set")
             return new Response(
                 JSON.stringify({ text: "⚠️ El asistente AI no está configurado aún." }),
                 { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -252,8 +308,8 @@ Intent rules:
 - For "horas trabajadas", include dates and metric:"hours".
 - Default startDate for reports without date specified: monday of current week.`
 
-        console.log("Calling Gemini for classification...")
-        const rawJsonText = await callGemini(geminiKey, classifyPrompt, true)
+        console.log("Calling AI for classification...")
+        const rawJsonText = await callAI(classifyPrompt, true)
         console.log("Classification result:", rawJsonText)
         
         const cleaned = rawJsonText.replace(/```json\s*/g, '').replace(/```\s*/g, '').trim()
@@ -372,8 +428,8 @@ Instrucciones:
 - NO inventes datos. Sé conciso.
 - Máximo 300 palabras.`
 
-        console.log("Calling Gemini for response...")
-        const finalResponse = await callGemini(geminiKey, responsePrompt)
+        console.log("Calling AI for response...")
+        const finalResponse = await callAI(responsePrompt)
         console.log("Response generated, length:", finalResponse.length, "attachments:", attachments.length)
 
         const responseBody: any = { text: finalResponse }
