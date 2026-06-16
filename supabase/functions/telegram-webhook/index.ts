@@ -672,10 +672,11 @@ async function handleDesconectar(supabase: any, chatId: string) {
 // ─── Natural Language (keyword matching) ─────────────────────────────────────
 
 async function handleNatural(supabase: any, chatId: string, ctx: UserContext, text: string) {
-    const geminiKey = Deno.env.get('GEMINI_API_KEY')
+    // Check if any AI provider is available
+    const hasAI = Deno.env.get('OPENROUTER_API_KEY') || Deno.env.get('GROQ_API_KEY') || Deno.env.get('GEMINI_API_KEY')
     
-    // Fallback to keyword matching if Gemini is not configured
-    if (!geminiKey) {
+    // Fallback to keyword matching if no AI is configured
+    if (!hasAI) {
         const lower = text.toLowerCase()
         if (lower.includes('adentro') || lower.includes('cuantos') || lower.includes('cuántos') || lower.includes('dentro') || lower.includes('presentes')) {
             await handleAdentro(supabase, chatId, ctx)
@@ -699,7 +700,7 @@ async function handleNatural(supabase: any, chatId: string, ctx: UserContext, te
         return
     }
 
-    // Process with Gemini
+    // Process with AI (multi-provider chain)
     try {
         const prompt = `You are an AI assistant for a construction site gate access system. 
 Classify the user's input into one of these commands: 
@@ -717,49 +718,89 @@ Respond ONLY with a valid JSON object matching this schema, nothing else:
 {"command": "/command_name", "arg": "argument if required, or null"}
 `
 
-        // Try with multiple models + retries
-        const models = ['gemini-flash-latest', 'gemini-2.0-flash-lite']
         let resultText: string | null = null
 
-        for (const model of models) {
-            for (let attempt = 1; attempt <= 2; attempt++) {
+        // ─── 1. OpenRouter (FREE, 20 RPM) ───
+        const openrouterKey = Deno.env.get('OPENROUTER_API_KEY')
+        if (!resultText && openrouterKey) {
+            const orModels = ['qwen/qwen3-30b-a3b:free', 'meta-llama/llama-4-maverick:free']
+            for (const model of orModels) {
                 try {
-                    const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`, {
+                    const resp = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${openrouterKey}` },
+                        body: JSON.stringify({
+                            model,
+                            messages: [{ role: 'user', content: prompt }],
+                            temperature: 0,
+                            response_format: { type: 'json_object' },
+                        })
+                    })
+                    if (resp.ok) {
+                        const d = await resp.json()
+                        resultText = d.choices?.[0]?.message?.content || null
+                        if (resultText) { console.log(`[TG OK] OpenRouter ${model}`); break }
+                    } else {
+                        console.warn(`[TG OpenRouter] ${model}: HTTP ${resp.status}`)
+                    }
+                } catch (e) { console.error(`[TG OpenRouter] ${model}: ${e.message}`) }
+            }
+        }
+
+        // ─── 2. Groq (30 RPM) ───
+        const groqKey = Deno.env.get('GROQ_API_KEY')
+        if (!resultText && groqKey) {
+            const groqModels = ['llama-3.3-70b-versatile', 'llama-3.1-8b-instant']
+            for (const model of groqModels) {
+                try {
+                    const resp = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${groqKey}` },
+                        body: JSON.stringify({
+                            model,
+                            messages: [{ role: 'user', content: prompt }],
+                            temperature: 0,
+                            response_format: { type: 'json_object' },
+                        })
+                    })
+                    if (resp.ok) {
+                        const d = await resp.json()
+                        resultText = d.choices?.[0]?.message?.content || null
+                        if (resultText) { console.log(`[TG OK] Groq ${model}`); break }
+                    } else {
+                        console.warn(`[TG Groq] ${model}: HTTP ${resp.status}`)
+                    }
+                } catch (e) { console.error(`[TG Groq] ${model}: ${e.message}`) }
+            }
+        }
+
+        // ─── 3. Gemini native (last resort) ───
+        const geminiKey = Deno.env.get('GEMINI_API_KEY')
+        if (!resultText && geminiKey) {
+            const gemModels = ['gemini-2.0-flash', 'gemini-2.0-flash-lite']
+            for (const model of gemModels) {
+                try {
+                    const resp = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`, {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json', 'X-goog-api-key': geminiKey },
                         body: JSON.stringify({
                             contents: [{ parts: [{ text: prompt }] }],
-                            generationConfig: {
-                                temperature: 0,
-                                responseMimeType: "application/json"
-                            }
+                            generationConfig: { temperature: 0, responseMimeType: "application/json" }
                         })
                     })
-
-                    if (response.status === 503 || response.status === 429) {
-                        console.warn(`Telegram NLP: ${model} ${response.status}, attempt ${attempt}/2`)
-                        await new Promise(r => setTimeout(r, attempt * 1500))
-                        continue
+                    if (resp.ok) {
+                        const d = await resp.json()
+                        resultText = d.candidates?.[0]?.content?.parts?.[0]?.text || null
+                        if (resultText) { console.log(`[TG OK] Gemini ${model}`); break }
+                    } else {
+                        console.warn(`[TG Gemini] ${model}: HTTP ${resp.status}`)
                     }
-
-                    if (!response.ok) {
-                        console.error(`Telegram NLP: ${model} HTTP ${response.status}`)
-                        break // try next model
-                    }
-
-                    const data = await response.json()
-                    resultText = data.candidates?.[0]?.content?.parts?.[0]?.text || null
-                    if (resultText) break // success
-                } catch (e) {
-                    console.error(`Telegram NLP: ${model} error: ${e.message}`)
-                    break
-                }
+                } catch (e) { console.error(`[TG Gemini] ${model}: ${e.message}`) }
             }
-            if (resultText) break
         }
 
         if (!resultText) {
-            throw new Error('All Gemini models failed')
+            throw new Error('All AI providers failed')
         }
 
         const parsed = JSON.parse(resultText)
