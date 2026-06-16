@@ -375,8 +375,8 @@ export default function EntryTab() {
       toast({ title: 'Entrada registrada', description: `${selected.full_name} ingresó correctamente.` });
       triggerDashboardRefresh();
 
-      // Fire all alert triggers (non-blocking)
-      runEntryTriggers(currentSite.id, selected.id, selected.full_name, selected.contractor).catch(console.error);
+      // Alert triggers are handled server-side by DB trigger (on_access_log_change)
+      // Do NOT call runEntryTriggers here — it would cause duplicate notifications
 
       setSelected(null);
       setQuery('');

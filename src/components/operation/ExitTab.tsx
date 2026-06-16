@@ -302,8 +302,8 @@ export default function ExitTab() {
       toast({ title: 'Salida registrada', description: `${selected.full_name} salió correctamente.` });
       triggerDashboardRefresh();
 
-      // Fire exit triggers (non-blocking)
-      runExitTriggers(currentSite.id, selected.id, selected.full_name, selected.contractor).catch(console.error);
+      // Alert triggers are handled server-side by DB trigger (on_access_log_change)
+      // Do NOT call runExitTriggers here — it would cause duplicate notifications
 
       setSelected(null);
       setQuery('');

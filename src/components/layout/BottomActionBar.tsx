@@ -261,8 +261,7 @@ export default function BottomActionBar({ activeAction, onActionChange }: Omit<B
                 toast({ title: '✓ Entrada registrada', description: personData.full_name });
                 triggerDashboardRefresh();
 
-                // Fire all alert triggers (non-blocking)
-                runEntryTriggers(currentSite.id, match.id, personData.full_name, personData.contractor).catch(console.error);
+                // Alert triggers handled server-side by DB trigger (on_access_log_change)
               }
             }
             setScanning(false);
@@ -298,8 +297,7 @@ export default function BottomActionBar({ activeAction, onActionChange }: Omit<B
               toast({ title: '✓ Salida registrada', description: (logToUpdate.people as any).full_name });
               triggerDashboardRefresh();
 
-              // Fire exit triggers (non-blocking)
-              runExitTriggers(currentSite.id, match.id, (logToUpdate.people as any).full_name, logToUpdate.contractor_snapshot).catch(console.error);
+              // Alert triggers handled server-side by DB trigger (on_access_log_change)
             }
             setScanning(false);
           } else {
@@ -429,8 +427,7 @@ export default function BottomActionBar({ activeAction, onActionChange }: Omit<B
         toast({ title: '✓ Entrada registrada', description: selected.full_name });
         triggerDashboardRefresh();
 
-        // Fire all alert triggers (non-blocking)
-        runEntryTriggers(currentSite.id, selected.id, selected.full_name, selected.contractor).catch(console.error);
+        // Alert triggers handled server-side by DB trigger (on_access_log_change)
         // Audit log for manual entry
         logAuditEvent({
           siteId: currentSite.id,
@@ -450,8 +447,7 @@ export default function BottomActionBar({ activeAction, onActionChange }: Omit<B
           toast({ title: '✓ Salida registrada', description: selected.full_name });
           triggerDashboardRefresh();
 
-          // Fire exit triggers (non-blocking)
-          runExitTriggers(currentSite.id, selected.id, selected.full_name, selected.contractor).catch(console.error);
+          // Alert triggers handled server-side by DB trigger (on_access_log_change)
           // Audit log for manual exit
           logAuditEvent({
             siteId: currentSite.id,
