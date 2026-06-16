@@ -10,34 +10,78 @@ import {
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
 
-// ─── Plan Definitions ────────────────────────────────────────────────────────
+// ─── Plan Feature Groups ─────────────────────────────────────────────────────
 
 interface PlanFeature {
   name: string;
+  description: string;
   free: boolean | string;
   starter: boolean | string;
   pro: boolean | string;
   enterprise: boolean | string;
+  category: 'ops' | 'alerts' | 'reports' | 'ai' | 'admin';
 }
 
+const FEATURE_CATEGORIES = {
+  ops: { label: 'Operaciones', icon: '🏗️', color: 'text-blue-400' },
+  alerts: { label: 'Alertas & Notificaciones', icon: '🔔', color: 'text-amber-400' },
+  reports: { label: 'Reportes & Datos', icon: '📊', color: 'text-green-400' },
+  ai: { label: 'Inteligencia & Automatización', icon: '🤖', color: 'text-purple-400' },
+  admin: { label: 'Administración', icon: '⚙️', color: 'text-slate-400' },
+};
+
 const PLAN_FEATURES: PlanFeature[] = [
-  { name: 'Dashboard en vivo', free: true, starter: true, pro: true, enterprise: true },
-  { name: 'Registro entrada/salida', free: true, starter: true, pro: true, enterprise: true },
-  { name: 'Biometría facial', free: true, starter: true, pro: true, enterprise: true },
-  { name: 'Reportes básicos', free: true, starter: true, pro: true, enterprise: true },
-  { name: 'Alertas de favoritos', free: false, starter: true, pro: true, enterprise: true },
-  { name: 'Exportar CSV', free: false, starter: true, pro: true, enterprise: true },
-  { name: 'Historial de alertas', free: false, starter: true, pro: true, enterprise: true },
-  { name: 'Todas las alertas', free: false, starter: false, pro: true, enterprise: true },
-  { name: 'Telegram bot', free: false, starter: false, pro: true, enterprise: true },
-  { name: 'Asistente AI (Brix)', free: false, starter: false, pro: true, enterprise: true },
-  { name: 'Dependientes', free: false, starter: false, pro: true, enterprise: true },
-  { name: 'Fiscalización', free: false, starter: false, pro: true, enterprise: true },
-  { name: 'Reportes avanzados', free: false, starter: false, pro: true, enterprise: true },
-  { name: 'Categorías personalizadas', free: false, starter: false, pro: true, enterprise: true },
-  { name: 'API de integración', free: false, starter: false, pro: false, enterprise: true },
-  { name: 'Multi-obra unificado', free: false, starter: false, pro: false, enterprise: true },
-  { name: 'Soporte dedicado', free: false, starter: false, pro: false, enterprise: true },
+  // ── Operaciones ──
+  { name: 'Dashboard en vivo', description: 'KPIs en tiempo real: personas dentro, entradas del día, contratistas activos', free: true, starter: true, pro: true, enterprise: true, category: 'ops' },
+  { name: 'Registro entrada/salida', description: 'Registro manual por CI o nombre con historial completo', free: true, starter: true, pro: true, enterprise: true, category: 'ops' },
+  { name: 'Biometría facial', description: 'Escaneo de rostro para identificar entrada y salida automática', free: true, starter: true, pro: true, enterprise: true, category: 'ops' },
+  { name: 'Gestión de personal', description: 'Alta, baja y edición de trabajadores y visitantes', free: true, starter: true, pro: true, enterprise: true, category: 'ops' },
+  { name: 'Contratistas múltiples', description: 'Organizar personal por empresa/contratista', free: true, starter: true, pro: true, enterprise: true, category: 'ops' },
+  { name: 'Categorías personalizadas', description: 'Clasificar personal: Albañil, Electricista, Plomero, etc.', free: false, starter: false, pro: true, enterprise: true, category: 'ops' },
+  { name: 'Dependientes / Asalariados', description: 'Marcar y rastrear empleados con seguimiento especial', free: false, starter: false, pro: true, enterprise: true, category: 'ops' },
+  { name: 'Control de capacidad', description: 'Límites mínimo y máximo de personas en obra', free: false, starter: true, pro: true, enterprise: true, category: 'ops' },
+  { name: 'Botón de emergencia', description: 'Alerta instantánea a todos los supervisores', free: true, starter: true, pro: true, enterprise: true, category: 'ops' },
+
+  // ── Alertas & Notificaciones ──
+  { name: 'Alertas de favoritos', description: 'Notificación cuando una persona marcada entra o sale', free: false, starter: true, pro: true, enterprise: true, category: 'alerts' },
+  { name: 'Alertas de bloqueados', description: 'Alerta inmediata si una persona bloqueada intenta ingresar', free: false, starter: true, pro: true, enterprise: true, category: 'alerts' },
+  { name: 'Alertas in-app (push)', description: 'Notificaciones dentro de la aplicación con campana', free: false, starter: true, pro: true, enterprise: true, category: 'alerts' },
+  { name: 'Bot de Telegram', description: 'Recibir todas las alertas directo en tu Telegram personal', free: false, starter: false, pro: true, enterprise: true, category: 'alerts' },
+  { name: 'Alerta de horas extras', description: 'Detecta personas que superan X horas en obra', free: false, starter: false, pro: true, enterprise: true, category: 'alerts' },
+  { name: 'Actividad nocturna', description: 'Alerta de ingresos fuera del horario laboral configurado', free: false, starter: false, pro: true, enterprise: true, category: 'alerts' },
+  { name: 'Rotación inusual', description: 'Detecta persona entrando/saliendo múltiples veces al día', free: false, starter: false, pro: true, enterprise: true, category: 'alerts' },
+  { name: 'Entrada masiva', description: 'Detecta alto flujo de personas en corto tiempo (ingreso matutino)', free: false, starter: false, pro: true, enterprise: true, category: 'alerts' },
+  { name: 'Primera entrada del día', description: 'Notifica quién fue el primero en llegar a la obra', free: false, starter: false, pro: true, enterprise: true, category: 'alerts' },
+  { name: 'Salida sin entrada', description: 'Detecta errores o fraude: alguien sale sin haber entrado', free: false, starter: false, pro: true, enterprise: true, category: 'alerts' },
+  { name: 'Visita de inspector', description: 'Alerta cuando un inspector/fiscalizador ingresa a la obra', free: false, starter: false, pro: true, enterprise: true, category: 'alerts' },
+  { name: 'Asistencia de contratistas', description: 'Alerta si un contratista no envía suficiente personal', free: false, starter: false, pro: true, enterprise: true, category: 'alerts' },
+  { name: 'Resumen semanal', description: 'Comparación automática: entradas, salidas, contratistas y tendencias', free: false, starter: false, pro: true, enterprise: true, category: 'alerts' },
+  { name: 'Accidente reportado', description: 'Botón de emergencia con alerta inmediata a todo el equipo', free: false, starter: false, pro: true, enterprise: true, category: 'alerts' },
+  { name: 'Dependiente ingresó/salió', description: 'Seguimiento en tiempo real de asalariados marcados', free: false, starter: false, pro: true, enterprise: true, category: 'alerts' },
+  { name: 'Cumpleaños en obra', description: 'Notificación de trabajadores que cumplen años hoy', free: false, starter: false, pro: true, enterprise: true, category: 'alerts' },
+
+  // ── Reportes & Datos ──
+  { name: 'Reportes básicos', description: 'Ver listado de entradas y salidas del día', free: true, starter: true, pro: true, enterprise: true, category: 'reports' },
+  { name: 'Exportar CSV', description: 'Descargar datos en Excel/CSV para análisis externo', free: false, starter: true, pro: true, enterprise: true, category: 'reports' },
+  { name: 'Historial de alertas', description: 'Registro completo de todas las alertas enviadas', free: false, starter: true, pro: true, enterprise: true, category: 'reports' },
+  { name: 'Estadísticas avanzadas', description: 'Gráficos de asistencia por hora, día, contratista y tendencias', free: false, starter: false, pro: true, enterprise: true, category: 'reports' },
+  { name: 'Reportes PDF', description: 'Generar informes profesionales para fiscalización', free: false, starter: false, pro: true, enterprise: true, category: 'reports' },
+  { name: 'Auditoría completa', description: 'Log detallado de todas las acciones: quién hizo qué y cuándo', free: false, starter: false, pro: true, enterprise: true, category: 'reports' },
+  { name: 'Control de fiscalización', description: 'Notas de inspección con fotos y seguimiento', free: false, starter: false, pro: true, enterprise: true, category: 'reports' },
+
+  // ── Inteligencia & Automatización ──
+  { name: 'Asistente AI (Brix)', description: 'Chat inteligente: pregunta datos de la obra en lenguaje natural', free: false, starter: false, pro: true, enterprise: true, category: 'ai' },
+  { name: 'Bot Telegram inteligente', description: 'Consulta datos y registra acciones desde Telegram con AI', free: false, starter: false, pro: true, enterprise: true, category: 'ai' },
+  { name: 'Detección de patrones', description: 'Análisis automático de tendencias y anomalías', free: false, starter: false, pro: true, enterprise: true, category: 'ai' },
+  { name: 'Importación masiva', description: 'Carga de nóminas completas por Excel/CSV', free: false, starter: true, pro: true, enterprise: true, category: 'ai' },
+
+  // ── Administración ──
+  { name: 'Gestión de usuarios', description: 'Invitar guardias, supervisores e inspectores', free: true, starter: true, pro: true, enterprise: true, category: 'admin' },
+  { name: 'Roles y permisos', description: '4 roles: Owner, Supervisor, Guardia, Inspector', free: true, starter: true, pro: true, enterprise: true, category: 'admin' },
+  { name: 'Multi-obra', description: 'Gestionar múltiples obras desde una sola cuenta', free: false, starter: false, pro: false, enterprise: true, category: 'admin' },
+  { name: 'API de integración', description: 'Conexión con sistemas externos vía API REST', free: false, starter: false, pro: false, enterprise: true, category: 'admin' },
+  { name: 'Soporte dedicado', description: 'Atención prioritaria con SLA garantizado', free: false, starter: false, pro: false, enterprise: true, category: 'admin' },
+  { name: 'WhatsApp empresarial', description: 'Bot de WhatsApp para tu equipo (próximamente)', free: false, starter: false, pro: false, enterprise: true, category: 'admin' },
 ];
 
 const PLANS = [
@@ -211,6 +255,15 @@ function PlanCard({
 }) {
   const isCurrent = plan.id === currentPlan;
   const Icon = plan.icon;
+  const includedCount = PLAN_FEATURES.filter(f => f[plan.id] === true).length;
+
+  // Key highlights per plan
+  const highlights: Record<string, string[]> = {
+    free: ['Dashboard en vivo', 'Biometría facial', 'Entrada/salida', 'Gestión básica'],
+    starter: ['+ Alertas de favoritos', '+ Exportar CSV', '+ Control de capacidad', '+ Importación masiva'],
+    pro: ['+ 16 alertas avanzadas', '+ Bot Telegram', '+ Asistente AI (Brix)', '+ Fiscalización y reportes PDF'],
+    enterprise: ['+ API de integración', '+ Multi-obra', '+ WhatsApp bot', '+ Soporte dedicado'],
+  };
 
   return (
     <button
@@ -240,7 +293,7 @@ function PlanCard({
         </div>
       )}
 
-      <div className="flex items-start justify-between mb-3">
+      <div className="flex items-start justify-between mb-2">
         <div className="flex items-center gap-2.5">
           <div className={`w-9 h-9 rounded-xl bg-gradient-to-br ${plan.gradient} flex items-center justify-center shadow-lg`}>
             <Icon className="w-4.5 h-4.5 text-white" strokeWidth={1.8} />
@@ -263,10 +316,30 @@ function PlanCard({
         </div>
       </div>
 
+      {/* Feature highlights */}
+      <div className="flex flex-wrap gap-1 mb-2.5">
+        {(highlights[plan.id] || []).map((hl, i) => (
+          <span
+            key={i}
+            className={`text-[10px] px-2 py-0.5 rounded-full ${
+              hl.startsWith('+')
+                ? `${plan.bgColor} ${plan.textColor} border border-current/20`
+                : 'bg-white/5 text-white/40'
+            }`}
+          >
+            {hl}
+          </span>
+        ))}
+      </div>
+
       <div className="flex items-center justify-between">
-        <span className="text-[11px] text-white/50">
-          {plan.limit === 999999 ? 'Registros ilimitados' : `${plan.limit.toLocaleString()} registros/mes`}
-        </span>
+        <div className="flex items-center gap-2">
+          <span className="text-[11px] text-white/50">
+            {plan.limit === 999999 ? 'Ilimitado' : `${plan.limit.toLocaleString()} reg/mes`}
+          </span>
+          <span className="text-[10px] text-white/25">·</span>
+          <span className="text-[10px] text-white/30">{includedCount} funciones</span>
+        </div>
         {!isCurrent && plan.id !== 'free' && (
           <span className={`text-[11px] font-medium ${plan.textColor} flex items-center gap-1`}>
             {currentPlan === 'free' || 
@@ -281,72 +354,127 @@ function PlanCard({
   );
 }
 
-// ─── Feature Comparison Table ────────────────────────────────────────────────
-
 function FeatureComparison({ currentPlan }: { currentPlan: string }) {
   const [expanded, setExpanded] = useState(false);
-  const visibleFeatures = expanded ? PLAN_FEATURES : PLAN_FEATURES.slice(0, 7);
+  const [expandedFeature, setExpandedFeature] = useState<string | null>(null);
+
+  // Group features by category
+  const categories = Object.entries(FEATURE_CATEGORIES) as [keyof typeof FEATURE_CATEGORIES, typeof FEATURE_CATEGORIES[keyof typeof FEATURE_CATEGORIES]][];
+  
+  // Count features per plan
+  const countFeatures = (planId: 'free' | 'starter' | 'pro' | 'enterprise') =>
+    PLAN_FEATURES.filter(f => f[planId] === true).length;
 
   return (
     <div className="rounded-2xl border border-white/10 bg-white/[0.03] overflow-hidden">
       <div className="p-4 border-b border-white/10">
         <h3 className="text-sm font-semibold text-white flex items-center gap-2">
           <BarChart3 className="w-4 h-4 text-purple-400" />
-          Comparación de planes
+          Comparación completa de planes
         </h3>
+        <p className="text-[11px] text-white/40 mt-1">
+          {PLAN_FEATURES.length} funciones en total · Toca una función para ver detalles
+        </p>
       </div>
       
-      {/* Header */}
-      <div className="grid grid-cols-5 gap-0 px-4 py-2.5 bg-white/[0.02] border-b border-white/5">
+      {/* Plan header with feature counts */}
+      <div className="grid grid-cols-5 gap-0 px-3 py-2.5 bg-white/[0.02] border-b border-white/5 sticky top-0">
         <div className="col-span-1" />
         {PLANS.map(plan => (
           <div key={plan.id} className="text-center">
-            <span className={`text-[10px] font-semibold ${plan.id === currentPlan ? plan.textColor : 'text-white/50'}`}>
+            <span className={`text-[10px] font-semibold block ${plan.id === currentPlan ? plan.textColor : 'text-white/50'}`}>
               {plan.name}
+            </span>
+            <span className="text-[9px] text-white/25">
+              {countFeatures(plan.id as any)}/{PLAN_FEATURES.length}
             </span>
           </div>
         ))}
       </div>
 
-      {/* Rows */}
-      {visibleFeatures.map((feature, i) => (
-        <div
-          key={feature.name}
-          className={`grid grid-cols-5 gap-0 px-4 py-2 ${i % 2 === 0 ? 'bg-white/[0.01]' : ''} border-b border-white/[0.03]`}
-        >
-          <div className="col-span-1 flex items-center">
-            <span className="text-[11px] text-white/60">{feature.name}</span>
-          </div>
-          {(['free', 'starter', 'pro', 'enterprise'] as const).map(planId => {
-            const val = feature[planId];
-            const isCurrent = planId === currentPlan;
-            return (
-              <div key={planId} className="flex items-center justify-center">
-                {val === true ? (
-                  <Check className={`w-3.5 h-3.5 ${isCurrent ? 'text-green-400' : 'text-white/30'}`} />
-                ) : val === false ? (
-                  <X className="w-3.5 h-3.5 text-white/10" />
-                ) : (
-                  <span className="text-[10px] text-white/40">{val}</span>
-                )}
+      {/* Grouped features */}
+      {categories.map(([catKey, catInfo], catIndex) => {
+        const catFeatures = PLAN_FEATURES.filter(f => f.category === catKey);
+        // When collapsed, only show first 2 categories (ops + a few alerts)
+        if (!expanded && catIndex > 1) return null;
+        const visibleCatFeatures = !expanded && catIndex === 1 ? catFeatures.slice(0, 3) : catFeatures;
+
+        return (
+          <div key={catKey}>
+            {/* Category header */}
+            <div className="grid grid-cols-5 gap-0 px-3 py-2 bg-white/[0.04] border-b border-white/[0.06]">
+              <div className="col-span-5 flex items-center gap-1.5">
+                <span className="text-sm">{catInfo.icon}</span>
+                <span className={`text-[11px] font-semibold ${catInfo.color}`}>{catInfo.label}</span>
+                <span className="text-[10px] text-white/25 ml-auto">{catFeatures.length} funciones</span>
               </div>
-            );
-          })}
-        </div>
-      ))}
+            </div>
+
+            {/* Feature rows */}
+            {visibleCatFeatures.map((feature, i) => {
+              const isExpanded = expandedFeature === feature.name;
+              return (
+                <div key={feature.name}>
+                  <button
+                    onClick={() => setExpandedFeature(isExpanded ? null : feature.name)}
+                    className={`w-full grid grid-cols-5 gap-0 px-3 py-2 text-left transition-colors ${
+                      i % 2 === 0 ? 'bg-white/[0.01]' : ''
+                    } ${isExpanded ? 'bg-white/[0.04]' : 'hover:bg-white/[0.03]'} border-b border-white/[0.03]`}
+                  >
+                    <div className="col-span-1 flex items-center pr-1">
+                      <span className={`text-[11px] leading-tight ${isExpanded ? 'text-white' : 'text-white/60'}`}>
+                        {feature.name}
+                      </span>
+                    </div>
+                    {(['free', 'starter', 'pro', 'enterprise'] as const).map(planId => {
+                      const val = feature[planId];
+                      const isCurrent = planId === currentPlan;
+                      return (
+                        <div key={planId} className="flex items-center justify-center">
+                          {val === true ? (
+                            <div className={`w-5 h-5 rounded-full flex items-center justify-center ${
+                              isCurrent ? 'bg-green-500/20' : 'bg-white/5'
+                            }`}>
+                              <Check className={`w-3 h-3 ${isCurrent ? 'text-green-400' : 'text-white/40'}`} />
+                            </div>
+                          ) : val === false ? (
+                            <div className="w-5 h-5 rounded-full flex items-center justify-center">
+                              <span className="w-1.5 h-0.5 bg-white/10 rounded-full" />
+                            </div>
+                          ) : (
+                            <span className="text-[10px] text-white/40">{val}</span>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </button>
+                  {/* Expanded description */}
+                  {isExpanded && (
+                    <div className="px-3 py-2 bg-white/[0.04] border-b border-white/[0.06]">
+                      <p className="text-[11px] text-white/50 leading-relaxed pl-1">
+                        💡 {feature.description}
+                      </p>
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        );
+      })}
 
       {/* Expand toggle */}
       <button
         onClick={() => setExpanded(!expanded)}
-        className="w-full flex items-center justify-center gap-1.5 py-2.5 text-[11px] text-white/40 hover:text-white/60 transition-colors"
+        className="w-full flex items-center justify-center gap-1.5 py-3 text-[11px] font-medium text-purple-400 hover:text-purple-300 transition-colors bg-white/[0.02]"
       >
         {expanded ? (
           <>
-            Ver menos <ChevronUp className="w-3 h-3" />
+            Mostrar menos <ChevronUp className="w-3 h-3" />
           </>
         ) : (
           <>
-            Ver todas las funciones ({PLAN_FEATURES.length}) <ChevronDown className="w-3 h-3" />
+            Ver las {PLAN_FEATURES.length} funciones completas <ChevronDown className="w-3 h-3" />
           </>
         )}
       </button>
