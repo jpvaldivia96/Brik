@@ -5,6 +5,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Building2, LogOut, ChevronDown, Briefcase, Crown, X } from 'lucide-react';
+import BillingPage from '@/components/billing/BillingPage';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -179,6 +180,8 @@ export default function MainLayout() {
         return <ReportsTab />;
       case 'import':
         return <ImportTab />;
+      case 'billing':
+        return <BillingPage />;
       default:
         return <DashboardPanel />;
     }
@@ -198,6 +201,7 @@ export default function MainLayout() {
       tools: 'Herramientas',
       reports: 'Reportes',
       import: 'Importar',
+      billing: 'Facturación',
     };
     return titles[activeAdminPanel] || 'BRIK';
   };

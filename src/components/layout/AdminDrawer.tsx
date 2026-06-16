@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { Button } from '@/components/ui/button';
-import { Settings, FileText, History, LayoutDashboard, X, Users, ClipboardCheck, Bell, Upload, Building2 } from 'lucide-react';
+import { Settings, FileText, History, LayoutDashboard, X, Users, ClipboardCheck, Bell, Upload, Building2, CreditCard } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useSite } from '@/contexts/SiteContext';
 import { supabase } from '@/integrations/supabase/client';
@@ -24,6 +24,7 @@ const adminOptions = [
   { id: 'import', icon: Upload, label: 'Importar', description: 'Carga masiva', supervisorOnly: true },
   { id: 'audit', icon: History, label: 'Auditoría', description: 'Historial de cambios', supervisorOnly: true },
   { id: 'site-settings', icon: Building2, label: 'Obra', description: 'Config. y cuenta', supervisorOnly: true },
+  { id: 'billing', icon: CreditCard, label: 'Facturación', description: 'Plan y pagos', supervisorOnly: true },
 ];
 
 export default function AdminDrawer({ open, onOpenChange, activePanel, onPanelChange }: AdminDrawerProps) {
