@@ -37,6 +37,7 @@ import { SpotlightTutorial } from '@/components/tutorial/SpotlightTutorial';
 import { getCountryFlag, formatSiteDateShort, formatSiteTime, getSiteCurrentTime } from '@/lib/dateUtils';
 import { NotificationBell } from '@/components/layout/NotificationBell';
 import { AssistantChat } from '@/components/assistant/AssistantChat';
+import { useFeatureGate } from '@/hooks/useFeatureGate';
 
 // Live Date/Time Display Component with Weather and Country Flag
 function DateTimeDisplay() {
@@ -116,6 +117,7 @@ export default function MainLayout() {
   const [showSubscribe, setShowSubscribe] = useState(false);
   const [showTutorial, setShowTutorial] = useState(false);
   const { subscription } = useSubscription();
+  const { isProOrAbove } = useFeatureGate();
 
   // Check if this is a first-time user
   useEffect(() => {
@@ -388,8 +390,8 @@ export default function MainLayout() {
         <SpotlightTutorial onComplete={() => setShowTutorial(false)} />
       )}
 
-      {/* In-App AI Assistant */}
-      <AssistantChat />
+      {/* In-App AI Assistant (Pro+ only) */}
+      {isProOrAbove && <AssistantChat />}
     </div>
   );
 }

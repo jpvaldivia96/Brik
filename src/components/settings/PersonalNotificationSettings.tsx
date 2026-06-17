@@ -32,6 +32,7 @@ import {
 import { toast } from 'sonner';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { FeatureGate } from '@/components/subscription/FeatureGate';
 
 interface UserPreferences {
     id?: string;
@@ -685,7 +686,8 @@ export function PersonalNotificationSettings() {
                 </div>
             </div>
 
-            {/* Telegram Personal */}
+            {/* Telegram Personal (Pro+ only) */}
+            <FeatureGate feature="telegram" mode="overlay">
             <div className="space-y-4 pt-6 border-t">
                 <div className="flex items-center gap-2 pb-2">
                     <Send className="h-5 w-5 text-primary" />
@@ -759,6 +761,7 @@ export function PersonalNotificationSettings() {
                     )}
                 </div>
             </div>
+            </FeatureGate>
 
             <div className="flex justify-end gap-2 pt-4">
                 <Button onClick={handleSave} disabled={saving}>

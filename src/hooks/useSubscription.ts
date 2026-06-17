@@ -93,7 +93,7 @@ export function useSubscription() {
                 trialEndsAt: data.trial_ends_at || null,
                 isInTrial: !!isInTrial,
                 daysLeftInTrial,
-                isSuspended: data.status === 'suspended',
+                isSuspended: data.status === 'paused' || data.status === 'cancelled',
             });
         } catch (err: any) {
             // Silently fail and use defaults - don't break the app

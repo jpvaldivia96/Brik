@@ -89,7 +89,9 @@ const PLANS = [
     id: 'free' as const,
     name: 'Free',
     price: 0,
+    priceAnnual: 0,
     priceBs: 0,
+    priceBsAnnual: 0,
     limit: 100,
     description: 'Ideal para probar',
     icon: Zap,
@@ -102,7 +104,9 @@ const PLANS = [
     id: 'starter' as const,
     name: 'Starter',
     price: 29,
-    priceBs: 200,
+    priceAnnual: 25,
+    priceBs: 290,
+    priceBsAnnual: 250,
     limit: 500,
     description: 'Para obras pequeñas',
     icon: Shield,
@@ -115,7 +119,9 @@ const PLANS = [
     id: 'pro' as const,
     name: 'Pro',
     price: 70,
-    priceBs: 490,
+    priceAnnual: 60,
+    priceBs: 700,
+    priceBsAnnual: 600,
     limit: 2000,
     description: 'Todo incluido',
     icon: Crown,
@@ -128,8 +134,10 @@ const PLANS = [
   {
     id: 'enterprise' as const,
     name: 'Enterprise',
-    price: 149,
-    priceBs: 1050,
+    price: 120,
+    priceAnnual: 102,
+    priceBs: 1200,
+    priceBsAnnual: 1020,
     limit: 999999,
     description: 'Para grandes empresas',
     icon: Building2,
@@ -248,10 +256,12 @@ function PlanCard({
   plan,
   currentPlan,
   onSelect,
+  isAnnual = false,
 }: {
   plan: typeof PLANS[0];
   currentPlan: string;
   onSelect: (planId: string) => void;
+  isAnnual?: boolean;
 }) {
   const isCurrent = plan.id === currentPlan;
   const Icon = plan.icon;
@@ -306,6 +316,15 @@ function PlanCard({
         <div className="text-right">
           {plan.price === 0 ? (
             <span className="text-lg font-bold text-white">Gratis</span>
+          ) : isAnnual ? (
+            <>
+              <div className="flex items-center gap-1.5 justify-end">
+                <span className="text-xs text-white/30 line-through">${plan.price}</span>
+                <span className="text-lg font-bold text-green-400">${plan.priceAnnual}</span>
+                <span className="text-[11px] text-white/40">/mes</span>
+              </div>
+              <p className="text-[10px] text-green-400/60">Bs {plan.priceBsAnnual}/mes</p>
+            </>
           ) : (
             <>
               <span className="text-lg font-bold text-white">${plan.price}</span>
@@ -614,6 +633,8 @@ export default function BillingPage() {
   const { currentSite } = useSite();
   const { toast } = useToast();
   const [selectedPlan, setSelectedPlan] = useState<typeof PLANS[0] | null>(null);
+  const [billingCycle, setBillingCycle] = useState<'monthly' | 'annual'>('monthly');
+  const isAnnual = billingCycle === 'annual';
 
   if (loading) {
     return (
@@ -727,10 +748,35 @@ export default function BillingPage() {
 
       {/* Plans */}
       <div>
-        <h3 className="text-sm font-semibold text-white mb-3 flex items-center gap-2">
-          <Crown className="w-4 h-4 text-amber-400" />
-          Planes disponibles
-        </h3>
+        <div className="flex items-center justify-between mb-3">
+          <h3 className="text-sm font-semibold text-white flex items-center gap-2">
+            <Crown className="w-4 h-4 text-amber-400" />
+            Planes por obra
+          </h3>
+          {/* Billing toggle */}
+          <div className="flex items-center bg-white/5 rounded-full p-0.5 border border-white/10">
+            <button
+              onClick={() => setBillingCycle('monthly')}
+              className={`text-[10px] font-medium px-3 py-1 rounded-full transition-all ${
+                !isAnnual ? 'bg-white/15 text-white' : 'text-white/40'
+              }`}
+            >
+              Mensual
+            </button>
+            <button
+              onClick={() => setBillingCycle('annual')}
+              className={`text-[10px] font-medium px-3 py-1 rounded-full transition-all flex items-center gap-1 ${
+                isAnnual ? 'bg-green-500/20 text-green-400' : 'text-white/40'
+              }`}
+            >
+              Anual
+              <span className="text-[9px] bg-green-500/20 text-green-400 px-1.5 py-0.5 rounded-full">-15%</span>
+            </button>
+          </div>
+        </div>
+        {isAnnual && (
+          <p className="text-[10px] text-green-400/60 mb-2 text-center">Paga 10 meses, usa 12 · Ahorra 2 meses por obra</p>
+        )}
         <div className="space-y-3">
           {PLANS.map(plan => (
             <PlanCard
@@ -738,6 +784,7 @@ export default function BillingPage() {
               plan={plan}
               currentPlan={currentPlanId}
               onSelect={handleSelectPlan}
+              isAnnual={isAnnual}
             />
           ))}
         </div>
