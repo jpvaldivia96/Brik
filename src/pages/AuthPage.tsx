@@ -1,5 +1,5 @@
 import { useState, useRef } from 'react';
-import { Navigate } from 'react-router-dom';
+import { Navigate, Link } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -14,6 +14,7 @@ export default function AuthPage() {
   const [isLogin, setIsLogin] = useState(true);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [fullName, setFullName] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
@@ -69,10 +70,15 @@ export default function AuthPage() {
         const { error } = await signIn(email, password);
         if (error) throw error;
       } else {
-        const { error } = await signUp(email, password);
+        const { error } = await signUp(email, password, fullName.trim() || undefined);
         if (error) throw error;
-        setSuccess('Cuenta creada exitosamente. Ya puedes iniciar sesión.');
-        setIsLogin(true);
+        // Auto-login after signup (if email confirm is disabled)
+        const { error: loginError } = await signIn(email, password);
+        if (loginError) {
+          // If auto-login fails (email confirm required), show message
+          setSuccess('Cuenta creada. Revisa tu correo para confirmar tu cuenta.');
+          setIsLogin(true);
+        }
       }
     } catch (err: any) {
       setError(err.message || 'Error de autenticación');
@@ -129,6 +135,22 @@ export default function AuthPage() {
               </AlertCosmos>
             )}
 
+                {!isLogin && (
+              <div className="space-y-2">
+                <Label htmlFor="fullName" className="text-white/80 text-sm font-medium">Nombre completo</Label>
+                <Input
+                  id="fullName"
+                  type="text"
+                  value={fullName}
+                  onChange={(e) => setFullName(e.target.value)}
+                  placeholder="Juan Pérez"
+                  required={!isLogin}
+                  disabled={isLimited}
+                  className="h-12 rounded-xl bg-white/10 border-white/20 text-white placeholder:text-white/40 focus:bg-white/15 focus:border-purple-400 transition-all duration-200"
+                />
+              </div>
+            )}
+
             <div className="space-y-2">
               <Label htmlFor="email" className="text-white/80 text-sm font-medium">Correo electrónico</Label>
               <Input
@@ -147,9 +169,9 @@ export default function AuthPage() {
               <div className="flex items-center justify-between">
                 <Label htmlFor="password" className="text-white/80 text-sm font-medium">Contraseña</Label>
                 {isLogin && (
-                  <a href="/forgot-password" className="text-xs text-purple-300 hover:text-purple-200 transition-colors">
+                  <Link to="/forgot-password" className="text-xs text-purple-300 hover:text-purple-200 transition-colors">
                     ¿Olvidaste tu contraseña?
-                  </a>
+                  </Link>
                 )}
               </div>
               <Input

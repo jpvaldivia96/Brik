@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useSite } from '@/contexts/SiteContext';
+import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -34,6 +35,7 @@ export default function OnboardingPage() {
   const { user, signOut } = useAuth();
   const { refreshSites, selectSite } = useSite();
   const { toast } = useToast();
+  const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
   const [siteName, setSiteName] = useState('');
   const [selectedCountry, setSelectedCountry] = useState('BO'); // Default to Bolivia
@@ -101,7 +103,7 @@ export default function OnboardingPage() {
 
       // Select the new site and navigate to dashboard
       selectSite(siteId);
-      window.location.href = '/';
+      navigate('/', { replace: true });
     } catch (err: any) {
       console.error("Error creating site:", err);
       toast({
@@ -201,7 +203,7 @@ export default function OnboardingPage() {
           </form>
 
           <p className="text-center text-sm text-muted-foreground">
-            Serás asignado como supervisor de esta obra
+            Serás asignado como administrador de esta obra
           </p>
         </div>
       </div>

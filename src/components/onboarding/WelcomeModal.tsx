@@ -15,20 +15,26 @@ const plans = [
         price: '$0',
         limit: '100/mes',
         current: true,
-        features: ['100 registros mensuales', 'Dashboard en vivo', 'Reportes básicos'],
+        features: ['100 registros mensuales', 'Dashboard en vivo', 'Biometría facial'],
+    },
+    {
+        name: 'Starter',
+        price: '$29',
+        limit: '500/mes',
+        features: ['500 registros mensuales', 'Alertas de favoritos', 'Exportar CSV'],
     },
     {
         name: 'Pro',
         price: '$70',
-        limit: '2000/mes',
+        limit: '2,000/mes',
         popular: true,
-        features: ['2000 registros mensuales', 'Alertas personalizadas', 'Reportes avanzados', 'Soporte prioritario'],
+        features: ['2,000 registros mensuales', 'Bot Telegram + AI', 'Reportes PDF + fiscalización'],
     },
     {
         name: 'Enterprise',
-        price: 'Custom',
+        price: '$120',
         limit: 'Ilimitado',
-        features: ['Registros ilimitados', 'API de integración', 'Configuración dedicada', 'SLA garantizado'],
+        features: ['Registros ilimitados', 'Panel multi-obra', 'Soporte dedicado'],
     },
 ];
 
@@ -124,7 +130,7 @@ export default function WelcomeModal({ onComplete }: WelcomeModalProps) {
                                         </div>
                                         <div className="text-right">
                                             <span className="text-xl font-bold">{plan.price}</span>
-                                            {plan.price !== 'Custom' && <span className="text-white/60 text-sm">/mes</span>}
+                                            {plan.price !== '$0' && <span className="text-white/60 text-sm">/mes</span>}
                                         </div>
                                     </div>
                                     <p className="text-sm text-white/60">{plan.limit} registros</p>
