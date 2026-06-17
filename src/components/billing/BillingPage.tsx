@@ -503,59 +503,201 @@ function FeatureComparison({ currentPlan }: { currentPlan: string }) {
 
 // ─── Payment Section ─────────────────────────────────────────────────────────
 
+interface BillingInfo {
+  id?: string;
+  site_id: string;
+  business_name: string;
+  tax_id: string;
+  billing_email: string;
+}
+
 function PaymentSection({
   selectedPlan,
   siteName,
+  siteId,
   onCancel,
 }: {
   selectedPlan: typeof PLANS[0];
   siteName: string;
+  siteId: string;
   onCancel: () => void;
 }) {
-  const [step, setStep] = useState<'qr' | 'confirm'>('qr');
+  const [step, setStep] = useState<'qr' | 'billing' | 'proof' | 'confirm'>('qr');
+  const [billingInfo, setBillingInfo] = useState<BillingInfo>({
+    site_id: siteId,
+    business_name: '',
+    tax_id: '',
+    billing_email: '',
+  });
+  const [isExistingBilling, setIsExistingBilling] = useState(false);
+  const [isEditingBilling, setIsEditingBilling] = useState(false);
+  const [loadingBilling, setLoadingBilling] = useState(true);
+  const [proofFile, setProofFile] = useState<File | null>(null);
+  const [proofPreview, setProofPreview] = useState<string | null>(null);
+  const [proofUrl, setProofUrl] = useState<string | null>(null);
+  const [uploading, setUploading] = useState(false);
+  const [savingBilling, setSavingBilling] = useState(false);
+  const { toast } = useToast();
 
-  const handleConfirmWhatsApp = () => {
+  // Fetch existing billing info on mount
+  useEffect(() => {
+    (async () => {
+      try {
+        const { data, error } = await (supabase as any)
+          .from('billing_info')
+          .select('*')
+          .eq('site_id', siteId)
+          .maybeSingle();
+
+        if (!error && data) {
+          setBillingInfo(data);
+          setIsExistingBilling(true);
+        }
+      } catch (e) {
+        console.error('Error fetching billing info:', e);
+      } finally {
+        setLoadingBilling(false);
+      }
+    })();
+  }, [siteId]);
+
+  // Save or update billing info
+  const saveBillingInfo = async () => {
+    setSavingBilling(true);
+    try {
+      if (isExistingBilling && billingInfo.id) {
+        await (supabase as any)
+          .from('billing_info')
+          .update({
+            business_name: billingInfo.business_name,
+            tax_id: billingInfo.tax_id,
+            billing_email: billingInfo.billing_email,
+            updated_at: new Date().toISOString(),
+          })
+          .eq('id', billingInfo.id);
+      } else {
+        const { data } = await (supabase as any)
+          .from('billing_info')
+          .insert({
+            site_id: siteId,
+            business_name: billingInfo.business_name,
+            tax_id: billingInfo.tax_id,
+            billing_email: billingInfo.billing_email,
+          })
+          .select()
+          .single();
+        if (data) {
+          setBillingInfo(data);
+          setIsExistingBilling(true);
+        }
+      }
+      setIsEditingBilling(false);
+      setStep('proof');
+    } catch (e: any) {
+      toast({ title: 'Error', description: e.message, variant: 'destructive' });
+    } finally {
+      setSavingBilling(false);
+    }
+  };
+
+  // Handle file select
+  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setProofFile(file);
+    const reader = new FileReader();
+    reader.onloadend = () => setProofPreview(reader.result as string);
+    reader.readAsDataURL(file);
+  };
+
+  // Upload proof to storage
+  const uploadProof = async (): Promise<string | null> => {
+    if (!proofFile) return null;
+    setUploading(true);
+    try {
+      const ext = proofFile.name.split('.').pop() || 'jpg';
+      const filename = `${siteId}/comprobante_${Date.now()}.${ext}`;
+      const { error } = await supabase.storage
+        .from('payment-proofs')
+        .upload(filename, proofFile, { contentType: proofFile.type, upsert: true });
+      if (error) throw error;
+      const { data: urlData } = supabase.storage
+        .from('payment-proofs')
+        .getPublicUrl(filename);
+      setProofUrl(urlData.publicUrl);
+      return urlData.publicUrl;
+    } catch (e: any) {
+      toast({ title: 'Error subiendo comprobante', description: e.message, variant: 'destructive' });
+      return null;
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  // Handle confirm & go to WhatsApp
+  const handleConfirmWhatsApp = async () => {
+    let finalProofUrl = proofUrl;
+    if (proofFile && !proofUrl) {
+      finalProofUrl = await uploadProof();
+    }
     const message = encodeURIComponent(
-      `Hola! Pagué por el plan ${selectedPlan.name} para la obra "${siteName}". Mi correo es: [MI_EMAIL]`
+      `Hola! Pagué por el plan ${selectedPlan.name} para la obra "${siteName}".\n\n` +
+      `📋 Datos de facturación:\n` +
+      `• Nombre/Razón Social: ${billingInfo.business_name}\n` +
+      `• NIT/CI: ${billingInfo.tax_id}\n` +
+      `• Email: ${billingInfo.billing_email}\n` +
+      `• Monto: Bs ${selectedPlan.priceBs}/mes (~$${selectedPlan.price} USD)\n` +
+      (finalProofUrl ? `\n📎 Comprobante: ${finalProofUrl}` : '')
     );
     window.open(`https://wa.me/59178997696?text=${message}`, '_blank');
   };
 
+  const stepIndex = step === 'qr' ? 0 : step === 'billing' ? 1 : step === 'proof' ? 2 : 3;
+  const billingValid = billingInfo.business_name.trim() && billingInfo.tax_id.trim() && billingInfo.billing_email.trim();
+
   return (
     <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4">
-      {/* Backdrop */}
       <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={onCancel} />
 
-      {/* Sheet */}
       <div
         className="relative w-full sm:max-w-md rounded-t-3xl sm:rounded-2xl overflow-hidden animate-in slide-in-from-bottom duration-300"
         style={{
-          background: 'rgba(30, 30, 40, 0.95)',
+          background: 'rgba(18, 18, 28, 0.96)',
           backdropFilter: 'blur(40px)',
-          border: '1px solid rgba(255,255,255,0.1)',
+          border: '1px solid rgba(255,255,255,0.08)',
           borderBottom: 'none',
         }}
       >
-        {/* Handle bar (mobile) */}
+        {/* Handle bar */}
         <div className="flex justify-center pt-3 sm:hidden">
           <div className="w-10 h-1 rounded-full bg-white/20" />
         </div>
 
-        <div className="p-6">
-          {step === 'qr' ? (
-            <>
-              <div className="text-center mb-5">
-                <div className={`inline-flex w-12 h-12 rounded-2xl bg-gradient-to-br ${selectedPlan.gradient} items-center justify-center mb-3 shadow-lg`}>
-                  <CreditCard className="w-6 h-6 text-white" />
+        {/* Progress */}
+        <div className="flex justify-center gap-1.5 pt-4 pb-1 px-6">
+          {['QR', 'Datos', 'Comprobante', 'Confirmar'].map((label, i) => (
+            <div key={i} className="flex-1 flex flex-col items-center gap-1">
+              <div className={`w-full h-1 rounded-full transition-all duration-500 ${
+                i === stepIndex ? 'bg-purple-400' : i < stepIndex ? 'bg-purple-500/50' : 'bg-white/8'
+              }`} />
+              <span className={`text-[9px] transition-colors ${i === stepIndex ? 'text-purple-300' : 'text-white/20'}`}>{label}</span>
+            </div>
+          ))}
+        </div>
+
+        <div className="p-6 pt-3">
+          {/* ─── Step 1: QR ─── */}
+          {step === 'qr' && (
+            <div className="animate-in fade-in slide-in-from-right-4 duration-300">
+              <div className="text-center mb-4">
+                <div className={`inline-flex w-11 h-11 rounded-2xl bg-gradient-to-br ${selectedPlan.gradient} items-center justify-center mb-2.5 shadow-lg`}>
+                  <CreditCard className="w-5 h-5 text-white" />
                 </div>
-                <h2 className="text-lg font-bold text-white">Mejorar a {selectedPlan.name}</h2>
-                <p className="text-sm text-white/50 mt-1">
-                  Bs {selectedPlan.priceBs}/mes (~${selectedPlan.price} USD)
-                </p>
+                <h2 className="text-lg font-bold text-white">Pagar Plan {selectedPlan.name}</h2>
+                <p className="text-xs text-white/40 mt-0.5">Escanea el QR con tu app bancaria</p>
               </div>
 
-              {/* QR placeholder */}
-              <div className="bg-white rounded-2xl p-4 mx-auto max-w-[220px] mb-4">
+              <div className="bg-white rounded-2xl p-3 mx-auto max-w-[180px] mb-3 shadow-lg">
                 <img
                   src="/payment-qr.png"
                   alt="QR de pago - Banco Ganadero"
@@ -571,54 +713,281 @@ function PaymentSection({
                 />
               </div>
 
-              <p className="text-center text-xs text-white/40 mb-5">
-                Escanea el QR con tu app bancaria · <span className="text-green-400">Banco Ganadero</span>
-              </p>
+              <div className="flex justify-center mb-4">
+                <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-green-500/10 border border-green-500/15">
+                  <span className="text-green-400 text-xs font-semibold">Banco Ganadero</span>
+                  <span className="text-white/20">·</span>
+                  <span className="text-white font-bold text-sm">Bs {selectedPlan.priceBs}</span>
+                  <span className="text-white/30 text-xs">(~${selectedPlan.price})</span>
+                </div>
+              </div>
 
-              <div className="space-y-2.5">
+              <div className="space-y-2">
                 <Button
-                  onClick={() => setStep('confirm')}
-                  className="w-full h-12 rounded-xl bg-gradient-to-r from-green-500 to-teal-500 hover:from-green-600 hover:to-teal-600 text-white font-medium"
+                  onClick={() => setStep('billing')}
+                  className="w-full h-11 rounded-xl bg-gradient-to-r from-green-500 to-teal-500 hover:from-green-600 hover:to-teal-600 text-white font-medium shadow-lg shadow-green-500/15 hover:scale-[1.02] active:scale-[0.98] transition-all duration-300"
                 >
                   <Check className="w-4 h-4 mr-2" />
-                  Ya pagué
+                  Ya pagué — Continuar
                 </Button>
-                <Button
-                  onClick={onCancel}
-                  variant="ghost"
-                  className="w-full h-10 text-white/40 hover:text-white/60 hover:bg-white/5"
-                >
+                <Button onClick={onCancel} variant="ghost" className="w-full h-9 text-white/30 hover:text-white/50 hover:bg-white/5 text-sm">
                   Cancelar
                 </Button>
               </div>
-            </>
-          ) : (
-            <>
-              <div className="text-center mb-5">
-                <div className="inline-flex w-14 h-14 rounded-full bg-gradient-to-br from-green-500 to-teal-500 items-center justify-center mb-3 shadow-lg">
-                  <Check className="w-7 h-7 text-white" />
+            </div>
+          )}
+
+          {/* ─── Step 2: Billing Details ─── */}
+          {step === 'billing' && (
+            <div className="animate-in fade-in slide-in-from-right-4 duration-300">
+              <div className="text-center mb-4">
+                <div className="inline-flex w-11 h-11 rounded-2xl bg-gradient-to-br from-blue-500 to-purple-500 items-center justify-center mb-2.5 shadow-lg">
+                  <FileText className="w-5 h-5 text-white" />
                 </div>
-                <h2 className="text-lg font-bold text-white">¡Gracias!</h2>
-                <p className="text-sm text-white/50 mt-1">
-                  Confirma tu pago por WhatsApp
+                <h2 className="text-lg font-bold text-white">
+                  {isExistingBilling && !isEditingBilling ? 'Datos de facturación' : 'Completa tus datos'}
+                </h2>
+                <p className="text-xs text-white/40 mt-0.5">
+                  {isExistingBilling && !isEditingBilling ? 'Verifica que todo esté correcto' : 'Solo la primera vez'}
                 </p>
               </div>
 
-              <div className="bg-white/5 border border-white/10 rounded-xl p-4 mb-5">
-                <p className="text-xs text-white/60 leading-relaxed">
-                  Envía un mensaje confirmando tu pago con el nombre de la obra, correo y comprobante.
-                  Te activaremos el plan <span className="text-white font-medium">{selectedPlan.name}</span> en minutos.
-                </p>
+              {loadingBilling ? (
+                <div className="flex justify-center py-8">
+                  <div className="w-6 h-6 border-2 border-purple-400 border-t-transparent rounded-full animate-spin" />
+                </div>
+              ) : isExistingBilling && !isEditingBilling ? (
+                /* ── Existing: Show summary ── */
+                <>
+                  <div className="rounded-xl bg-white/[0.03] border border-white/8 p-4 mb-4 space-y-3">
+                    <div>
+                      <p className="text-[10px] uppercase tracking-wider text-white/30 mb-0.5">Nombre / Razón Social</p>
+                      <p className="text-sm text-white font-medium">{billingInfo.business_name}</p>
+                    </div>
+                    <div className="border-t border-white/5 pt-3">
+                      <p className="text-[10px] uppercase tracking-wider text-white/30 mb-0.5">NIT / CI</p>
+                      <p className="text-sm text-white font-medium">{billingInfo.tax_id}</p>
+                    </div>
+                    <div className="border-t border-white/5 pt-3">
+                      <p className="text-[10px] uppercase tracking-wider text-white/30 mb-0.5">Email facturación</p>
+                      <p className="text-sm text-white font-medium">{billingInfo.billing_email}</p>
+                    </div>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Button
+                      onClick={() => setStep('proof')}
+                      className="w-full h-11 rounded-xl bg-gradient-to-r from-purple-500 to-blue-500 hover:from-purple-600 hover:to-blue-600 text-white font-medium shadow-lg shadow-purple-500/15 hover:scale-[1.02] active:scale-[0.98] transition-all duration-300"
+                    >
+                      Continuar
+                      <ArrowRight className="w-4 h-4 ml-1.5" />
+                    </Button>
+                    <Button
+                      onClick={() => setIsEditingBilling(true)}
+                      variant="ghost"
+                      className="w-full h-9 text-white/30 hover:text-white/50 hover:bg-white/5 text-sm"
+                    >
+                      Editar datos
+                    </Button>
+                  </div>
+                </>
+              ) : (
+                /* ── New / Editing: Show form ── */
+                <>
+                  <div className="space-y-3 mb-5">
+                    <div className="space-y-1">
+                      <label className="text-[10px] font-medium uppercase tracking-wider text-white/40 pl-0.5">Nombre / Razón Social</label>
+                      <input
+                        type="text"
+                        value={billingInfo.business_name}
+                        onChange={(e) => setBillingInfo(prev => ({ ...prev, business_name: e.target.value }))}
+                        placeholder="Empresa Constructora S.R.L."
+                        className="w-full h-11 px-3.5 rounded-xl bg-white/[0.06] border border-white/10 text-white text-sm placeholder:text-white/20 focus:bg-white/[0.1] focus:border-purple-400/60 focus:outline-none focus:ring-1 focus:ring-purple-400/20 transition-all duration-200"
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <label className="text-[10px] font-medium uppercase tracking-wider text-white/40 pl-0.5">NIT / CI</label>
+                      <input
+                        type="text"
+                        value={billingInfo.tax_id}
+                        onChange={(e) => setBillingInfo(prev => ({ ...prev, tax_id: e.target.value }))}
+                        placeholder="1234567890"
+                        className="w-full h-11 px-3.5 rounded-xl bg-white/[0.06] border border-white/10 text-white text-sm placeholder:text-white/20 focus:bg-white/[0.1] focus:border-purple-400/60 focus:outline-none focus:ring-1 focus:ring-purple-400/20 transition-all duration-200"
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <label className="text-[10px] font-medium uppercase tracking-wider text-white/40 pl-0.5">Email de facturación</label>
+                      <input
+                        type="email"
+                        value={billingInfo.billing_email}
+                        onChange={(e) => setBillingInfo(prev => ({ ...prev, billing_email: e.target.value }))}
+                        placeholder="contabilidad@empresa.com"
+                        className="w-full h-11 px-3.5 rounded-xl bg-white/[0.06] border border-white/10 text-white text-sm placeholder:text-white/20 focus:bg-white/[0.1] focus:border-purple-400/60 focus:outline-none focus:ring-1 focus:ring-purple-400/20 transition-all duration-200"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Button
+                      onClick={saveBillingInfo}
+                      disabled={!billingValid || savingBilling}
+                      className="w-full h-11 rounded-xl bg-gradient-to-r from-purple-500 to-blue-500 hover:from-purple-600 hover:to-blue-600 text-white font-medium shadow-lg shadow-purple-500/15 hover:scale-[1.02] active:scale-[0.98] transition-all duration-300 disabled:opacity-40 disabled:hover:scale-100"
+                    >
+                      {savingBilling ? (
+                        <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-2" />
+                      ) : null}
+                      {isExistingBilling ? 'Guardar cambios' : 'Guardar y continuar'}
+                      <ArrowRight className="w-4 h-4 ml-1.5" />
+                    </Button>
+                    <Button
+                      onClick={() => isExistingBilling ? setIsEditingBilling(false) : setStep('qr')}
+                      variant="ghost"
+                      className="w-full h-9 text-white/30 hover:text-white/50 hover:bg-white/5 text-sm"
+                    >
+                      {isExistingBilling ? 'Cancelar edición' : '← Volver'}
+                    </Button>
+                  </div>
+                </>
+              )}
+            </div>
+          )}
+
+          {/* ─── Step 3: Upload Proof ─── */}
+          {step === 'proof' && (
+            <div className="animate-in fade-in slide-in-from-right-4 duration-300">
+              <div className="text-center mb-4">
+                <div className="inline-flex w-11 h-11 rounded-2xl bg-gradient-to-br from-amber-500 to-orange-500 items-center justify-center mb-2.5 shadow-lg">
+                  <Shield className="w-5 h-5 text-white" />
+                </div>
+                <h2 className="text-lg font-bold text-white">Comprobante de pago</h2>
+                <p className="text-xs text-white/40 mt-0.5">Adjunta captura de tu transferencia</p>
               </div>
 
-              <Button
-                onClick={handleConfirmWhatsApp}
-                className="w-full h-12 rounded-xl bg-green-500 hover:bg-green-600 text-white font-medium"
-              >
-                <MessageCircle className="w-4 h-4 mr-2" />
-                Confirmar por WhatsApp
-              </Button>
-            </>
+              {/* Upload area */}
+              {proofPreview ? (
+                <div className="relative rounded-xl overflow-hidden mb-4 border border-white/10">
+                  <img src={proofPreview} alt="Comprobante" className="w-full max-h-48 object-contain bg-black/30" />
+                  <button
+                    onClick={() => { setProofFile(null); setProofPreview(null); setProofUrl(null); }}
+                    className="absolute top-2 right-2 w-7 h-7 rounded-full bg-black/60 flex items-center justify-center hover:bg-black/80 transition-colors"
+                  >
+                    <X className="w-4 h-4 text-white" />
+                  </button>
+                </div>
+              ) : (
+                <label className="flex flex-col items-center justify-center w-full h-36 rounded-xl border-2 border-dashed border-white/10 hover:border-purple-400/30 bg-white/[0.02] hover:bg-white/[0.04] cursor-pointer transition-all duration-200 mb-4 group">
+                  <div className="w-10 h-10 rounded-xl bg-white/5 flex items-center justify-center mb-2 group-hover:bg-purple-500/10 transition-colors">
+                    <TrendingUp className="w-5 h-5 text-white/30 group-hover:text-purple-400 transition-colors" />
+                  </div>
+                  <span className="text-sm text-white/40 group-hover:text-white/60 transition-colors">Toca para seleccionar imagen</span>
+                  <span className="text-[10px] text-white/20 mt-0.5">JPG, PNG o PDF</span>
+                  <input type="file" accept="image/*,.pdf" onChange={handleFileSelect} className="hidden" />
+                </label>
+              )}
+
+              {/* Plan summary */}
+              <div className="rounded-xl bg-white/[0.03] border border-white/6 p-3 mb-4">
+                <div className="flex justify-between items-center text-xs">
+                  <span className="text-white/40">Plan</span>
+                  <span className="text-white font-medium">{selectedPlan.name} · Bs {selectedPlan.priceBs}/mes</span>
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <Button
+                  onClick={async () => {
+                    if (proofFile) {
+                      const url = await uploadProof();
+                      if (url) setStep('confirm');
+                    } else {
+                      setStep('confirm');
+                    }
+                  }}
+                  disabled={uploading}
+                  className="w-full h-11 rounded-xl bg-gradient-to-r from-purple-500 to-blue-500 hover:from-purple-600 hover:to-blue-600 text-white font-medium shadow-lg shadow-purple-500/15 hover:scale-[1.02] active:scale-[0.98] transition-all duration-300"
+                >
+                  {uploading ? (
+                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-2" />
+                  ) : null}
+                  {proofFile ? 'Subir y continuar' : 'Continuar sin comprobante'}
+                  <ArrowRight className="w-4 h-4 ml-1.5" />
+                </Button>
+                <Button
+                  onClick={() => setStep('billing')}
+                  variant="ghost"
+                  className="w-full h-9 text-white/30 hover:text-white/50 hover:bg-white/5 text-sm"
+                >
+                  ← Volver
+                </Button>
+              </div>
+            </div>
+          )}
+
+          {/* ─── Step 4: Confirm ─── */}
+          {step === 'confirm' && (
+            <div className="animate-in fade-in slide-in-from-right-4 duration-300">
+              <div className="text-center mb-4">
+                <div className="inline-flex w-12 h-12 rounded-full bg-gradient-to-br from-green-500 to-teal-500 items-center justify-center mb-2.5 shadow-lg shadow-green-500/25">
+                  <Check className="w-6 h-6 text-white" />
+                </div>
+                <h2 className="text-lg font-bold text-white">¡Todo listo!</h2>
+                <p className="text-xs text-white/40 mt-0.5">Revisa el resumen y confirma</p>
+              </div>
+
+              <div className="rounded-xl bg-white/[0.03] border border-white/6 p-3.5 mb-4 space-y-2">
+                <div className="flex justify-between text-xs">
+                  <span className="text-white/40">Plan</span>
+                  <span className="text-white font-semibold">{selectedPlan.name}</span>
+                </div>
+                <div className="flex justify-between text-xs">
+                  <span className="text-white/40">Monto</span>
+                  <span className="text-white font-bold">Bs {selectedPlan.priceBs}/mes</span>
+                </div>
+                <div className="border-t border-white/5 pt-2 mt-2">
+                  <div className="flex justify-between text-xs">
+                    <span className="text-white/40">Factura a</span>
+                    <span className="text-white/80">{billingInfo.business_name}</span>
+                  </div>
+                  <div className="flex justify-between text-xs mt-1">
+                    <span className="text-white/40">NIT</span>
+                    <span className="text-white/80">{billingInfo.tax_id}</span>
+                  </div>
+                  <div className="flex justify-between text-xs mt-1">
+                    <span className="text-white/40">Email</span>
+                    <span className="text-white/80 truncate ml-4">{billingInfo.billing_email}</span>
+                  </div>
+                </div>
+                {proofUrl && (
+                  <div className="border-t border-white/5 pt-2 mt-2 flex items-center gap-2">
+                    <div className="w-5 h-5 rounded bg-green-500/15 flex items-center justify-center">
+                      <Check className="w-3 h-3 text-green-400" />
+                    </div>
+                    <span className="text-xs text-green-400">Comprobante adjuntado</span>
+                  </div>
+                )}
+              </div>
+
+              <p className="text-[10px] text-white/30 text-center mb-3 leading-relaxed">
+                Se abrirá WhatsApp con todos tus datos. Te activaremos el plan en minutos.
+              </p>
+
+              <div className="space-y-2">
+                <Button
+                  onClick={handleConfirmWhatsApp}
+                  className="w-full h-11 rounded-xl bg-green-500 hover:bg-green-600 text-white font-medium shadow-lg shadow-green-500/15 hover:scale-[1.02] active:scale-[0.98] transition-all duration-300"
+                >
+                  <MessageCircle className="w-4 h-4 mr-2" />
+                  Enviar por WhatsApp
+                </Button>
+                <Button
+                  onClick={() => setStep('proof')}
+                  variant="ghost"
+                  className="w-full h-9 text-white/30 hover:text-white/50 hover:bg-white/5 text-sm"
+                >
+                  ← Volver
+                </Button>
+              </div>
+            </div>
           )}
         </div>
       </div>
@@ -821,6 +1190,7 @@ export default function BillingPage() {
         <PaymentSection
           selectedPlan={selectedPlan}
           siteName={currentSite?.name || ''}
+          siteId={currentSite?.id || ''}
           onCancel={() => setSelectedPlan(null)}
         />
       )}

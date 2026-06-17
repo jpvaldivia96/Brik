@@ -117,97 +117,138 @@ export default function OnboardingPage() {
   };
 
   return (
-    <div className="min-h-screen bg-background flex flex-col">
-      <header className="p-4 flex justify-end">
-        <Button variant="ghost" size="sm" onClick={signOut} className="text-muted-foreground">
+    <div className="min-h-[100dvh] flex flex-col relative overflow-hidden bg-slate-900">
+      {/* Animated gradient background */}
+      <div
+        className="absolute inset-0 bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900"
+        style={{
+          backgroundSize: '400% 400%',
+          animation: 'gradient-shift 15s ease infinite',
+        }}
+      />
+
+      {/* Subtle pattern overlay */}
+      <div className="absolute inset-0 opacity-20"
+        style={{
+          backgroundImage: 'radial-gradient(circle at 25% 25%, rgba(139, 92, 246, 0.3) 0%, transparent 50%), radial-gradient(circle at 75% 75%, rgba(59, 130, 246, 0.3) 0%, transparent 50%)',
+        }}
+      />
+
+      {/* Header */}
+      <header className="relative z-10 p-4 flex justify-end">
+        <Button variant="ghost" size="sm" onClick={signOut} className="text-white/50 hover:text-white/80 hover:bg-white/10">
           <LogOut className="w-4 h-4 mr-2" />
           Salir
         </Button>
       </header>
 
-      <div className="flex-1 flex items-center justify-center p-4">
-        <div className="w-full max-w-sm space-y-8">
-          <div className="text-center">
-            <img
-              src="/brik-logo.png"
-              alt="BRIK"
-              className="w-80 mx-auto mb-10 object-contain"
-            />
-            {/* <h1 className="text-2xl font-semibold mb-2">Bienvenido a BRIK</h1> -- Replaced by logo */}
-            <p className="text-muted-foreground">
-              Crea tu primera obra para comenzar
-            </p>
-          </div>
-
-          <form onSubmit={handleCreateSite} className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="siteName">Nombre de la obra</Label>
-              <Input
-                id="siteName"
-                placeholder="Ej: Torre Central, Edificio Norte..."
-                value={siteName}
-                onChange={(e) => setSiteName(e.target.value)}
-                className="h-12 rounded-xl"
-                disabled={loading}
+      {/* Content */}
+      <div className="flex-1 flex items-center justify-center p-4 relative z-10">
+        <div className="w-full max-w-sm animate-fade-in">
+          <div className="p-8">
+            {/* Logo */}
+            <div className="text-center mb-10">
+              <img
+                src="/brik-logo-white.png"
+                alt="BRIK"
+                className="w-80 mx-auto mb-1 object-contain drop-shadow-lg"
               />
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="country" className="flex items-center gap-2">
-                <Globe className="w-4 h-4" />
-                País de la obra
-              </Label>
-              <Select value={selectedCountry} onValueChange={setSelectedCountry} disabled={loading}>
-                <SelectTrigger className="h-12 rounded-xl">
-                  <SelectValue>
-                    {selectedCountryData && (
-                      <span className="flex items-center gap-2">
-                        <span className="text-lg">{selectedCountryData.flag}</span>
-                        {selectedCountryData.name}
-                      </span>
-                    )}
-                  </SelectValue>
-                </SelectTrigger>
-                <SelectContent>
-                  {COUNTRIES.map(country => (
-                    <SelectItem key={country.code} value={country.code}>
-                      <span className="flex items-center gap-2">
-                        <span className="text-lg">{country.flag}</span>
-                        {country.name}
-                      </span>
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              <p className="text-xs text-muted-foreground">
-                Define la zona horaria para los registros de acceso
+              <p className="text-white/70 text-base font-light tracking-wide -mt-10">
+                Configura tu primera obra
               </p>
             </div>
 
-            {error && <p className="text-sm text-destructive">{error}</p>}
+            {/* Step indicator */}
+            <div className="flex items-center justify-center gap-2 mb-8">
+              <div className="w-8 h-1 rounded-full bg-purple-500" />
+              <div className="w-8 h-1 rounded-full bg-white/20" />
+              <div className="w-8 h-1 rounded-full bg-white/20" />
+            </div>
 
-            <Button
-              type="submit"
-              className="w-full h-12 rounded-full text-base font-medium"
-              disabled={loading || !siteName.trim()}
-            >
-              {loading ? (
-                <Spinner size="sm" className="mr-2" />
-              ) : (
-                <>
-                  Crear obra
-                  <ArrowRight className="w-5 h-5 ml-2" />
-                </>
-              )}
-            </Button>
-          </form>
+            {/* Form */}
+            <form onSubmit={handleCreateSite} className="space-y-5">
+              <div className="space-y-2">
+                <Label htmlFor="siteName" className="text-white/80 text-sm font-medium">Nombre de la obra</Label>
+                <Input
+                  id="siteName"
+                  placeholder="Ej: Torre Central, Edificio Norte..."
+                  value={siteName}
+                  onChange={(e) => setSiteName(e.target.value)}
+                  className="h-12 rounded-xl bg-white/10 border-white/20 text-white placeholder:text-white/40 focus:bg-white/15 focus:border-purple-400 transition-all duration-200"
+                  disabled={loading}
+                />
+              </div>
 
-          <p className="text-center text-sm text-muted-foreground">
-            Serás asignado como administrador de esta obra
-          </p>
+              <div className="space-y-2">
+                <Label htmlFor="country" className="flex items-center gap-2 text-white/80 text-sm font-medium">
+                  <Globe className="w-4 h-4" />
+                  País de la obra
+                </Label>
+                <Select value={selectedCountry} onValueChange={setSelectedCountry} disabled={loading}>
+                  <SelectTrigger className="h-12 rounded-xl bg-white/10 border-white/20 text-white focus:border-purple-400 transition-all duration-200 [&>svg]:text-white/40">
+                    <SelectValue>
+                      {selectedCountryData && (
+                        <span className="flex items-center gap-2">
+                          <span className="text-lg">{selectedCountryData.flag}</span>
+                          {selectedCountryData.name}
+                        </span>
+                      )}
+                    </SelectValue>
+                  </SelectTrigger>
+                  <SelectContent className="bg-slate-800 border-white/20">
+                    {COUNTRIES.map(country => (
+                      <SelectItem key={country.code} value={country.code} className="text-white focus:bg-white/10 focus:text-white">
+                        <span className="flex items-center gap-2">
+                          <span className="text-lg">{country.flag}</span>
+                          {country.name}
+                        </span>
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <p className="text-xs text-white/40">
+                  Define la zona horaria para los registros de acceso
+                </p>
+              </div>
+
+              {error && <p className="text-sm text-red-400 bg-red-500/10 border border-red-500/20 rounded-lg px-3 py-2">{error}</p>}
+
+              <Button
+                type="submit"
+                className="w-full h-12 text-base rounded-full font-semibold bg-gradient-to-r from-purple-500 to-blue-500 hover:from-purple-600 hover:to-blue-600 text-white shadow-lg hover:shadow-purple-500/25 transition-all duration-300 hover:scale-[1.02] active:scale-[0.98]"
+                disabled={loading || !siteName.trim()}
+              >
+                {loading ? (
+                  <Spinner size="sm" className="mr-2" />
+                ) : (
+                  <>
+                    Crear obra
+                    <ArrowRight className="w-5 h-5 ml-2" />
+                  </>
+                )}
+              </Button>
+            </form>
+
+            <p className="text-center text-sm text-white/40 mt-6">
+              Serás asignado como administrador de esta obra
+            </p>
+          </div>
+
+          {/* Decorative glow */}
+          <div className="absolute -inset-4 bg-gradient-to-r from-purple-500/20 to-blue-500/20 rounded-3xl blur-2xl -z-10" />
         </div>
       </div>
+
+      {/* CSS for gradient animation */}
+      <style>{`
+        @keyframes gradient-shift {
+          0% { background-position: 0% 50%; }
+          50% { background-position: 100% 50%; }
+          100% { background-position: 0% 50%; }
+        }
+      `}</style>
     </div>
   );
 }
+
 

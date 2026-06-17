@@ -1,218 +1,238 @@
-import { useState, useEffect } from 'react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
+import { useState } from 'react';
+import { Dialog, DialogContent } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
-import { Sparkles, Zap, Building2, ArrowRight, Check, Crown } from 'lucide-react';
-import { useSubscription } from '@/hooks/useSubscription';
+import { Sparkles, Zap, Building2, ArrowRight, Check, Shield, BarChart3, Users, Calendar, Bell, Brain } from 'lucide-react';
 import { useSite } from '@/contexts/SiteContext';
+import { useAuth } from '@/contexts/AuthContext';
 
 interface WelcomeModalProps {
     onComplete: () => void;
 }
 
-const plans = [
-    {
-        name: 'Free',
-        price: '$0',
-        limit: '100/mes',
-        current: true,
-        features: ['100 registros mensuales', 'Dashboard en vivo', 'Biometría facial'],
-    },
-    {
-        name: 'Starter',
-        price: '$29',
-        limit: '500/mes',
-        features: ['500 registros mensuales', 'Alertas de favoritos', 'Exportar CSV'],
-    },
-    {
-        name: 'Pro',
-        price: '$70',
-        limit: '2,000/mes',
-        popular: true,
-        features: ['2,000 registros mensuales', 'Bot Telegram + AI', 'Reportes PDF + fiscalización'],
-    },
-    {
-        name: 'Enterprise',
-        price: '$120',
-        limit: 'Ilimitado',
-        features: ['Registros ilimitados', 'Panel multi-obra', 'Soporte dedicado'],
-    },
+const trialFeatures = [
+    { icon: Users, label: '2,000 registros de acceso', color: 'from-purple-500 to-blue-500' },
+    { icon: BarChart3, label: 'Dashboard en tiempo real', color: 'from-blue-500 to-cyan-500' },
+    { icon: Bell, label: 'Alertas y reportes avanzados', color: 'from-orange-500 to-amber-500' },
+    { icon: Brain, label: 'Asistente AI Brix', color: 'from-pink-500 to-purple-500' },
 ];
 
+const plans = [
+    { name: 'Free', price: '$0', limit: '100/mes', gradient: 'from-gray-500 to-gray-600' },
+    { name: 'Starter', price: '$29', limit: '500/mes', gradient: 'from-blue-500 to-cyan-500' },
+    { name: 'Pro', price: '$70', limit: '2,000/mes', popular: true, gradient: 'from-purple-500 to-blue-500' },
+    { name: 'Enterprise', price: '$120', limit: 'Ilimitado', gradient: 'from-amber-500 to-orange-500' },
+];
+
+const tutorialSteps = [
+    { icon: Building2, title: 'Logo BRIK = Inicio', desc: 'Toca el logo para volver al dashboard', color: 'from-purple-500 to-blue-500' },
+    { icon: Bell, title: 'Alertas en Tiempo Real', desc: 'Recibe notificaciones de eventos importantes', color: 'from-orange-500 to-amber-500' },
+    { icon: Users, title: 'En Obra = Total en Vivo', desc: 'Personas dentro de la obra ahora mismo', color: 'from-green-500 to-teal-500' },
+    { icon: Calendar, title: 'Calendario = Historial', desc: 'Revisa registros de días pasados', color: 'from-blue-500 to-cyan-500' },
+];
+
+type Step = 'welcome' | 'plans' | 'tutorial';
+
 export default function WelcomeModal({ onComplete }: WelcomeModalProps) {
-    const [step, setStep] = useState<'welcome' | 'plans' | 'tutorial'>('welcome');
-    const { subscription } = useSubscription();
+    const [step, setStep] = useState<Step>('welcome');
     const { currentSite } = useSite();
+    const { user } = useAuth();
+
+    const userName = user?.user_metadata?.full_name?.split(' ')[0] || '';
+    const stepIndex = step === 'welcome' ? 0 : step === 'plans' ? 1 : 2;
 
     return (
         <Dialog open onOpenChange={() => { }}>
-            <DialogContent className="max-w-lg bg-gradient-to-br from-slate-900 via-purple-900/90 to-slate-900 border-purple-500/30 text-white">
-                {step === 'welcome' && (
-                    <>
-                        <DialogHeader className="text-center pb-4">
-                            <div className="mx-auto mb-4 w-16 h-16 rounded-2xl bg-gradient-to-br from-purple-500 to-blue-500 flex items-center justify-center">
-                                <Sparkles className="w-8 h-8 text-white" />
-                            </div>
-                            <DialogTitle className="text-2xl font-bold text-white">
-                                ¡Bienvenido a BRIK Pro!
-                            </DialogTitle>
-                            <DialogDescription className="text-white/70 text-base mt-2">
-                                Tu obra <span className="text-purple-300 font-medium">{currentSite?.name}</span> está lista.
-                                <br />
-                                Estás en el <span className="text-green-400 font-semibold">Plan Trial (14 días gratis)</span>.
-                            </DialogDescription>
-                        </DialogHeader>
+            <DialogContent
+                className="max-w-md p-0 border-0 overflow-hidden bg-transparent shadow-2xl"
+                style={{ background: 'none' }}
+            >
+                {/* Glass container */}
+                <div
+                    className="relative overflow-hidden rounded-2xl"
+                    style={{
+                        background: 'rgba(15, 15, 25, 0.92)',
+                        backdropFilter: 'blur(40px)',
+                        border: '1px solid rgba(255,255,255,0.08)',
+                    }}
+                >
+                    {/* Animated gradient header */}
+                    <div
+                        className="absolute top-0 left-0 right-0 h-40 opacity-60"
+                        style={{
+                            background: 'linear-gradient(135deg, rgba(139, 92, 246, 0.4) 0%, rgba(59, 130, 246, 0.3) 50%, rgba(16, 185, 129, 0.2) 100%)',
+                            filter: 'blur(30px)',
+                        }}
+                    />
 
-                        <div className="bg-white/10 rounded-xl p-4 border border-white/20 mb-4">
-                            <div className="flex items-center gap-3 mb-3">
-                                <Zap className="w-5 h-5 text-yellow-400" />
-                                <span className="font-medium">Incluido en tu Trial:</span>
-                            </div>
-                            <ul className="space-y-2 text-sm text-white/80">
-                                <li className="flex items-center gap-2">
-                                    <Check className="w-4 h-4 text-green-400" />
-                                    2000 registros de acceso por mes
-                                </li>
-                                <li className="flex items-center gap-2">
-                                    <Check className="w-4 h-4 text-green-400" />
-                                    Dashboard en tiempo real
-                                </li>
-                                <li className="flex items-center gap-2">
-                                    <Check className="w-4 h-4 text-green-400" />
-                                    Alertas y reportes avanzados
-                                </li>
-                            </ul>
-                        </div>
+                    {/* Progress dots */}
+                    <div className="relative flex justify-center gap-2 pt-6 pb-2">
+                        {[0, 1, 2].map(i => (
+                            <div
+                                key={i}
+                                className={`h-1 rounded-full transition-all duration-500 ${i === stepIndex
+                                    ? 'w-8 bg-purple-400'
+                                    : i < stepIndex
+                                        ? 'w-4 bg-purple-500/50'
+                                        : 'w-4 bg-white/15'
+                                    }`}
+                            />
+                        ))}
+                    </div>
 
-                        <div className="flex gap-3">
-                            <Button
-                                variant="outline"
-                                className="flex-1 border-white/30 text-white hover:bg-white/10"
-                                onClick={() => setStep('plans')}
-                            >
-                                Ver planes
-                            </Button>
-                            <Button
-                                className="flex-1 bg-gradient-to-r from-purple-500 to-blue-500 hover:from-purple-600 hover:to-blue-600"
-                                onClick={() => setStep('tutorial')}
-                            >
-                                Continuar
-                                <ArrowRight className="w-4 h-4 ml-2" />
-                            </Button>
-                        </div>
-                    </>
-                )}
-
-                {step === 'plans' && (
-                    <>
-                        <DialogHeader className="text-center pb-4">
-                            <DialogTitle className="text-xl font-bold text-white">
-                                Elige tu Plan
-                            </DialogTitle>
-                        </DialogHeader>
-
-                        <div className="space-y-3">
-                            {plans.map((plan) => (
-                                <div
-                                    key={plan.name}
-                                    className={`p-4 rounded-xl border transition-all ${plan.popular
-                                            ? 'bg-purple-500/20 border-purple-400 ring-2 ring-purple-400/50'
-                                            : 'bg-white/5 border-white/20 hover:border-white/40'
-                                        }`}
-                                >
-                                    <div className="flex items-center justify-between mb-2">
-                                        <div className="flex items-center gap-2">
-                                            <span className="font-semibold text-lg">{plan.name}</span>
-                                            {plan.popular && (
-                                                <span className="text-xs bg-purple-500 text-white px-2 py-0.5 rounded-full">
-                                                    Popular
-                                                </span>
-                                            )}
-                                        </div>
-                                        <div className="text-right">
-                                            <span className="text-xl font-bold">{plan.price}</span>
-                                            {plan.price !== '$0' && <span className="text-white/60 text-sm">/mes</span>}
-                                        </div>
+                    <div className="relative p-6 pt-4">
+                        {/* ─── Welcome Step ─── */}
+                        {step === 'welcome' && (
+                            <div className="animate-in fade-in slide-in-from-right-4 duration-300">
+                                {/* Icon */}
+                                <div className="flex justify-center mb-5">
+                                    <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-purple-500 to-blue-500 flex items-center justify-center shadow-lg shadow-purple-500/30">
+                                        <Sparkles className="w-8 h-8 text-white" />
                                     </div>
-                                    <p className="text-sm text-white/60">{plan.limit} registros</p>
                                 </div>
-                            ))}
-                        </div>
 
-                        <Button
-                            className="w-full mt-4 bg-gradient-to-r from-purple-500 to-blue-500"
-                            onClick={() => setStep('tutorial')}
-                        >
-                            Empezar con Trial
-                            <ArrowRight className="w-4 h-4 ml-2" />
-                        </Button>
-                    </>
-                )}
+                                {/* Title */}
+                                <div className="text-center mb-6">
+                                    <h2 className="text-2xl font-bold text-white mb-2">
+                                        {userName ? `¡Hola ${userName}!` : '¡Bienvenido!'}
+                                    </h2>
+                                    <p className="text-white/60 text-sm">
+                                        Tu obra <span className="text-purple-300 font-medium">{currentSite?.name}</span> está lista.
+                                    </p>
+                                    <div className="inline-flex items-center gap-2 mt-3 px-3 py-1.5 rounded-full bg-green-500/15 border border-green-500/20">
+                                        <div className="w-2 h-2 rounded-full bg-green-400 animate-pulse" />
+                                        <span className="text-green-400 text-xs font-medium">Trial Pro · 14 días gratis</span>
+                                    </div>
+                                </div>
 
-                {step === 'tutorial' && (
-                    <>
-                        <DialogHeader className="text-center pb-4">
-                            <div className="mx-auto mb-4 w-16 h-16 rounded-2xl bg-gradient-to-br from-green-500 to-teal-500 flex items-center justify-center">
-                                <Building2 className="w-8 h-8 text-white" />
-                            </div>
-                            <DialogTitle className="text-xl font-bold text-white">
-                                Conoce tu Dashboard
-                            </DialogTitle>
-                            <DialogDescription className="text-white/70 text-sm mt-2">
-                                Aquí está lo más importante:
-                            </DialogDescription>
-                        </DialogHeader>
+                                {/* Features grid */}
+                                <div className="grid grid-cols-2 gap-2.5 mb-6">
+                                    {trialFeatures.map((feat) => (
+                                        <div
+                                            key={feat.label}
+                                            className="group p-3 rounded-xl border border-white/8 bg-white/[0.03] hover:bg-white/[0.06] transition-all duration-200"
+                                        >
+                                            <div className={`w-8 h-8 rounded-lg bg-gradient-to-br ${feat.color} flex items-center justify-center mb-2 shadow-sm group-hover:scale-110 transition-transform duration-200`}>
+                                                <feat.icon className="w-4 h-4 text-white" />
+                                            </div>
+                                            <p className="text-xs text-white/70 leading-tight">{feat.label}</p>
+                                        </div>
+                                    ))}
+                                </div>
 
-                        <div className="space-y-3 text-sm">
-                            <div className="flex items-start gap-3 bg-white/10 p-3 rounded-xl">
-                                <div className="w-8 h-8 rounded-lg bg-purple-500/30 flex items-center justify-center flex-shrink-0">
-                                    <span className="text-purple-300 font-bold">1</span>
-                                </div>
-                                <div>
-                                    <p className="font-medium text-white">Logo BRIK = Inicio</p>
-                                    <p className="text-white/60">Toca el logo para volver al dashboard</p>
-                                </div>
-                            </div>
-
-                            <div className="flex items-start gap-3 bg-white/10 p-3 rounded-xl">
-                                <div className="w-8 h-8 rounded-lg bg-orange-500/30 flex items-center justify-center flex-shrink-0">
-                                    <span className="text-orange-300 font-bold">2</span>
-                                </div>
-                                <div>
-                                    <p className="font-medium text-white">Alerta / Riesgo</p>
-                                    <p className="text-white/60">Trabajadores cerca del límite de tiempo</p>
-                                </div>
-                            </div>
-
-                            <div className="flex items-start gap-3 bg-white/10 p-3 rounded-xl">
-                                <div className="w-8 h-8 rounded-lg bg-green-500/30 flex items-center justify-center flex-shrink-0">
-                                    <span className="text-green-300 font-bold">3</span>
-                                </div>
-                                <div>
-                                    <p className="font-medium text-white">En Obra = Total en Vivo</p>
-                                    <p className="text-white/60">Personas dentro de la obra ahora mismo</p>
+                                {/* Actions */}
+                                <div className="flex gap-2.5">
+                                    <Button
+                                        variant="ghost"
+                                        className="flex-1 h-11 text-white/50 hover:text-white hover:bg-white/8 rounded-xl text-sm"
+                                        onClick={() => setStep('plans')}
+                                    >
+                                        Ver planes
+                                    </Button>
+                                    <Button
+                                        className="flex-1 h-11 bg-gradient-to-r from-purple-500 to-blue-500 hover:from-purple-600 hover:to-blue-600 text-white rounded-xl font-medium text-sm shadow-lg shadow-purple-500/20 hover:shadow-purple-500/30 transition-all duration-300 hover:scale-[1.02] active:scale-[0.98]"
+                                        onClick={() => setStep('tutorial')}
+                                    >
+                                        Continuar
+                                        <ArrowRight className="w-4 h-4 ml-1.5" />
+                                    </Button>
                                 </div>
                             </div>
+                        )}
 
-                            <div className="flex items-start gap-3 bg-white/10 p-3 rounded-xl">
-                                <div className="w-8 h-8 rounded-lg bg-blue-500/30 flex items-center justify-center flex-shrink-0">
-                                    <span className="text-blue-300 font-bold">4</span>
+                        {/* ─── Plans Step ─── */}
+                        {step === 'plans' && (
+                            <div className="animate-in fade-in slide-in-from-right-4 duration-300">
+                                <div className="text-center mb-5">
+                                    <h2 className="text-xl font-bold text-white">Planes disponibles</h2>
+                                    <p className="text-white/40 text-xs mt-1">Después del trial, elige el plan ideal</p>
                                 </div>
-                                <div>
-                                    <p className="font-medium text-white">Calendario = Fechas Anteriores</p>
-                                    <p className="text-white/60">Revisa registros de días pasados</p>
+
+                                <div className="space-y-2 mb-5">
+                                    {plans.map((plan) => (
+                                        <div
+                                            key={plan.name}
+                                            className={`flex items-center justify-between p-3.5 rounded-xl border transition-all duration-200 cursor-default ${plan.popular
+                                                ? 'bg-purple-500/10 border-purple-500/30 ring-1 ring-purple-500/20'
+                                                : 'bg-white/[0.02] border-white/8 hover:border-white/15 hover:bg-white/[0.04]'
+                                                }`}
+                                        >
+                                            <div className="flex items-center gap-3">
+                                                <div className={`w-8 h-8 rounded-lg bg-gradient-to-br ${plan.gradient} flex items-center justify-center shadow-sm`}>
+                                                    <Shield className="w-4 h-4 text-white" />
+                                                </div>
+                                                <div>
+                                                    <div className="flex items-center gap-2">
+                                                        <span className="text-sm font-semibold text-white">{plan.name}</span>
+                                                        {plan.popular && (
+                                                            <span className="text-[10px] font-medium bg-purple-500 text-white px-1.5 py-0.5 rounded-full leading-none">
+                                                                Popular
+                                                            </span>
+                                                        )}
+                                                    </div>
+                                                    <span className="text-xs text-white/40">{plan.limit} registros</span>
+                                                </div>
+                                            </div>
+                                            <div className="text-right">
+                                                <span className="text-lg font-bold text-white">{plan.price}</span>
+                                                {plan.price !== '$0' && <span className="text-white/40 text-xs">/mes</span>}
+                                            </div>
+                                        </div>
+                                    ))}
                                 </div>
+
+                                <Button
+                                    className="w-full h-11 bg-gradient-to-r from-purple-500 to-blue-500 hover:from-purple-600 hover:to-blue-600 text-white rounded-xl font-medium text-sm shadow-lg shadow-purple-500/20 hover:scale-[1.02] active:scale-[0.98] transition-all duration-300"
+                                    onClick={() => setStep('tutorial')}
+                                >
+                                    Empezar con Trial
+                                    <ArrowRight className="w-4 h-4 ml-1.5" />
+                                </Button>
                             </div>
-                        </div>
+                        )}
 
-                        <Button
-                            className="w-full mt-4 bg-gradient-to-r from-green-500 to-teal-500 hover:from-green-600 hover:to-teal-600"
-                            onClick={onComplete}
-                        >
-                            ¡Entendido!
-                            <Check className="w-4 h-4 ml-2" />
-                        </Button>
-                    </>
-                )}
+                        {/* ─── Tutorial Step ─── */}
+                        {step === 'tutorial' && (
+                            <div className="animate-in fade-in slide-in-from-right-4 duration-300">
+                                {/* Icon */}
+                                <div className="flex justify-center mb-5">
+                                    <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-green-500 to-teal-500 flex items-center justify-center shadow-lg shadow-green-500/30">
+                                        <Zap className="w-8 h-8 text-white" />
+                                    </div>
+                                </div>
+
+                                <div className="text-center mb-5">
+                                    <h2 className="text-xl font-bold text-white">Guía rápida</h2>
+                                    <p className="text-white/40 text-xs mt-1">Lo esencial para empezar</p>
+                                </div>
+
+                                <div className="space-y-2.5 mb-6">
+                                    {tutorialSteps.map((item, i) => (
+                                        <div
+                                            key={i}
+                                            className="flex items-center gap-3 p-3 rounded-xl border border-white/8 bg-white/[0.02] hover:bg-white/[0.05] transition-all duration-200"
+                                        >
+                                            <div className={`w-9 h-9 rounded-xl bg-gradient-to-br ${item.color} flex items-center justify-center shadow-sm flex-shrink-0`}>
+                                                <item.icon className="w-4.5 h-4.5 text-white" />
+                                            </div>
+                                            <div className="min-w-0">
+                                                <p className="text-sm font-medium text-white">{item.title}</p>
+                                                <p className="text-xs text-white/40 truncate">{item.desc}</p>
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+
+                                <Button
+                                    className="w-full h-11 bg-gradient-to-r from-green-500 to-teal-500 hover:from-green-600 hover:to-teal-600 text-white rounded-xl font-medium text-sm shadow-lg shadow-green-500/20 hover:scale-[1.02] active:scale-[0.98] transition-all duration-300"
+                                    onClick={onComplete}
+                                >
+                                    <Check className="w-4 h-4 mr-1.5" />
+                                    ¡Entendido, empezar!
+                                </Button>
+                            </div>
+                        )}
+                    </div>
+                </div>
             </DialogContent>
         </Dialog>
     );
