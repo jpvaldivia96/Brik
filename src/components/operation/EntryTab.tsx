@@ -8,7 +8,7 @@ import { PersonCard } from '@/components/ui/person-card';
 import { AlertCosmos } from '@/components/ui/alert-cosmos';
 import { Spinner } from '@/components/ui/spinner';
 import type { PersonSearchResult } from '@/lib/types';
-import { LogIn, Camera, SwitchCamera, ShieldAlert } from 'lucide-react';
+import { LogIn, Camera, SwitchCamera, ShieldAlert, Shield } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useFace } from '@/hooks/useFace';
 import { triggerDashboardRefresh } from '@/lib/dashboardRefresh';
@@ -36,6 +36,8 @@ export default function EntryTab() {
 
   // Watchlist state
   const [watchlistAlert, setWatchlistAlert] = useState<{ isBlocked: boolean; reason: string | null } | null>(null);
+  // Trust database state
+  const [trustAlert, setTrustAlert] = useState<{ severity: string; count: number; reports: any[] } | null>(null);
 
   useEffect(() => {
     if (scanning) {
@@ -118,10 +120,28 @@ export default function EntryTab() {
     }
   };
 
+  // Check trust database (cross-site reports)
+  const checkTrustDatabase = async (ci: string) => {
+    const { data } = await (supabase as any)
+      .from('trust_reports')
+      .select('severity, reason, category, reported_at')
+      .eq('ci', ci)
+      .eq('is_active', true)
+      .order('severity', { ascending: false })
+      .limit(5);
+
+    if (data && data.length > 0) {
+      setTrustAlert({ severity: data[0].severity, count: data.length, reports: data });
+    } else {
+      setTrustAlert(null);
+    }
+  };
+
   // Select person and check watchlist
   const selectPerson = (person: PersonSearchResult) => {
     setSelected(person);
     checkWatchlist(person.id);
+    checkTrustDatabase(person.ci);
   };
 
   const handleScanCapture = async () => {
@@ -531,6 +551,39 @@ export default function EntryTab() {
                     <p className="text-sm text-red-300/80 mt-0.5">Motivo: {watchlistAlert.reason}</p>
                   )}
                   <p className="text-xs text-red-300/60 mt-1">El guardia debe decidir si permite la entrada.</p>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Trust Database Alert */}
+          {trustAlert && (
+            <div className={`p-4 border-2 rounded-xl ${
+              trustAlert.severity === 'grave' ? 'bg-red-500/15 border-red-500/40' :
+              trustAlert.severity === 'moderado' ? 'bg-orange-500/15 border-orange-500/40' :
+              'bg-yellow-500/15 border-yellow-500/40'
+            }`}>
+              <div className="flex items-center gap-3">
+                <div className={`w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 ${
+                  trustAlert.severity === 'grave' ? 'bg-red-500' :
+                  trustAlert.severity === 'moderado' ? 'bg-orange-500' : 'bg-yellow-500'
+                }`}>
+                  <Shield className="w-5 h-5 text-white" />
+                </div>
+                <div>
+                  <p className={`font-semibold ${
+                    trustAlert.severity === 'grave' ? 'text-red-400' :
+                    trustAlert.severity === 'moderado' ? 'text-orange-400' : 'text-yellow-400'
+                  }`}>
+                    {trustAlert.severity === 'grave' ? '🔴' : trustAlert.severity === 'moderado' ? '🟠' : '🟡'}
+                    {' '}ALERTA — Red de Seguridad ({trustAlert.count} reporte{trustAlert.count > 1 ? 's' : ''})
+                  </p>
+                  {trustAlert.reports.slice(0, 2).map((r: any, i: number) => (
+                    <p key={i} className="text-sm text-white/60 mt-0.5">
+                      • {r.category || 'Incidente'}: {r.reason?.substring(0, 80)}{r.reason?.length > 80 ? '...' : ''}
+                    </p>
+                  ))}
+                  <p className="text-xs text-white/40 mt-1 italic">Fuente: Reportes de otras obras en BRIK</p>
                 </div>
               </div>
             </div>

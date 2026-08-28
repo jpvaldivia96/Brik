@@ -27,6 +27,7 @@ import UserManagementTab from '@/components/supervisor/UserManagementTab';
 import { PersonalNotificationSettings } from '@/components/settings/PersonalNotificationSettings';
 import StatisticsPanel from '@/components/analytics/StatisticsPanel';
 import InspectionNotesPanel from '@/components/inspection/InspectionNotesPanel';
+import TrustDatabasePanel from '@/components/trust/TrustDatabasePanel';
 import { UsageBanner } from '@/components/subscription/UsageBanner';
 import { LimitBlockModal } from '@/components/subscription/LimitBlockModal';
 import { useSubscription } from '@/hooks/useSubscription';
@@ -83,12 +84,12 @@ function DateTimeDisplay() {
   const formatTime = () => formatSiteTime(now, timezone);
 
   return (
-    <div className="flex items-center gap-2">
-      <span className="text-xs text-white/50 mt-0.5">
+    <div className="flex items-center gap-1.5">
+      <span className="text-[11px] text-white/35 font-light whitespace-nowrap">
         {formatDate()} · {formatTime()} {countryFlag}
       </span>
       {weatherStatus && (
-        <span className="text-xs bg-orange-500/20 text-orange-300 px-2 py-0.5 rounded-full border border-orange-500/30">
+        <span className="text-[10px] bg-orange-500/20 text-orange-300 px-1.5 py-0.5 rounded-full border border-orange-500/30">
           {weatherStatus}
         </span>
       )}
@@ -184,6 +185,8 @@ export default function MainLayout() {
         return <ImportTab />;
       case 'billing':
         return <BillingPage />;
+      case 'trust-db':
+        return <TrustDatabasePanel />;
       default:
         return <DashboardPanel />;
     }
@@ -204,6 +207,7 @@ export default function MainLayout() {
       reports: 'Reportes',
       import: 'Importar',
       billing: 'Facturación',
+      'trust-db': 'Red de Seguridad',
     };
     return titles[activeAdminPanel] || 'BRIK';
   };
@@ -222,7 +226,7 @@ export default function MainLayout() {
       />
 
       {/* Header */}
-      <header className="backdrop-blur-xl bg-white/5 border-b border-white/10 sticky top-0 z-40">
+      <header className="backdrop-blur-xl bg-white/5 border-b border-white/10 sticky top-0 z-40" style={{ paddingTop: 'env(safe-area-inset-top, 0px)' }}>
         {/* Admin Mode Banner */}
         {isInAdminMode && (
           <div className="bg-purple-600/90 px-4 py-2 flex items-center justify-between">
@@ -242,7 +246,8 @@ export default function MainLayout() {
             </Button>
           </div>
         )}
-        <div className="max-w-2xl mx-auto px-4 h-40 flex items-center justify-between">
+        {/* Row 1: Logo left + Site name & icons right */}
+        <div className="max-w-2xl mx-auto px-4 h-20 flex items-center justify-between">
           <div className="flex items-center">
             {/* BRIK Brand - Home Button */}
             <Button id="tutorial-logo" variant="ghost" className="p-0 hover:bg-transparent" onClick={goHome}>
@@ -250,38 +255,29 @@ export default function MainLayout() {
             </Button>
           </div>
 
-          <div className="flex items-start gap-3">
-            {/* Site Dropdown + Plan + Date/Time */}
-            <div className="flex flex-col items-end">
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <button id="tutorial-site-selector" className="flex items-center gap-2 text-sm font-medium text-white/80 hover:text-white transition-colors cursor-pointer">
-                    {currentSite?.name}
-                    <ChevronDown className="w-4 h-4" />
-                  </button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="bg-slate-800 border-white/20 min-w-[180px]">
-                  {sites.map(site => (
-                    <DropdownMenuItem
-                      key={site.id}
-                      onClick={() => selectSite(site.id)}
-                      className={`cursor-pointer text-white hover:!bg-white/20 focus:!bg-white/20 ${currentSite?.id === site.id ? 'bg-white/10' : ''}`}
-                    >
-                      <Building2 className="w-4 h-4 mr-2" />
-                      {site.name}
-                    </DropdownMenuItem>
-                  ))}
-                </DropdownMenuContent>
-              </DropdownMenu>
-              {/* Plan Badge */}
-              <span className="text-xs text-white/50 mt-0.5">
-                {subscription?.plan === 'enterprise' ? 'Enterprise' :
-                  subscription?.plan === 'pro' ? 'Pro' :
-                    subscription?.status === 'trial' ? 'Trial' : 'Free'}
-              </span>
-            {/* Date/Time */}
-              <DateTimeDisplay />
-            </div>
+          {/* Right: Site name + all icons in one clean row */}
+          <div className="flex items-center gap-1.5">
+            {/* Site Dropdown */}
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <button id="tutorial-site-selector" className="flex items-center gap-1 text-sm font-medium text-white/80 hover:text-white transition-colors cursor-pointer mr-1">
+                  {currentSite?.name}
+                  <ChevronDown className="w-3.5 h-3.5" />
+                </button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="bg-slate-800 border-white/20 min-w-[180px]">
+                {sites.map(site => (
+                  <DropdownMenuItem
+                    key={site.id}
+                    onClick={() => selectSite(site.id)}
+                    className={`cursor-pointer text-white hover:!bg-white/20 focus:!bg-white/20 ${currentSite?.id === site.id ? 'bg-white/10' : ''}`}
+                  >
+                    <Building2 className="w-4 h-4 mr-2" />
+                    {site.name}
+                  </DropdownMenuItem>
+                ))}
+              </DropdownMenuContent>
+            </DropdownMenu>
 
             {/* Notification Bell - visible to all */}
             <NotificationBell />
@@ -292,7 +288,7 @@ export default function MainLayout() {
                 variant="ghost"
                 size="icon"
                 onClick={() => navigate('/brik-control')}
-                className="w-10 h-10 rounded-xl transition-all duration-300 hover:bg-purple-500/20 hover:scale-105 -mt-1"
+                className="w-9 h-9 rounded-xl transition-all duration-300 hover:bg-purple-500/20 hover:scale-105"
                 title="Panel de Control"
               >
                 <Crown className="w-5 h-5 text-purple-400" />
@@ -306,9 +302,9 @@ export default function MainLayout() {
                 variant="ghost"
                 size="icon"
                 onClick={() => setAdminDrawerOpen(true)}
-                className="w-10 h-10 rounded-xl transition-all duration-300 hover:bg-white/10 hover:scale-105 -mt-1"
+                className="w-9 h-9 rounded-xl transition-all duration-300 hover:bg-white/10 hover:scale-105"
               >
-                <Briefcase className="w-7 h-7 text-white/80" />
+                <Briefcase className="w-6 h-6 text-white/80" />
               </Button>
             )}
 
@@ -318,10 +314,10 @@ export default function MainLayout() {
                 variant="ghost"
                 size="icon"
                 onClick={signOut}
-                className="w-10 h-10 rounded-xl transition-all duration-300 hover:bg-white/10 hover:scale-105 -mt-1"
+                className="w-9 h-9 rounded-xl transition-all duration-300 hover:bg-white/10 hover:scale-105"
                 title="Cerrar sesión"
               >
-                <LogOut className="w-6 h-6 text-white/60" />
+                <LogOut className="w-5 h-5 text-white/60" />
               </Button>
             )}
           </div>

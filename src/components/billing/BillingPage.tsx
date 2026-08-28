@@ -5,7 +5,8 @@ import { supabase } from '@/integrations/supabase/client';
 import {
   Crown, Zap, Building2, Check, X, CreditCard, TrendingUp,
   MessageCircle, ArrowRight, Sparkles, Shield, BarChart3,
-  Bell, Bot, Users, Eye, FileText, ChevronDown, ChevronUp
+  Bell, Bot, Users, Eye, FileText, ChevronDown, ChevronUp,
+  Key, Copy, CheckCircle2
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
@@ -537,6 +538,8 @@ function PaymentSection({
   const [proofUrl, setProofUrl] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
   const [savingBilling, setSavingBilling] = useState(false);
+  const [generatedKey, setGeneratedKey] = useState<string | null>(null);
+  const [keyCopied, setKeyCopied] = useState(false);
   const { toast } = useToast();
 
   // Fetch existing billing info on mount
@@ -634,22 +637,51 @@ function PaymentSection({
     }
   };
 
-  // Handle confirm & go to WhatsApp
-  const handleConfirmWhatsApp = async () => {
+  // Generate a unique license key
+  const generateLicenseKey = async (): Promise<string | null> => {
+    const planCode = selectedPlan.id === 'starter' ? 'STR' : selectedPlan.id === 'pro' ? 'PRO' : 'ENT';
+    const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+    const segment = () => Array.from({ length: 4 }, () => chars[Math.floor(Math.random() * chars.length)]).join('');
+    const code = `BRIK-${planCode}-${segment()}-${segment()}`;
+
+    try {
+      const { error } = await (supabase as any)
+        .from('license_keys')
+        .insert({
+          code,
+          plan_tier: selectedPlan.id,
+          duration_days: 30,
+          status: 'available',
+        });
+      if (error) throw error;
+      return code;
+    } catch (e: any) {
+      toast({ title: 'Error generando código', description: e.message, variant: 'destructive' });
+      return null;
+    }
+  };
+
+  // Handle proof upload + key generation
+  const handleProofAndGenerateKey = async () => {
     let finalProofUrl = proofUrl;
     if (proofFile && !proofUrl) {
       finalProofUrl = await uploadProof();
+      if (!finalProofUrl && proofFile) return; // upload failed
     }
-    const message = encodeURIComponent(
-      `Hola! Pagué por el plan ${selectedPlan.name} para la obra "${siteName}".\n\n` +
-      `📋 Datos de facturación:\n` +
-      `• Nombre/Razón Social: ${billingInfo.business_name}\n` +
-      `• NIT/CI: ${billingInfo.tax_id}\n` +
-      `• Email: ${billingInfo.billing_email}\n` +
-      `• Monto: Bs ${selectedPlan.priceBs}/mes (~$${selectedPlan.price} USD)\n` +
-      (finalProofUrl ? `\n📎 Comprobante: ${finalProofUrl}` : '')
-    );
-    window.open(`https://wa.me/59178997696?text=${message}`, '_blank');
+    // Generate the license key
+    const key = await generateLicenseKey();
+    if (key) {
+      setGeneratedKey(key);
+      setStep('confirm');
+    }
+  };
+
+  const copyKey = async () => {
+    if (!generatedKey) return;
+    await navigator.clipboard.writeText(generatedKey);
+    setKeyCopied(true);
+    setTimeout(() => setKeyCopied(false), 3000);
+    toast({ title: '¡Copiado!', description: 'Pega el código en "Activar plan"' });
   };
 
   const stepIndex = step === 'qr' ? 0 : step === 'billing' ? 1 : step === 'proof' ? 2 : 3;
@@ -895,22 +927,15 @@ function PaymentSection({
 
               <div className="space-y-2">
                 <Button
-                  onClick={async () => {
-                    if (proofFile) {
-                      const url = await uploadProof();
-                      if (url) setStep('confirm');
-                    } else {
-                      setStep('confirm');
-                    }
-                  }}
-                  disabled={uploading}
+                  onClick={handleProofAndGenerateKey}
+                  disabled={uploading || !proofFile}
                   className="w-full h-11 rounded-xl bg-gradient-to-r from-purple-500 to-blue-500 hover:from-purple-600 hover:to-blue-600 text-white font-medium shadow-lg shadow-purple-500/15 hover:scale-[1.02] active:scale-[0.98] transition-all duration-300"
                 >
                   {uploading ? (
                     <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-2" />
                   ) : null}
-                  {proofFile ? 'Subir y continuar' : 'Continuar sin comprobante'}
-                  <ArrowRight className="w-4 h-4 ml-1.5" />
+                  {uploading ? 'Procesando...' : 'Subir y obtener código'}
+                  <Key className="w-4 h-4 ml-1.5" />
                 </Button>
                 <Button
                   onClick={() => setStep('billing')}
@@ -923,18 +948,42 @@ function PaymentSection({
             </div>
           )}
 
-          {/* ─── Step 4: Confirm ─── */}
+          {/* ─── Step 4: License Key Generated ─── */}
           {step === 'confirm' && (
             <div className="animate-in fade-in slide-in-from-right-4 duration-300">
-              <div className="text-center mb-4">
-                <div className="inline-flex w-12 h-12 rounded-full bg-gradient-to-br from-green-500 to-teal-500 items-center justify-center mb-2.5 shadow-lg shadow-green-500/25">
-                  <Check className="w-6 h-6 text-white" />
+              <div className="text-center mb-5">
+                <div className="inline-flex w-14 h-14 rounded-full bg-gradient-to-br from-green-500 to-emerald-500 items-center justify-center mb-3 shadow-lg shadow-green-500/30 animate-in zoom-in duration-500">
+                  <CheckCircle2 className="w-7 h-7 text-white" />
                 </div>
-                <h2 className="text-lg font-bold text-white">¡Todo listo!</h2>
-                <p className="text-xs text-white/40 mt-0.5">Revisa el resumen y confirma</p>
+                <h2 className="text-xl font-bold text-white">¡Pago recibido!</h2>
+                <p className="text-xs text-white/50 mt-1">Tu código de activación está listo</p>
               </div>
 
-              <div className="rounded-xl bg-white/[0.03] border border-white/6 p-3.5 mb-4 space-y-2">
+              {/* License Key Display */}
+              <div className="rounded-2xl bg-gradient-to-br from-white/[0.06] to-white/[0.02] border border-white/10 p-5 mb-4">
+                <p className="text-[10px] uppercase tracking-widest text-white/30 mb-2 text-center">Tu código de licencia</p>
+                <div 
+                  onClick={copyKey}
+                  className="relative flex items-center justify-center gap-2 px-4 py-3.5 rounded-xl bg-black/40 border border-purple-400/20 cursor-pointer hover:border-purple-400/40 transition-all group"
+                >
+                  <code className="text-base font-mono font-bold text-purple-300 tracking-wider select-all">
+                    {generatedKey}
+                  </code>
+                  <div className="flex-shrink-0 ml-1">
+                    {keyCopied ? (
+                      <CheckCircle2 className="w-4 h-4 text-green-400" />
+                    ) : (
+                      <Copy className="w-4 h-4 text-white/30 group-hover:text-purple-400 transition-colors" />
+                    )}
+                  </div>
+                </div>
+                <p className="text-[10px] text-white/30 text-center mt-2">
+                  {keyCopied ? '✅ ¡Copiado!' : 'Toca para copiar'}
+                </p>
+              </div>
+
+              {/* Summary */}
+              <div className="rounded-xl bg-white/[0.03] border border-white/6 p-3 mb-4 space-y-1.5">
                 <div className="flex justify-between text-xs">
                   <span className="text-white/40">Plan</span>
                   <span className="text-white font-semibold">{selectedPlan.name}</span>
@@ -943,50 +992,26 @@ function PaymentSection({
                   <span className="text-white/40">Monto</span>
                   <span className="text-white font-bold">Bs {selectedPlan.priceBs}/mes</span>
                 </div>
-                <div className="border-t border-white/5 pt-2 mt-2">
-                  <div className="flex justify-between text-xs">
-                    <span className="text-white/40">Factura a</span>
-                    <span className="text-white/80">{billingInfo.business_name}</span>
-                  </div>
-                  <div className="flex justify-between text-xs mt-1">
-                    <span className="text-white/40">NIT</span>
-                    <span className="text-white/80">{billingInfo.tax_id}</span>
-                  </div>
-                  <div className="flex justify-between text-xs mt-1">
-                    <span className="text-white/40">Email</span>
-                    <span className="text-white/80 truncate ml-4">{billingInfo.billing_email}</span>
-                  </div>
+                <div className="flex justify-between text-xs">
+                  <span className="text-white/40">Factura</span>
+                  <span className="text-white/70">{billingInfo.business_name}</span>
                 </div>
-                {proofUrl && (
-                  <div className="border-t border-white/5 pt-2 mt-2 flex items-center gap-2">
-                    <div className="w-5 h-5 rounded bg-green-500/15 flex items-center justify-center">
-                      <Check className="w-3 h-3 text-green-400" />
-                    </div>
-                    <span className="text-xs text-green-400">Comprobante adjuntado</span>
-                  </div>
-                )}
               </div>
 
-              <p className="text-[10px] text-white/30 text-center mb-3 leading-relaxed">
-                Se abrirá WhatsApp con todos tus datos. Te activaremos el plan en minutos.
-              </p>
-
-              <div className="space-y-2">
-                <Button
-                  onClick={handleConfirmWhatsApp}
-                  className="w-full h-11 rounded-xl bg-green-500 hover:bg-green-600 text-white font-medium shadow-lg shadow-green-500/15 hover:scale-[1.02] active:scale-[0.98] transition-all duration-300"
-                >
-                  <MessageCircle className="w-4 h-4 mr-2" />
-                  Enviar por WhatsApp
-                </Button>
-                <Button
-                  onClick={() => setStep('proof')}
-                  variant="ghost"
-                  className="w-full h-9 text-white/30 hover:text-white/50 hover:bg-white/5 text-sm"
-                >
-                  ← Volver
-                </Button>
+              <div className="rounded-xl bg-purple-500/[0.08] border border-purple-400/15 p-3 mb-4">
+                <p className="text-xs text-purple-300/80 text-center leading-relaxed">
+                  <Key className="w-3.5 h-3.5 inline-block mr-1 -mt-0.5" />
+                  Copia el código y pégalo en la sección <strong className="text-purple-200">"Activar plan"</strong> de tu panel de facturación.
+                </p>
               </div>
+
+              <Button
+                onClick={onCancel}
+                className="w-full h-11 rounded-xl bg-gradient-to-r from-purple-500 to-blue-500 hover:from-purple-600 hover:to-blue-600 text-white font-medium shadow-lg shadow-purple-500/15 hover:scale-[1.02] active:scale-[0.98] transition-all duration-300"
+              >
+                Ir a activar mi plan
+                <ArrowRight className="w-4 h-4 ml-1.5" />
+              </Button>
             </div>
           )}
         </div>
@@ -1003,6 +1028,8 @@ export default function BillingPage() {
   const { toast } = useToast();
   const [selectedPlan, setSelectedPlan] = useState<typeof PLANS[0] | null>(null);
   const [billingCycle, setBillingCycle] = useState<'monthly' | 'annual'>('monthly');
+  const [activationCode, setActivationCode] = useState('');
+  const [activating, setActivating] = useState(false);
   const isAnnual = billingCycle === 'annual';
 
   if (loading) {
@@ -1025,6 +1052,67 @@ export default function BillingPage() {
 
     const plan = PLANS.find(p => p.id === planId);
     if (plan) setSelectedPlan(plan);
+  };
+
+  const handleActivateCode = async () => {
+    if (!activationCode.trim() || !currentSite) return;
+    setActivating(true);
+    
+    try {
+      // 1. Verify code
+      const { data: keys, error: keyError } = await (supabase as any)
+        .from('license_keys')
+        .select('*')
+        .eq('code', activationCode.trim())
+        .eq('status', 'available');
+        
+      if (keyError) throw keyError;
+      if (!keys || keys.length === 0) {
+        toast({ title: 'Código inválido', description: 'El código no existe o ya fue usado', variant: 'destructive' });
+        return;
+      }
+      
+      const licenseKey = keys[0];
+      
+      // 2. Update subscription
+      const limits: Record<string, number> = {
+        free: 100,
+        starter: 500,
+        pro: 2000,
+        enterprise: 999999,
+      };
+      
+      const { error: subError } = await (supabase as any)
+        .from('subscriptions')
+        .update({
+          plan: licenseKey.plan_tier,
+          status: 'active',
+          monthly_limit: limits[licenseKey.plan_tier] || 100,
+          updated_at: new Date().toISOString()
+        })
+        .eq('site_id', currentSite.id);
+        
+      if (subError) throw subError;
+      
+      // 3. Mark key as redeemed
+      const { error: updateKeyError } = await (supabase as any)
+        .from('license_keys')
+        .update({
+          status: 'redeemed',
+          site_id: currentSite.id,
+          redeemed_at: new Date().toISOString()
+        })
+        .eq('id', licenseKey.id);
+        
+      if (updateKeyError) throw updateKeyError;
+      
+      toast({ title: '¡Plan activado!', description: `Has activado el plan ${licenseKey.plan_tier} exitosamente.` });
+      setActivationCode('');
+    } catch (e: any) {
+      toast({ title: 'Error al activar', description: e.message, variant: 'destructive' });
+    } finally {
+      setActivating(false);
+    }
   };
 
   return (
@@ -1114,6 +1202,38 @@ export default function BillingPage() {
           <UsageChart siteId={currentSite.id} monthlyLimit={subscription.monthlyLimit} />
         </div>
       )}
+
+      {/* Code Activation */}
+      <div className="rounded-2xl border border-purple-500/30 bg-gradient-to-br from-purple-500/10 to-blue-500/5 p-4 relative overflow-hidden">
+        <div className="absolute top-0 right-0 p-4 opacity-10">
+          <Key className="w-16 h-16" />
+        </div>
+        <h3 className="text-sm font-semibold text-white flex items-center gap-2 mb-1">
+          <Key className="w-4 h-4 text-purple-400" />
+          Activar con código
+        </h3>
+        <p className="text-xs text-white/50 mb-4">Si recibiste un código de licencia, actívalo aquí.</p>
+        <div className="flex gap-2">
+          <input
+            type="text"
+            value={activationCode}
+            onChange={(e) => setActivationCode(e.target.value.toUpperCase())}
+            placeholder="BRIK-PRO-XXXX-XXXX"
+            className="flex-1 bg-black/40 border border-white/10 rounded-xl px-4 text-sm text-white font-mono uppercase focus:outline-none focus:border-purple-500/50"
+          />
+          <Button
+            onClick={handleActivateCode}
+            disabled={activating || !activationCode.trim()}
+            className="h-11 px-5 rounded-xl bg-purple-500 hover:bg-purple-600 text-white font-medium"
+          >
+            {activating ? (
+               <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+            ) : (
+               'Activar'
+            )}
+          </Button>
+        </div>
+      </div>
 
       {/* Plans */}
       <div>

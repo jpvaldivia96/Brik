@@ -345,25 +345,40 @@ async function checkExponentialGrowth(supabase: any, siteId: string, settings: a
     const now = new Date()
     const dayOfWeek = now.getDay() // 0=Sun, 1=Mon...
     
-    // This week start (last Monday)
+    // This week start (last Monday at 00:00)
     const thisWeekStart = new Date(now)
     thisWeekStart.setDate(now.getDate() - (dayOfWeek === 0 ? 6 : dayOfWeek - 1))
     thisWeekStart.setHours(0, 0, 0, 0)
 
-    // Last week boundaries
+    // How many days have elapsed this week (1=Monday, 7=Sunday)
+    const daysElapsed = dayOfWeek === 0 ? 7 : dayOfWeek
+    const isSunday = dayOfWeek === 0
+
+    // This week: from thisWeekStart to now
+    const thisWeekEnd = new Date(now)
+
+    // Last week: same number of elapsed days for fair comparison
+    // e.g., if today is Wednesday (day 3), compare Mon-Wed last week
     const lastWeekStart = new Date(thisWeekStart)
     lastWeekStart.setDate(lastWeekStart.getDate() - 7)
-    const lastWeekEnd = new Date(thisWeekStart)
+    const lastWeekEnd = new Date(lastWeekStart)
+    lastWeekEnd.setDate(lastWeekEnd.getDate() + daysElapsed)
+    // Cap at end of last week (Sunday midnight)
+    const lastWeekSunday = new Date(thisWeekStart) // thisWeekStart IS last week's Sunday midnight
+    if (lastWeekEnd > lastWeekSunday) {
+        lastWeekEnd.setTime(lastWeekSunday.getTime())
+    }
 
-    // --- Fetch this week's data ---
+    // --- Fetch this week's data (Mon to now) ---
     const { data: thisWeekLogs } = await supabase
         .from('access_logs')
         .select('person_id, contractor_snapshot, entry_at, exit_at')
         .eq('site_id', siteId)
         .gte('entry_at', thisWeekStart.toISOString())
+        .lte('entry_at', thisWeekEnd.toISOString())
         .is('voided_at', null)
 
-    // --- Fetch last week's data ---
+    // --- Fetch last week's equivalent period ---
     const { data: lastWeekLogs } = await supabase
         .from('access_logs')
         .select('person_id, contractor_snapshot, entry_at, exit_at')
@@ -375,7 +390,7 @@ async function checkExponentialGrowth(supabase: any, siteId: string, settings: a
     const tw = thisWeekLogs || []
     const lw = lastWeekLogs || []
 
-    // If no data from last week, skip (can't compare)
+    // If no data from either period, skip
     if (lw.length === 0 && tw.length === 0) return 0
 
     // --- Calculate metrics ---
@@ -438,8 +453,21 @@ async function checkExponentialGrowth(supabase: any, siteId: string, settings: a
         ? ((twMetrics.totalEntries - lwMetrics.totalEntries) / lwMetrics.totalEntries * 100).toFixed(0)
         : 'N/A'
 
+    // --- Dynamic title: full summary on Sunday, progress during the week ---
+    const dayNames = ['Dom', 'Lun', 'Mar', 'Mie', 'Jue', 'Vie', 'Sab']
+    const title = isSunday
+        ? 'Resumen Semanal'
+        : `Progreso Semanal (${dayNames[dayOfWeek]}, día ${daysElapsed}/7)`
+
+    // --- Comparison label ---
+    const compLabel = isSunday
+        ? 'vs semana anterior'
+        : `vs mismos ${daysElapsed} días sem. anterior`
+
     // --- Build message body ---
     const body = [
+        `📊 ${compLabel}`,
+        ``,
         `Entradas: ${twMetrics.totalEntries} vs ${lwMetrics.totalEntries} ${trend(twMetrics.totalEntries, lwMetrics.totalEntries)}`,
         `Salidas: ${twMetrics.totalExits} vs ${lwMetrics.totalExits} ${trend(twMetrics.totalExits, lwMetrics.totalExits)}`,
         `Trabajadores unicos: ${twMetrics.uniqueWorkers} vs ${lwMetrics.uniqueWorkers} ${trend(twMetrics.uniqueWorkers, lwMetrics.uniqueWorkers)}`,
@@ -452,7 +480,7 @@ async function checkExponentialGrowth(supabase: any, siteId: string, settings: a
     await sendAlert(supabase, {
         site_id: siteId,
         alert_type: 'exponential_growth',
-        title: 'Resumen Semanal',
+        title,
         body,
         data: {
             this_week_entries: twMetrics.totalEntries,
@@ -461,6 +489,7 @@ async function checkExponentialGrowth(supabase: any, siteId: string, settings: a
             unique_workers_tw: twMetrics.uniqueWorkers,
             unique_workers_lw: lwMetrics.uniqueWorkers,
             active_contractors: twMetrics.activeContractors,
+            days_compared: daysElapsed,
         }
     })
     return 1

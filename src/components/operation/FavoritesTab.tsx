@@ -8,7 +8,7 @@ import { SearchInput } from '@/components/ui/search-input';
 import { StatusBadge } from '@/components/ui/status-badge';
 import { Spinner } from '@/components/ui/spinner';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { Star, StarOff, ShieldAlert, ShieldOff, Search, AlertTriangle, X } from 'lucide-react';
+import { Star, StarOff, ShieldAlert, ShieldOff, Search, AlertTriangle, X, Shield } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import type { FavoriteStatus } from '@/lib/types';
 
@@ -28,6 +28,10 @@ export default function FavoritesTab() {
   const [blockModal, setBlockModal] = useState<{ open: boolean; person: any | null }>({ open: false, person: null });
   const [blockReason, setBlockReason] = useState('');
   const [blocking, setBlocking] = useState(false);
+  // Trust report state
+  const [reportToTrust, setReportToTrust] = useState(false);
+  const [trustSeverity, setTrustSeverity] = useState<'leve' | 'moderado' | 'grave'>('moderado');
+  const [trustCategory, setTrustCategory] = useState('');
 
   const fetchItems = async () => {
     if (!currentSite || !user) return;
@@ -159,6 +163,27 @@ export default function FavoritesTab() {
 
     setBlocking(false);
     setBlockModal({ open: false, person: null });
+
+    // Automatically report to trust database (Red de Seguridad)
+    if (blockReason.trim()) {
+      const person = blockModal.person;
+      await (supabase as any)
+        .from('trust_reports')
+        .insert({
+          ci: person.ci || person.people?.ci,
+          person_name: person.full_name || person.people?.full_name,
+          photo_url: person.photo_url || person.people?.photo_url || null,
+          contractor_name: person.contractor || person.people?.contractor || null,
+          category: trustCategory || null,
+          severity: trustSeverity,
+          reason: blockReason.trim(),
+          reported_by_site_id: currentSite.id,
+          reported_by_user_id: user?.id,
+          reported_by_site_name: currentSite.name,
+        });
+    }
+    setTrustCategory('');
+
     fetchItems();
     setSearchResults([]);
     setQuery('');
@@ -373,6 +398,35 @@ export default function FavoritesTab() {
               <p className="text-xs text-muted-foreground">
                 Esta persona aparecerá con una alerta cuando intente ingresar. El guardia decidirá si permite la entrada.
               </p>
+
+              {/* Red de Seguridad — Automatic report */}
+              <div className="p-3 bg-purple-500/10 border border-purple-500/30 rounded-xl space-y-2">
+                <div className="flex items-center gap-2">
+                  <Shield className="w-4 h-4 text-purple-400" />
+                  <span className="text-sm font-medium text-purple-300">Red de Seguridad</span>
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  Al bloquear, se reportará automáticamente a todas las obras de la plataforma.
+                </p>
+                <div className="grid grid-cols-3 gap-1">
+                  {(['leve', 'moderado', 'grave'] as const).map(sev => (
+                    <button
+                      key={sev}
+                      type="button"
+                      onClick={() => setTrustSeverity(sev)}
+                      className={`py-1.5 px-2 rounded-lg border text-xs font-medium transition-all ${
+                        trustSeverity === sev
+                          ? sev === 'grave' ? 'bg-red-500/20 border-red-500/40 text-red-400'
+                            : sev === 'moderado' ? 'bg-orange-500/20 border-orange-500/40 text-orange-400'
+                            : 'bg-yellow-500/20 border-yellow-500/40 text-yellow-400'
+                          : 'border-border bg-card/30 text-muted-foreground'
+                      }`}
+                    >
+                      {sev === 'grave' ? '🔴 Grave' : sev === 'moderado' ? '🟠 Moderado' : '🟡 Leve'}
+                    </button>
+                  ))}
+                </div>
+              </div>
 
               <div className="flex gap-2">
                 <Button variant="outline" className="flex-1" onClick={() => setBlockModal({ open: false, person: null })}>

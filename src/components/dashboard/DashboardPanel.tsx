@@ -16,6 +16,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogD
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
+import { useSubscription } from '@/hooks/useSubscription';
+import { getCountryFlag, formatSiteDateShort, formatSiteTime } from '@/lib/dateUtils';
 
 interface InsideLog {
   id: string;
@@ -70,6 +72,16 @@ export default function DashboardPanel() {
   const [newContractorName, setNewContractorName] = useState('');
   const [updatingContractor, setUpdatingContractor] = useState(false);
   const { toast } = useToast();
+  const { subscription } = useSubscription();
+
+  // Date/time for subtitle
+  const [now, setNow] = useState(new Date());
+  const timezone = currentSite?.timezone || 'America/La_Paz';
+  const countryFlag = getCountryFlag(timezone);
+  useEffect(() => {
+    const timer = setInterval(() => setNow(new Date()), 60000);
+    return () => clearInterval(timer);
+  }, []);
 
   // Stats
   const stats = useMemo(() => {
@@ -331,7 +343,15 @@ export default function DashboardPanel() {
     <div className="space-y-4 animate-fade-in">
       {/* Header */}
       <div className="flex items-center justify-between">
-        <h2 className="text-xl font-semibold text-white">Panel de control</h2>
+        <div>
+          <h2 className="text-xl font-semibold text-white">Panel de control</h2>
+          <p className="text-[11px] text-white/35 font-light mt-0.5">
+            {subscription?.plan === 'enterprise' ? 'Enterprise' :
+              subscription?.plan === 'pro' ? 'Pro' :
+                subscription?.status === 'trial' ? 'Trial' : 'Free'}
+            {' · '}{formatSiteDateShort(now, timezone)} · {formatSiteTime(now, timezone)} {countryFlag}
+          </p>
+        </div>
         <div className="flex items-center gap-3">
           {stats.onSite > 0 && (
             <Button

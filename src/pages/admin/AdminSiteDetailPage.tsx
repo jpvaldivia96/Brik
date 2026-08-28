@@ -184,6 +184,22 @@ export default function AdminSiteDetailPage() {
         await fetchSiteData(); // Refresh data
     };
 
+    const handlePause = async () => {
+        if (!siteId) return;
+        setSaving(true);
+        await updateSubscription(siteId, { status: 'paused' });
+        setSaving(false);
+        await fetchSiteData();
+    };
+
+    const handleResume = async () => {
+        if (!siteId) return;
+        setSaving(true);
+        await updateSubscription(siteId, { status: 'active' });
+        setSaving(false);
+        await fetchSiteData();
+    };
+
     const openWhatsApp = (phone?: string) => {
         const message = `Hola! Soy del equipo de BRIK. Te contacto respecto a la obra "${site?.name}"...`;
         const url = phone
@@ -337,6 +353,8 @@ export default function AdminSiteDetailPage() {
                                 saving={saving}
                                 onSave={handleSave}
                                 onWhatsApp={() => openWhatsApp()}
+                                onPause={handlePause}
+                                onResume={handleResume}
                             />
                         )}
                     </>
@@ -652,6 +670,8 @@ function SubscriptionTab({
     saving,
     onSave,
     onWhatsApp,
+    onPause,
+    onResume
 }: {
     site: any;
     subscription: any;
@@ -665,6 +685,8 @@ function SubscriptionTab({
     saving: boolean;
     onSave: () => void;
     onWhatsApp: () => void;
+    onPause: () => void;
+    onResume: () => void;
 }) {
     return (
         <div className="max-w-2xl mx-auto space-y-6">
@@ -690,10 +712,12 @@ function SubscriptionTab({
                         <span className="text-white/70">Estado</span>
                         <span className={`px-3 py-1 rounded-full text-sm ${subscription?.status === 'trial' ? 'bg-yellow-500/20 text-yellow-400' :
                             subscription?.status === 'active' ? 'bg-green-500/20 text-green-400' :
+                            subscription?.status === 'paused' ? 'bg-orange-500/20 text-orange-400' :
                                 'bg-red-500/20 text-red-400'
                             }`}>
                             {subscription?.status === 'trial' ? `Trial (${Math.max(0, trialDaysLeft)} días)` :
                                 subscription?.status === 'active' ? 'Activo' :
+                                subscription?.status === 'paused' ? 'Pausado' :
                                     subscription?.status || 'Desconocido'}
                         </span>
                     </div>
@@ -795,6 +819,24 @@ function SubscriptionTab({
                     {saving ? <Spinner size="sm" /> : <Save className="w-5 h-5 mr-2" />}
                     Guardar Cambios
                 </Button>
+                {subscription?.status === 'paused' ? (
+                    <Button
+                        onClick={onResume}
+                        disabled={saving}
+                        className="bg-green-600 hover:bg-green-500 text-white h-12 px-6"
+                    >
+                        Reanudar
+                    </Button>
+                ) : (
+                    <Button
+                        onClick={onPause}
+                        disabled={saving}
+                        variant="destructive"
+                        className="h-12 px-6"
+                    >
+                        Pausar
+                    </Button>
+                )}
                 <Button
                     variant="outline"
                     onClick={onWhatsApp}

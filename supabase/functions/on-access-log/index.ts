@@ -264,8 +264,9 @@ async function checkFirstEntry(
             .insert({
                 site_id: siteId,
                 alert_type: 'first_entry',
+                title: 'Primera entrada del dia',
                 sent_at: new Date().toISOString(),
-                message: `Dedup lock: ${personName}`,
+                body: `Dedup lock: ${personName}`,
             })
 
         // If insert fails (another trigger already inserted), skip
@@ -381,7 +382,7 @@ async function checkMassEntry(supabase: any, siteId: string, settings: any): Pro
     // Count recent entries in the window
     const { data: recentEntries } = await supabase
         .from('access_logs')
-        .select('name_snapshot, contractor_snapshot, entry_method')
+        .select('name_snapshot, contractor_snapshot')
         .eq('site_id', siteId)
         .gte('entry_at', cutoff)
         .is('voided_at', null)
@@ -410,8 +411,9 @@ async function checkMassEntry(supabase: any, siteId: string, settings: any): Pro
         .insert({
             site_id: siteId,
             alert_type: 'mass_entry_wave_started',
+            title: 'Entrada masiva iniciada',
             sent_at: new Date().toISOString(),
-            message: `Wave started: ${count} entries`,
+            body: `Wave started: ${count} entries`,
         })
 
     if (dedupError) {
@@ -425,7 +427,6 @@ async function checkMassEntry(supabase: any, siteId: string, settings: any): Pro
     for (const e of recentEntries || []) {
         const c = e.contractor_snapshot || 'Sin contratista'
         byContractor[c] = (byContractor[c] || 0) + 1
-        if (e.entry_method === 'manual') manualCount++
     }
 
     const lines = Object.entries(byContractor)

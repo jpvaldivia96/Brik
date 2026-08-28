@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Spinner } from '@/components/ui/spinner';
-import { Settings, Save, Building2, LogOut, AlertTriangle, Play, RotateCcw } from 'lucide-react';
+import { Settings, Save, Building2, LogOut, AlertTriangle, Play, RotateCcw, Key } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 
 // Super usuarios que pueden resetear demos
@@ -28,6 +28,8 @@ export default function SettingsTab() {
   const [isOwner, setIsOwner] = useState(false);
   const [resettingDemo, setResettingDemo] = useState(false);
   const [simulating, setSimulating] = useState(false);
+  const [activationCode, setActivationCode] = useState('');
+  const [activating, setActivating] = useState(false);
 
   // Verificar si es super usuario Y está en la obra demo
   const isSuperUser = user?.email && SUPER_USER_EMAILS.includes(user.email);
@@ -216,6 +218,53 @@ export default function SettingsTab() {
     window.location.replace('/');
   };
 
+  const handleActivateCode = async () => {
+    if (!currentSite || !activationCode.trim()) return;
+    setActivating(true);
+    
+    try {
+      const { data: keyData, error: keyError } = await supabase
+        .from('license_keys')
+        .select('*')
+        .eq('code', activationCode.trim())
+        .maybeSingle();
+        
+      if (keyError) throw keyError;
+      if (!keyData) throw new Error('Código inválido o no existe.');
+      if (keyData.status !== 'available') throw new Error('Este código ya fue utilizado.');
+      
+      const { error: updateError } = await supabase
+        .from('license_keys')
+        .update({ 
+          status: 'redeemed', 
+          redeemed_by: currentSite.id, 
+          redeemed_at: new Date().toISOString() 
+        })
+        .eq('id', keyData.id);
+        
+      if (updateError) throw updateError;
+      
+      const { error: subError } = await supabase
+        .from('site_subscriptions')
+        .update({
+          plan: keyData.plan_tier,
+          status: 'active',
+          updated_at: new Date().toISOString()
+        })
+        .eq('site_id', currentSite.id);
+        
+      if (subError) throw subError;
+      
+      toast({ title: '¡Plan Activado!', description: `Se ha activado el plan ${keyData.plan_tier.toUpperCase()} exitosamente.` });
+      setActivationCode('');
+      await refreshSites();
+    } catch (e: any) {
+      toast({ title: 'Error activando código', description: e.message, variant: 'destructive' });
+    } finally {
+      setActivating(false);
+    }
+  };
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -241,6 +290,35 @@ export default function SettingsTab() {
             <Button onClick={handleSaveSiteInfo} disabled={saving} className="bg-gradient-to-r from-purple-500 to-blue-500 hover:from-purple-600 hover:to-blue-600">
               {saving ? <Spinner size="sm" className="mr-2" /> : <Save className="w-4 h-4 mr-2" />}
               Guardar
+            </Button>
+          </div>
+        </div>
+      )}
+
+      {/* Code Activation in Settings */}
+      {isOwner && (
+        <div className="rounded-2xl border border-purple-500/30 bg-gradient-to-br from-purple-500/10 to-blue-500/5 p-6 relative overflow-hidden">
+          <div className="absolute top-0 right-0 p-4 opacity-10">
+            <Key className="w-24 h-24" />
+          </div>
+          <h3 className="text-lg font-medium text-white flex items-center gap-2 mb-2">
+            <Key className="w-5 h-5 text-purple-400" />
+            Activar Licencia
+          </h3>
+          <p className="text-sm text-white/60 mb-4">Si recibiste o compraste un código de licencia (ej. BRIK-PRO-...), introdúcelo aquí para actualizar el plan de esta obra.</p>
+          <div className="flex gap-3 max-w-md">
+            <Input
+              value={activationCode}
+              onChange={(e) => setActivationCode(e.target.value.toUpperCase())}
+              placeholder="BRIK-PRO-XXXX-XXXX"
+              className="bg-black/40 border-white/10 text-white uppercase font-mono h-11 focus:border-purple-500/50"
+            />
+            <Button
+              onClick={handleActivateCode}
+              disabled={activating || !activationCode.trim()}
+              className="h-11 bg-purple-500 hover:bg-purple-600 text-white font-medium shadow-lg shadow-purple-500/20 px-6"
+            >
+              {activating ? <Spinner size="sm" /> : 'Activar'}
             </Button>
           </div>
         </div>

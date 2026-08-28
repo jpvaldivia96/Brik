@@ -110,10 +110,9 @@ async function callAI(prompt: string, json = false): Promise<string> {
     const openrouterKey = Deno.env.get('OPENROUTER_API_KEY')
     if (openrouterKey) {
         const models = [
-            'qwen/qwen3-30b-a3b:free',
-            'deepseek/deepseek-r1-0528:free',
-            'meta-llama/llama-4-maverick:free',
-            'google/gemma-3-27b-it:free',
+            'google/gemini-2.0-flash-lite-preview-02-05:free',
+            'meta-llama/llama-3.3-70b-instruct:free',
+            'deepseek/deepseek-r1:free',
         ]
         for (const model of models) {
             const result = await callOpenAICompatible(
@@ -128,7 +127,7 @@ async function callAI(prompt: string, json = false): Promise<string> {
     const groqKey = Deno.env.get('GROQ_API_KEY')
     if (groqKey) {
         console.log('[FALLBACK] Trying Groq...')
-        const models = ['llama-3.3-70b-versatile', 'llama-3.1-8b-instant']
+        const models = ['llama-3.3-70b-versatile', 'deepseek-r1-distill-llama-70b', 'llama-3.1-8b-instant']
         for (const model of models) {
             const result = await callOpenAICompatible(
                 'https://api.groq.com/openai/v1', groqKey, model,
@@ -290,19 +289,18 @@ ${recentContext ? `Recent conversation:\n${recentContext}\n\n` : ''}Classify the
 User message: "${message}"
 
 Return a JSON object with these fields:
-- "intent": "query" or "greeting" or "followup" or "report_csv" or "report_chart" or "report_full"
+- "intent": "query" or "greeting" or "followup"
 - "startDate": "YYYY-MM-DD" or null (hoy=${todayStr}, ayer=yesterday, esta semana=monday of current week)
 - "endDate": "YYYY-MM-DD" or null
 - "contractor": contractor name string or null
 - "name": person name string or null
 - "status": "inside" (who is currently inside) or "all" or null
 - "metric": "hours" or "count" or "list" or null
+- "attach_csv": true or false (true if user asks for details, names, list, csv, excel, or data export)
+- "attach_chart": true or false (true if user asks for chart, gráfico, resumen visual, or visualización)
 
 Intent rules:
-- If greeting (hola, gracias, etc), return: {"intent":"greeting"}
-- If user asks for CSV/excel/exportar/descargar datos, use "report_csv"
-- If user asks for gráfico/chart/visual/mostrar gráfico, use "report_chart"
-- If user asks for reporte completo/reporte/informe, use "report_full" (includes CSV + chart + text)
+- If greeting (hola, gracias, etc), return: {"intent":"greeting", "attach_csv": false, "attach_chart": false}
 - If it's a follow-up question, use "followup" and infer params from context.
 - For "quien esta adentro", use status:"inside" with no dates.
 - For "horas trabajadas", include dates and metric:"hours".
@@ -312,13 +310,21 @@ Intent rules:
         const rawJsonText = await callAI(classifyPrompt, true)
         console.log("Classification result:", rawJsonText)
         
-        const cleaned = rawJsonText.replace(/```json\s*/g, '').replace(/```\s*/g, '').trim()
+        let cleaned = rawJsonText;
+        // Strip <think> blocks (DeepSeek-R1)
+        cleaned = cleaned.replace(/<think>[\s\S]*?<\/think>/g, '');
+        // Extract just the JSON block if it's wrapped in markdown
+        const match = cleaned.match(/\{[\s\S]*\}/);
+        if (match) {
+            cleaned = match[0];
+        }
+        
         let queryParams: any
         try {
             queryParams = JSON.parse(cleaned)
         } catch (e) {
-            console.error("JSON parse error:", e.message, "Raw:", cleaned)
-            queryParams = { intent: 'query', status: 'inside' }
+            console.error("JSON parse error:", e.message, "Raw:", rawJsonText)
+            queryParams = { intent: 'query', status: 'all', attach_csv: false, attach_chart: false }
         }
 
         console.log("Query params:", queryParams)
@@ -333,7 +339,7 @@ Intent rules:
             )
         }
 
-        const isReport = ['report_csv', 'report_chart', 'report_full'].includes(queryParams.intent)
+        // Removed isReport declaration
 
         // 3. Build query
         let query = supabase
@@ -372,14 +378,15 @@ Intent rules:
 
         console.log(`Found ${logs?.length || 0} records`)
 
-        // 4. Build attachments for report intents
+        // 4. Build attachments based on explicit flags
         const attachments: any[] = []
 
-        if (isReport && logs && logs.length > 0) {
-            if (queryParams.intent === 'report_csv' || queryParams.intent === 'report_full') {
+        if (logs && logs.length > 0) {
+            // Auto-attach CSV if explicitly requested OR if returning more than 10 records (to be helpful)
+            if (queryParams.attach_csv || logs.length > 10) {
                 attachments.push(buildCsvAttachment(logs, siteName, queryParams))
             }
-            if (queryParams.intent === 'report_chart' || queryParams.intent === 'report_full') {
+            if (queryParams.attach_chart) {
                 attachments.push(...buildChartData(logs, queryParams))
             }
         }
@@ -406,9 +413,9 @@ Intent rules:
             `${m.role === 'user' ? 'Usuario' : 'Brix'}: ${m.content.substring(0, 500)}`
         ).join('\n')
 
-        const reportContext = isReport 
-            ? `\nEl usuario pidió un reporte. ${attachments.length > 0 ? 'Se adjuntarán archivos/gráficos automáticamente junto a tu respuesta. Menciona brevemente qué se adjunta.' : 'No hay datos para generar el reporte.'}`
-            : ''
+        const reportContext = attachments.length > 0
+            ? `\n¡IMPORTANTE! Ya se han adjuntado automáticamente ${attachments.length} archivo(s)/gráfico(s) a tu respuesta (CSV/gráficos). NO pidas disculpas por no poder adjuntarlos, porque el sistema ya los incluyó por ti. Simplemente menciona "Te adjunto los detalles / gráficos".`
+            : `\n¡IMPORTANTE! NO hay archivos ni gráficos adjuntos a tu respuesta. Si el usuario los pidió, y no hay datos, explica que no hay datos. NO digas "Te adjunto" si no hay archivos.`
 
         const responsePrompt = `Eres Brix, el asistente inteligente de BRIK — un sistema de control de acceso para obras de construcción.
 Obra: "${siteName}". Hoy: ${todayStr} ${timeStr}.
@@ -424,8 +431,8 @@ Instrucciones:
 - Si piden horas trabajadas, calcula diferencia entre Entrada y Salida. Si dice ADENTRO, calcula hasta ahora.
 - Usa **negritas** para números importantes.
 - Considera el contexto de la conversación previa para responder follow-ups coherentes.
-- Si hay attachments (CSV/gráficos), menciona brevemente: "Te adjunto el CSV con X registros" o "Aquí tienes el gráfico de asistencia".
-- NO inventes datos. Sé conciso.
+- Lee el "¡IMPORTANTE!" arriba sobre los adjuntos. Nunca digas que adjuntaste algo si el sistema dice que no hay adjuntos.
+- NO inventes datos. Sé conciso y analítico, brindando razonamiento de alta calidad.
 - Máximo 300 palabras.`
 
         console.log("Calling AI for response...")

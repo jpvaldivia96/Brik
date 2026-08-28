@@ -287,25 +287,28 @@ async function handleAdentro(supabase: any, chatId: string, ctx: UserContext) {
 
 // ─── /hoy ────────────────────────────────────────────────────────────────────
 
-async function handleHoy(supabase: any, chatId: string, ctx: UserContext) {
-    const todayStart = getTodayStartBolivia()
+async function handleHoy(supabase: any, chatId: string, ctx: UserContext, relativeDay: string = 'today') {
+    const { start, end } = getBoliviaDayRange(relativeDay)
 
     // Today's entries
     const { data: entries, count: entryCount } = await supabase
         .from('access_logs')
         .select('name_snapshot, contractor_snapshot, entry_at, exit_at', { count: 'exact' })
         .eq('site_id', ctx.siteId)
-        .gte('entry_at', todayStart)
+        .gte('entry_at', start)
+        .lte('entry_at', end)
         .is('voided_at', null)
         .order('entry_at', { ascending: true })
 
+    const dateLabel = relativeDay === 'today' ? 'Hoy' : relativeDay === 'yesterday' ? 'Ayer' : relativeDay
+
     if (!entries || entries.length === 0) {
-        await sendTG(chatId, `📅 *${ctx.siteName}* — Hoy\n\nAún no hay registros hoy.`)
+        await sendTG(chatId, `📅 *${esc(ctx.siteName)}* — ${dateLabel}\n\nNo hay registros para este día.`)
         return
     }
 
-    const exitCount = entries.filter((e: any) => e.exit_at).length
-    const insideCount = entries.filter((e: any) => !e.exit_at).length
+    const exitCount = entries.filter((e: any) => e.exit_at && e.exit_at <= end).length
+    const insideCount = entries.filter((e: any) => !e.exit_at || e.exit_at > end).length
     const uniqueWorkers = new Set(entries.map((e: any) => e.name_snapshot)).size
 
     // First and last entry
@@ -316,21 +319,21 @@ async function handleHoy(supabase: any, chatId: string, ctx: UserContext) {
     const contractors = new Set(entries.map((e: any) => e.contractor_snapshot).filter(Boolean))
 
     let msg = [
-        `📅 *${ctx.siteName}* — Resumen de Hoy\n`,
+        `📅 *${esc(ctx.siteName)}* — Resumen de ${dateLabel}\n`,
         `📥 Entradas: *${entryCount}*`,
         `📤 Salidas: *${exitCount}*`,
-        `👷 Adentro ahora: *${insideCount}*`,
+        relativeDay === 'today' ? `👷 Adentro ahora: *${insideCount}*` : `👷 Se quedaron adentro: *${insideCount}*`,
         `👤 Personas unicas: *${uniqueWorkers}*`,
         `🏗️ Contratistas: *${contractors.size}*`,
         ``,
         `⏰ Primera entrada: ${formatTime(first.entry_at)}`,
-        `   ${first.name_snapshot}${first.contractor_snapshot ? ` (${first.contractor_snapshot})` : ''}`,
+        `   ${esc(first.name_snapshot)}${first.contractor_snapshot ? ` (${esc(first.contractor_snapshot)})` : ''}`,
     ]
 
     if (entries.length > 1) {
         msg.push(
             `⏰ Ultima entrada: ${formatTime(last.entry_at)}`,
-            `   ${last.name_snapshot}${last.contractor_snapshot ? ` (${last.contractor_snapshot})` : ''}`,
+            `   ${esc(last.name_snapshot)}${last.contractor_snapshot ? ` (${esc(last.contractor_snapshot)})` : ''}`,
         )
     }
 
@@ -404,7 +407,7 @@ async function handleBuscar(supabase: any, chatId: string, ctx: UserContext, que
 
 // ─── /contratista <nombre> ───────────────────────────────────────────────────
 
-async function handleContratista(supabase: any, chatId: string, ctx: UserContext, query: string) {
+async function handleContratista(supabase: any, chatId: string, ctx: UserContext, query: string, relativeDay: string = 'today', detail: boolean = false) {
     if (!query) {
         // List all contractors with current count
         const { data: inside } = await supabase
@@ -426,9 +429,9 @@ async function handleContratista(supabase: any, chatId: string, ctx: UserContext
         }
 
         const sorted = [...counts.entries()].sort((a, b) => b[1] - a[1])
-        let lines = [`🏗️ *Contratistas en ${ctx.siteName}:*\n`]
+        let lines = [`🏗️ *Contratistas en ${esc(ctx.siteName)}:*\n`]
         for (const [name, count] of sorted) {
-            lines.push(`  • *${name}*: ${count} personas`)
+            lines.push(`  • *${esc(name)}*: ${count} personas`)
         }
         lines.push(`\n_Detalle: /contratista NombreContratista_`)
 
@@ -444,52 +447,57 @@ async function handleContratista(supabase: any, chatId: string, ctx: UserContext
         .ilike('contractor', `%${query}%`)
 
     if (!allPeople || allPeople.length === 0) {
-        await sendTG(chatId, `🏗️ No encontre contratista "${query}"`)
+        await sendTG(chatId, `🏗️ No encontre contratista "${esc(query)}"`)
         return
     }
 
-    // Check who's inside today
-    const todayStart = getTodayStartBolivia()
+    // Check who's inside / entered in the date range
+    const { start, end } = getBoliviaDayRange(relativeDay)
     const personIds = allPeople.map((p: any) => p.id)
 
-    const { data: todayLogs } = await supabase
+    const { data: rangeLogs } = await supabase
         .from('access_logs')
         .select('person_id, name_snapshot, entry_at, exit_at')
         .eq('site_id', ctx.siteId)
         .in('person_id', personIds)
-        .gte('entry_at', todayStart)
+        .gte('entry_at', start)
+        .lte('entry_at', end)
         .is('voided_at', null)
 
-    const presentIds = new Set((todayLogs || []).map((l: any) => l.person_id))
-    const insideNow = (todayLogs || []).filter((l: any) => !l.exit_at)
-    const absent = allPeople.filter((p: any) => !presentIds.has(p.id))
-
-    // Get contractor name from first match
+    const presentIds = new Set((rangeLogs || []).map((l: any) => l.person_id))
     const contractorName = query.toUpperCase()
+    const dateLabel = relativeDay === 'today' ? 'Hoy' : relativeDay === 'yesterday' ? 'Ayer' : relativeDay
+
+    const total = allPeople.length
+    const present = presentIds.size
+    const absent = total - present
 
     let lines = [
-        `🏗️ *${contractorName}* — ${ctx.siteName}\n`,
-        `👷 Total registrados: *${allPeople.length}*`,
-        `✅ Presentes hoy: *${presentIds.size}*`,
-        `🟢 Adentro ahora: *${insideNow.length}*`,
-        `❌ Ausentes: *${absent.length}*`,
+        `🏗️ *${esc(contractorName)}* — ${esc(ctx.siteName)} (${dateLabel})\n`,
+        `👷 *${present}* trabajadores presentes de *${total}* registrados (${absent} ausentes)`,
     ]
 
-    if (insideNow.length > 0) {
-        lines.push(`\n_Adentro ahora:_`)
-        for (const log of insideNow.slice(0, 8)) {
-            lines.push(`  • ${log.name_snapshot} _(${formatTime(log.entry_at)})_`)
+    if (present > 0) {
+        if (detail) {
+            lines.push(`\n*Horarios de ingreso/salida:*`)
+            for (const log of (rangeLogs || []).slice(0, 15)) {
+                const exitTime = log.exit_at && log.exit_at <= end ? ` - Salió ${formatTime(log.exit_at)}` : ''
+                lines.push(`  • *${esc(log.name_snapshot)}* _(Entró ${formatTime(log.entry_at)}${exitTime})_`)
+            }
+            if (rangeLogs.length > 15) lines.push(`  _...y ${rangeLogs.length - 15} más_`)
+        } else {
+            lines.push(`\n*Trabajadores presentes:*`)
+            const uniqueNamesInLogs = [...new Set((rangeLogs || []).map((l: any) => l.name_snapshot))]
+            for (const name of uniqueNamesInLogs.slice(0, 12)) {
+                lines.push(`  • ${esc(name)}`)
+            }
+            if (uniqueNamesInLogs.length > 12) {
+                lines.push(`  _... y ${uniqueNamesInLogs.length - 12} más_`)
+            }
+            lines.push(
+                `\n💡 Si quieres ver los horarios detallados de entrada/salida, pídeme las "horas" o "detalle" de este contratista.`
+            )
         }
-        if (insideNow.length > 8) lines.push(`  _...y ${insideNow.length - 8} mas_`)
-    }
-
-    if (absent.length > 0 && absent.length <= 10) {
-        lines.push(`\n_Ausentes hoy:_`)
-        for (const p of absent) {
-            lines.push(`  • ${p.full_name}`)
-        }
-    } else if (absent.length > 10) {
-        lines.push(`\n_Ausentes hoy: ${absent.slice(0, 5).map((p: any) => p.full_name).join(', ')}... y ${absent.length - 5} mas_`)
     }
 
     await sendTG(chatId, lines.join('\n'))
@@ -702,10 +710,15 @@ async function handleNatural(supabase: any, chatId: string, ctx: UserContext, te
 
     // Process with AI (multi-provider chain)
     try {
-        const prompt = `You are an AI assistant for a construction site gate access system. 
-Classify the user's input into one of these commands: 
+        const boliviaNow = new Date(Date.now() - 4 * 60 * 60 * 1000)
+        const todayDateStr = boliviaNow.toISOString().split('T')[0]
+        const dayOfWeekStr = boliviaNow.toLocaleDateString('es-BO', { weekday: 'long' })
+        const prompt = `You are an AI assistant for a construction site gate access system.
+Today is ${dayOfWeekStr}, ${todayDateStr} (Bolivia time).
+
+Classify the user's input into one of these commands:
 - /adentro (who is inside)
-- /hoy (today's summary)
+- /hoy (today's summary or summary of another day)
 - /buscar (search for a specific person, requires name)
 - /contratista (info about a specific contractor, requires name)
 - /favoritos (status of favorite people)
@@ -715,7 +728,7 @@ Classify the user's input into one of these commands:
 User Input: "${text}"
 
 Respond ONLY with a valid JSON object matching this schema, nothing else:
-{"command": "/command_name", "arg": "argument if required, or null"}
+{"command": "/command_name", "arg": "argument if required, or null", "date": "relative date like 'today', 'yesterday', or a specific date in 'YYYY-MM-DD' format if mentioned, resolved using today's date ${todayDateStr} (default is 'today')", "detail": false}
 `
 
         let resultText: string | null = null
@@ -811,14 +824,14 @@ Respond ONLY with a valid JSON object matching this schema, nothing else:
                 await handleAdentro(supabase, chatId, ctx)
                 break
             case '/hoy':
-                await handleHoy(supabase, chatId, ctx)
+                await handleHoy(supabase, chatId, ctx, parsed.date || 'today')
                 break
             case '/buscar':
                 if (parsed.arg) await handleBuscar(supabase, chatId, ctx, parsed.arg)
                 else await sendTG(chatId, "⚠️ Dime el nombre de quién quieres buscar.")
                 break
             case '/contratista':
-                if (parsed.arg) await handleContratista(supabase, chatId, ctx, parsed.arg)
+                if (parsed.arg) await handleContratista(supabase, chatId, ctx, parsed.arg, parsed.date || 'today', !!parsed.detail)
                 else await sendTG(chatId, "⚠️ Dime el nombre del contratista.")
                 break
             case '/favoritos':
@@ -843,6 +856,38 @@ Respond ONLY with a valid JSON object matching this schema, nothing else:
 }
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
+
+function getBoliviaDayRange(relativeDay: string): { start: string, end: string } {
+    const now = new Date()
+    // Bolivia = UTC-4
+    const boliviaOffset = -4 * 60
+    const boliviaNow = new Date(now.getTime() + (boliviaOffset + now.getTimezoneOffset()) * 60000)
+    
+    let targetDate = new Date(boliviaNow)
+    
+    if (relativeDay === 'yesterday') {
+        targetDate.setDate(targetDate.getDate() - 1)
+    } else if (relativeDay !== 'today') {
+        // Try parsing YYYY-MM-DD
+        const parsed = new Date(relativeDay + 'T00:00:00')
+        if (!isNaN(parsed.getTime())) {
+            targetDate = parsed
+        }
+    }
+    
+    const start = new Date(targetDate)
+    start.setHours(0, 0, 0, 0)
+    const startUTC = new Date(start.getTime() - (boliviaOffset + now.getTimezoneOffset()) * 60000)
+    
+    const end = new Date(targetDate)
+    end.setHours(23, 59, 59, 999)
+    const endUTC = new Date(end.getTime() - (boliviaOffset + now.getTimezoneOffset()) * 60000)
+    
+    return {
+        start: startUTC.toISOString(),
+        end: endUTC.toISOString()
+    }
+}
 
 function getTodayStartBolivia(): string {
     const now = new Date()

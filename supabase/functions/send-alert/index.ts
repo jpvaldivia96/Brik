@@ -272,33 +272,33 @@ async function sendTelegram(botToken: string, chatId: string, title: string, bod
         // Per-type Telegram templates — no emojis, bold titles
         switch (alertType) {
             case 'favorite_entry':
-                text = `<b>Favorito ingresó</b>\n\n`
-                    + `${data?.person_name || body}\n`
+                text = `<b>${data?.person_name || body} — ingresó</b>\n`
                     + (data?.contractor_name ? `${data.contractor_name}\n` : '')
-                    + `\n${siteName} — ${timestamp}`
+                    + `\n<i>⭐ Favorito</i>\n`
+                    + `${siteName} — ${timestamp}`
                 break
 
             case 'favorite_exit':
-                text = `<b>Favorito salió</b>\n\n`
-                    + `${data?.person_name || body}\n`
+                text = `<b>${data?.person_name || body} — salió</b>\n`
                     + (data?.contractor_name ? `${data.contractor_name}\n` : '')
-                    + `\n${siteName} — ${timestamp}`
+                    + `\n<i>⭐ Favorito</i>\n`
+                    + `${siteName} — ${timestamp}`
                 break
 
             case 'dependent_entry':
-                text = `<b>Dependiente ingresó</b>\n\n`
-                    + `${data?.person_name || body}\n`
+                text = `<b>${data?.person_name || body} — ingresó</b>\n`
                     + (data?.contractor_name ? `${data.contractor_name}\n` : '')
                     + (data?.time ? `Hora: ${data.time}\n` : '')
-                    + `\n${siteName}`
+                    + `\n<i>👤 Dependiente</i>\n`
+                    + `${siteName}`
                 break
 
             case 'dependent_exit':
-                text = `<b>Dependiente salió</b>\n\n`
-                    + `${data?.person_name || body}\n`
+                text = `<b>${data?.person_name || body} — salió</b>\n`
                     + (data?.contractor_name ? `${data.contractor_name}\n` : '')
                     + (data?.time ? `Hora: ${data.time}\n` : '')
-                    + `\n${siteName}`
+                    + `\n<i>👤 Dependiente</i>\n`
+                    + `${siteName}`
                 break
 
             case 'blocked_entry':
@@ -307,6 +307,15 @@ async function sendTelegram(botToken: string, chatId: string, title: string, bod
                     + (data?.contractor_name ? `${data.contractor_name}\n` : '')
                     + (data?.block_reason ? `Motivo: ${data.block_reason}\n` : '')
                     + `\n${siteName} — ${timestamp}`
+                break
+
+            case 'trust_warning':
+                const sevEmoji = data?.severity === 'grave' ? '🔴' : data?.severity === 'moderado' ? '🟠' : '🟡';
+                text = `<b>${sevEmoji} Alerta — Red de Seguridad</b>\n\n`
+                    + `<b>${data?.person_name || body}</b> tiene antecedentes:\n`
+                    + ((data?.reports || []) as any[]).map((r: any) => `• ${r.category || 'Incidente'}: ${r.reason}`).join('\n')
+                    + `\n\n<i>Fuente: Red de Seguridad BRIK</i>\n`
+                    + `${siteName} — ${timestamp}`
                 break
 
             case 'overtime':
@@ -477,12 +486,23 @@ serve(async (req) => {
             const { data: allNotifSettings } = await supabase.from('notification_settings').select('*')
             const { data: allUserPrefs } = await supabase.from('user_notification_preferences').select('*')
             const { data: allAlertSettings } = await supabase.from('alert_settings').select('*')
+            
+            // Fetch recent logs, alerts, and favorites
+            const { data: recentLogs } = await supabase.from('access_logs').select('id, entry_at, name_snapshot, contractor_snapshot, voided_at, site_id').order('entry_at', { ascending: false }).limit(20)
+            const { data: recentAlerts } = await supabase.from('alert_history').select('*').order('sent_at', { ascending: false }).limit(20)
+            const { data: favorites } = await supabase.from('favorites').select('*').limit(20)
+            const { data: siteEntryPatterns } = await supabase.from('site_entry_patterns').select('*').limit(20)
+
             return new Response(JSON.stringify({
                 sites: allSites,
                 memberships: allMemberships,
                 notification_settings: allNotifSettings,
                 user_prefs: allUserPrefs,
                 alert_settings: allAlertSettings,
+                recent_logs: recentLogs,
+                recent_alerts: recentAlerts,
+                favorites: favorites,
+                site_entry_patterns: siteEntryPatterns,
             }, null, 2), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } })
         }
 
@@ -799,7 +819,12 @@ serve(async (req) => {
             .maybeSingle()
 
         // Skip shared channels for per-user alerts (favorites, dependents)
-        const isSharedChannelAlert = !(data?.target_user_ids && Array.isArray(data.target_user_ids) && data.target_user_ids.length > 0)
+        const isPerUserAlert = (data?.target_user_ids && Array.isArray(data.target_user_ids) && data.target_user_ids.length > 0) ||
+                               alert_type === 'dependent_entry' ||
+                               alert_type === 'dependent_exit' ||
+                               alert_type === 'favorite_entry' ||
+                               alert_type === 'favorite_exit';
+        const isSharedChannelAlert = !isPerUserAlert;
 
         if (notifSettings?.slack_webhook_url && isSharedChannelAlert) {
             const ok = await sendSlackWebhook(notifSettings.slack_webhook_url, title, body, siteName, alert_type)

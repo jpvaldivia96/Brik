@@ -33,7 +33,8 @@ type Feature =
   | 'geofencing'
   | 'worker_passport'
   | 'digital_induction'
-  | 'work_permits';
+  | 'work_permits'
+  | 'trust_database';
 
 type PlanLevel = 'free' | 'starter' | 'pro' | 'enterprise';
 
@@ -61,6 +62,7 @@ const FEATURE_PLAN_MAP: Record<Feature, PlanLevel> = {
   weekly_summary: 'pro',
   audit_log: 'pro',
   statistics: 'pro',
+  trust_database: 'pro',
 
   // Enterprise features
   multi_site: 'enterprise',
